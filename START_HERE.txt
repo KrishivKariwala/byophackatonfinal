@@ -1,0 +1,24 @@
+SAVE A PLATE (demo build) - how to run it
+==========================================
+
+1. Install Node.js 20 or newer (22 LTS recommended): https://nodejs.org
+2. Open a terminal in this folder and run:
+
+       ./launch.sh
+
+   (If it says "permission denied": chmod +x launch.sh, then run it again.)
+   The first run installs packages and builds the app (a few minutes).
+   A private SESSION_SECRET is generated for you in .env.local.
+
+3. Open http://localhost:3000 and go to /signin. Click a persona, no password.
+   New accounts use the simulated OTP 123456.
+
+Windows: use WSL, or run these instead:
+       npm ci
+       copy .env.example .env.local   (then set SESSION_SECRET to a long random string)
+       npm run build
+       npm start
+
+Full details, test commands and the five-minute walkthrough: README.md
+
+This is a DEMO. All businesses, people and payments are fictional or simulated.

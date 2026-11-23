@@ -1,0 +1,43 @@
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+/*
+ * Official editorial/display faces are "The Seasons" and "Chunko Bold" (see reference/font-assets-manifest.md).
+ * Their files were not supplied in this workspace. The @font-face blocks below are wired to public/fonts/ with the
+ * exact names from the manifest (public/fonts/official-fonts.css, linked from app/layout.tsx only when the files exist):
+ * drop the licensed files there and they take over automatically.
+ * Until then the clearly-labelled stand-ins Cormorant Garamond and Bagel Fat One render instead.
+ */
+@import "@fontsource/cormorant-garamond/600.css";
+@import "@fontsource/cormorant-garamond/600-italic.css";
+@import "@fontsource/cormorant-garamond/700.css";
+@import "@fontsource/bagel-fat-one/400.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-canvas text-ink font-sans antialiased; }
+  :focus-visible { outline: 3px solid #CB0001; outline-offset: 2px; }
+}
+
+@layer components {
+  .tile { transition: transform .25s cubic-bezier(.2,.9,.3,1.3), box-shadow .25s ease; }
+  .tile:hover { transform: translateY(-8px) rotate(0deg) scale(1.02); }
+  .tile:active { transform: translateY(6px) scale(.99); }
+  @media (prefers-reduced-motion: reduce) { .tile, .tile * { transition: none !important; } }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 min-h-[44px]; }
+  .btn-primary { @apply btn bg-tomato text-white hover:bg-burgundy; }
+  .btn-outline { @apply btn border-2 border-tomato text-tomato hover:bg-cream; }
+  .btn-quiet { @apply btn border border-line bg-white text-ink hover:bg-sand; }
+  .card { @apply rounded-2xl bg-white shadow-[0_1px_0_rgba(42,10,10,0.06)]; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold; }
+  .input { @apply w-full rounded-xl border-2 border-line bg-white px-3 py-2.5 text-[15px] font-medium text-ink outline-none focus:border-tomato; }
+  .label { @apply flex flex-col gap-1 text-xs font-semibold text-muted; }
+  .eyebrow { @apply text-xs font-semibold uppercase tracking-[0.14em]; }
+  .display { @apply font-display font-normal tracking-[0.01em]; }
+  .editorial { @apply font-editorial font-semibold; }
+}

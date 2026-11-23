@@ -1,0 +1,8 @@
+/* Official SAVE A PLATE faces. Linked automatically by app/layout.tsx when the files exist in public/fonts/. */
+@font-face { font-family: "The Seasons"; src: url("/fonts/the-seasons-light.otf") format("opentype"); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: "The Seasons"; src: url("/fonts/the-seasons-regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "The Seasons"; src: url("/fonts/the-seasons-bold.otf") format("opentype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "The Seasons"; src: url("/fonts/the-seasons-light-italic.otf") format("opentype"); font-weight: 300; font-style: italic; font-display: swap; }
+@font-face { font-family: "The Seasons"; src: url("/fonts/the-seasons-italic.otf") format("opentype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "The Seasons"; src: url("/fonts/the-seasons-bold-italic.otf") format("opentype"); font-weight: 700; font-style: italic; font-display: swap; }
+@font-face { font-family: "Chunko Bold"; src: url("/fonts/chunko-bold.otf") format("opentype"); font-weight: 400 700; font-style: normal; font-display: swap; }

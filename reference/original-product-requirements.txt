@@ -1,0 +1,552 @@
+Food Rescue Marketplace — PRD
+23 Nov 2026 · @ai team 10
+1. Summary and problem
+RescueBite (working name) is a hyperlocal, two-sided marketplace. Restaurants and bakeries list same-day surplus food at 50–70% off. Nearby customers reserve it and pick it up in a set window. Food left unclaimed late in the day goes to verified charities for free. MVP target: 1 city (Bengaluru), 300 vendors, 15,000 rescued meals a month within 6 months of launch.
+The problem. India discards an estimated 78.1 million tonnes of food a year, about 55 kg per person in households alone (UNEP Food Waste Index 2024 via Statista). Food service is the second-largest source. A bakery or restaurant typically has 5–15% of daily prep left at closing. Today that food is binned, given informally to staff, or given away with no tracking.
+Analysis of the brief. The statement names five capabilities. Each hides a harder problem underneath:
+Capability in brief
+What it really requires
+Why it is hard
+Surplus listing at discount
+A listing flow that takes a busy kitchen under 30 seconds
+Surplus is only known 1–2 hours before close; staff won't fill long forms
+Nearby customers and charities
+Two demand channels with different rules: paid (customers) and free (charities)
+Charities must not cannibalise paid sales; customers must not resell
+Live availability
+Real-time stock counts pushed to every viewer
+Overselling destroys trust; vendors under-report if counts are hard to edit
+Reservations
+Short holds, payment capture, cancellation and no-show rules
+No-shows leave the vendor with food and no money
+Pickup tracking
+A verifiable handover (QR / 4-digit code) plus window reminders
+Proves the handover, settles disputes, closes the order
+Vendor dashboards
+Today's operations plus impact and earnings reporting
+Must be usable on a counter tablet mid-service
+Core design decisions. (1) Two listing types: Surprise Bag (fast, contents vary) and Itemised (named dishes, exact counts). (2) Pay at reservation, not at pickup, to cut no-shows. (3) A charity cascade: unreserved items auto-offer to charities 45 minutes before the pickup window closes. (4) Pickup only in MVP; no delivery, which keeps cost and food-safety risk low.
+2. Goals, non-goals and success metrics
+The north-star metric is meals rescued per week (paid pickups + charity pickups that completed handover).
+Goals (MVP, first 6 months)
+1.  Vendors recover revenue on food that would otherwise be binned.
+2.  Customers get good food at 50–70% off within 3 km of them.
+3.  Charities get reliable, scheduled access to food that would otherwise go unsold.
+4.  Every rescued meal is counted and reported as impact (kg food, kg CO2e).
+Non-goals (MVP)
+• Delivery or courier logistics
+• Grocery and supermarket chains (phase 2)
+• Cooked food older than the same service day
+• Customer-to-customer resale or sharing
+Metric
+Definition
+6-month target
+Meals rescued / week
+Completed handovers (paid + charity)
+3,500
+Sell-through rate
+Units reserved ÷ units listed
+≥ 75%
+Charity rescue share
+Charity-claimed units ÷ units not sold to customers
+≥ 60%
+Pickup completion
+Completed ÷ reserved
+≥ 92%
+No-show rate
+Reservations not collected in window
+≤ 5%
+Vendor weekly active
+Vendors listing ≥ 3 days/week
+≥ 65%
+Time to list
+Median seconds from "New listing" to live
+≤ 30 s
+Customer repeat (30-day)
+Customers with ≥ 2 orders in 30 days
+≥ 40%
+Rating
+Average post-pickup rating
+≥ 4.4 / 5
+Oversell incidents
+Reservations a vendor could not fulfil
+< 0.5% of orders
+3. Personas
+Four roles share one platform: two apps (customer, vendor) plus a charity mode and an admin console.
+Persona
+Who
+Job to be done
+Key pain today
+Surface
+Priya, budget-conscious customer
+26, works in Koramangala, orders in 4–5 times a week
+"Get a good dinner on my way home without paying full price"
+Delivery apps are expensive; doesn't know which nearby shops have leftovers
+Customer app (mobile)
+Ravi, bakery owner
+Runs 2 outlets, 40–60 items unsold daily
+"Recover cost on today's unsold stock in under a minute"
+Bins ₹1,500–3,000 of stock a day; no time for extra admin
+Vendor app (tablet/mobile) + web dashboard
+Anita, restaurant manager
+Mid-size North Indian restaurant, buffet surplus
+"Move surplus trays safely and prove we donate"
+Worried about food-safety liability and brand image of "discount" food
+Vendor app + web dashboard
+Joseph, NGO coordinator
+Runs a shelter feeding 80 people nightly
+"Know by 8 pm how much food I can collect tonight"
+Ad-hoc WhatsApp donations; wasted trips to empty kitchens
+Charity mode (mobile)
+Ops admin
+Platform operations team
+Onboard and verify vendors, resolve disputes, watch food safety
+—
+Admin console (web)
+4. Features by persona
+P0 ships in the MVP, P1 within 3 months of launch, P2 is later. All P0 features below are required for the end-to-end loop: list → discover → reserve → pay → pick up → settle.
+Customer app
+Feature
+Description
+Priority
+Phone OTP sign-up
+Phone + OTP, location permission, dietary prefs (veg / non-veg / Jain / egg-free)
+P0
+Discover feed + map
+Listings within a chosen radius (1–10 km), sorted by distance and pickup time; map toggle
+P0
+Filters
+Veg only, category (bakery, meals, desserts), pickup window, price, rating
+P0
+Live availability
+"3 left" counters update in real time; sold-out cards grey out instantly
+P0
+Listing detail
+Photos, original vs rescue price, allergens, "best before", pickup window, vendor rating
+P0
+Reserve + pay
+Choose quantity, pay via UPI / card / wallet; inventory held for 5 min during checkout
+P0
+Pickup pass
+QR code + 4-digit code, countdown to window, directions, "I'm on my way"
+P0
+Order tracking
+Status timeline: Reserved → Being packed → Ready → Collected
+P0
+Notifications
+Reservation confirmed, window opens, 15-min reminder, ready, cancelled
+P0
+Rate and report
+1–5 rating, tags, report a food-quality issue with photo
+P0
+Favourites + alerts
+Follow a vendor; push alert when it lists
+P1
+Impact profile
+Meals rescued, ₹ saved, kg CO2e avoided; shareable badge
+P1
+Waitlist
+Join waitlist on sold-out listings; auto-offer on cancellation
+P1
+Rescue subscriptions
+Weekly pre-booked bag from a favourite vendor
+P2
+Vendor app and dashboard
+Feature
+Description
+Priority
+Onboarding + KYC
+FSSAI licence upload, GSTIN (optional), bank/UPI payout, store hours, photos; admin verification
+P0
+Quick list
+Template-based listing in ≤ 30 s: pick template, set count, set window, publish
+P0
+Itemised + Surprise Bag listings
+Named items with exact count, or mixed bag with estimated value
+P0
+Smart pricing hint
+Suggested rescue price (default 60% off, floor ₹49)
+P0
+Live inventory controls
++/− stock, pause, end early; changes propagate to customers in < 2 s
+P0
+Today's orders board
+Columns: Reserved → Packed → Collected / No-show; one tap to mark packed
+P0
+Handover scan
+Scan customer QR or type 4-digit code to confirm pickup
+P0
+Charity cascade settings
+Auto-offer unsold stock to charities X minutes before close; preferred NGOs
+P0
+Earnings + payouts
+Daily sales, commission, payout schedule (T+2), downloadable statements
+P0
+Impact report
+Meals, kg, CO2e rescued per week/month; donation certificates (CSR/ESG)
+P1
+Recurring schedules
+Auto-publish the same listing every day at a set time
+P1
+Multi-outlet + staff roles
+Owner vs counter staff permissions across outlets
+P1
+Demand insights
+Sell-through by item, time and day; suggested quantities
+P2
+POS integration
+Auto-create listings from POS end-of-day stock
+P2
+Charity mode
+Feature
+Description
+Priority
+Verified NGO onboarding
+Registration certificate (12A/80G or trust deed), contact person, capacity, service area
+P0
+Donation feed
+Free offers from the charity cascade, nearest first, with quantity and collection deadline
+P0
+Claim + collect
+Claim all or part; same QR handover as customers
+P0
+Standing arrangements
+Recurring daily collection from a specific vendor
+P1
+Capacity signals
+NGO sets how many meals it can take tonight
+P1
+Admin console
+Feature
+Description
+Priority
+Vendor and NGO verification queue
+Review documents, approve / reject with reason
+P0
+Order and dispute management
+Search orders, refund, credit, ban
+P0
+Food-safety incident log
+Reports by vendor, auto-suspend at threshold
+P0
+City and radius config
+Launch zones, commission rates, cascade defaults
+P0
+Analytics
+GMV, meals rescued, sell-through, cohort retention
+P1
+5. User flows
+The loop has three lanes that meet at one moment: the vendor scanning the pickup QR. That scan closes the order for paid and charity pickups alike, and triggers payout and impact counting.
+Customer flow, step by step
+1.  Open app → feed shows listings within 3 km, sorted by pickup time.
+2.  Filter (e.g. Veg, Bakery, pickup after 8 pm) → open a listing.
+3.  Pick quantity → stock is held for 5 min → pay by UPI.
+4.  Get pickup pass (QR + 4-digit code) and a calendar-style countdown.
+5.  Reminder when the window opens and 15 min before it ends.
+6.  Tap "I'm on my way" → walk in → show QR → vendor scans.
+7.  Order shows "Collected" → rate the food → impact profile updates.
+Vendor flow, step by step
+1.  Around 1–2 hours before close, tap "Quick list" on the tablet.
+2.  Choose a template (e.g. "Evening Bread Box") → set quantity → confirm window → Publish.
+3.  Reservations arrive with a sound alert and appear in the Reserved column.
+4.  Pack each order, label it with the customer's first name and code → tap Packed.
+5.  Customer arrives → scan QR or type code → order moves to Collected.
+6.  At T−45 min, unsold units offer automatically to NGOs; NGO collects with the same scan.
+7.  End of day: summary of units sold, donated, revenue and payout date.
+Charity flow, step by step
+1.  NGO gets a push: "6 meals available at Ravi's Bakery, collect by 9:30 pm".
+2.  Claims all or part → receives a collection pass.
+3.  Volunteer collects → vendor scans → donation record issued to both sides.
+Edge cases the flows must handle
+• Customer late or no-show → grace of 15 min, then No-show; vendor keeps payment; unit can go to charity.
+• Vendor runs out after reservations → vendor picks which orders to cancel; auto-refund + apology credit.
+• Payment succeeds but app crashes → idempotent callback still creates the reservation; pass appears on next open.
+• Vendor tablet offline → scans queue locally and sync within 10 min.
+6. Functional requirements
+Each requirement has an ID for traceability into tickets and QA.
+6.1 Listings
+• FR-L1 A listing has: type (Itemised / Surprise Bag), title, photo (optional for bags), original price, rescue price, quantity, veg/non-veg flag, allergens, prepared-at time, pickup window (start, end), pickup instructions.
+• FR-L2 Rescue price must be ≤ 50% of original price and ≥ ₹49. The system blocks publishing outside these limits.
+• FR-L3 Pickup window must start ≥ 15 min after publish, last 30–180 min, and end before the store's closing time + 30 min.
+• FR-L4 Cooked meals must have a prepared-at time within the same service day. Listings expire automatically at window end.
+• FR-L5 Vendors can save up to 20 templates. A template prefills everything except quantity and window.
+6.2 Live availability
+• FR-A1 Available quantity = listed − reserved − held. It is the single source of truth, stored server-side.
+• FR-A2 Changes to quantity reach all open clients within 2 s (p95) through WebSocket, with polling fallback every 15 s.
+• FR-A3 Reservation uses an atomic decrement; it can never take available quantity below 0.
+• FR-A4 If a vendor reduces stock below reserved quantity, the system asks which reservations to cancel and refunds them automatically.
+6.3 Reservations and payment
+• FR-R1 Checkout holds stock for 5 min. Unpaid holds are released automatically.
+• FR-R2 Payment is captured at reservation through UPI, cards or wallets via a payment gateway (e.g. Razorpay).
+• FR-R3 Maximum 4 units per listing per customer, to deter resale.
+• FR-R4 Customer can cancel for a full refund until 60 min before window start. Later cancellation gets a 50% platform credit.
+• FR-R5 Vendor cancellation always refunds 100% and counts against the vendor's reliability score.
+• FR-R6 No-show (not collected by window end + 15 min grace): no refund, vendor is paid, food may go to charity.
+6.4 Pickup tracking and handover
+• FR-P1 Each reservation gets a pickup pass with a QR code and a 4-digit code.
+• FR-P2 Order states: Reserved → Packed → Ready → Collected, or Cancelled / No-show. Every change notifies the customer.
+• FR-P3 The customer can tap "I'm on my way"; the vendor sees an ETA badge (approximate, from location if shared).
+• FR-P4 Handover is confirmed only by the vendor scanning the QR or entering the code. This closes the order and starts settlement.
+• FR-P5 If the vendor is closed or the food is missing, the customer can raise "Couldn't collect" from the pass for a full refund after admin review.
+6.5 Charity cascade
+• FR-C1 At T−45 min before window end (vendor-configurable 15–120 min), unreserved units are offered free to verified NGOs within 5 km.
+• FR-C2 Preferred NGOs get first refusal for 10 min, then the offer opens to all eligible NGOs.
+• FR-C3 Once claimed, units are removed from the customer feed.
+• FR-C4 Charity handover uses the same QR flow; the vendor receives a donation record per collection.
+6.6 Vendor dashboard
+• FR-V1 Home shows today: live listings, units left, orders by state, next pickups in the coming 30 min, revenue today.
+• FR-V2 Orders board updates in real time and works offline for 10 min, syncing scans when back online.
+• FR-V3 Earnings: gross sales, commission, refunds, net payout, payout date; CSV export.
+• FR-V4 Impact: meals rescued, kg food (default 0.4 kg per meal unless vendor overrides), kg CO2e (2.5 kg per kg food, configurable).
+6.7 Notifications
+Event
+Customer
+Vendor
+NGO
+New reservation
+Confirmation + pass
+Push + sound on tablet
+—
+Window opens
+Push
+—
+—
+15 min before window end
+Reminder push
+List of uncollected
+—
+Charity cascade starts
+—
+Summary
+Push with offer
+Order cancelled
+Push + refund note
+Push
+Push (if claim)
+Followed vendor lists
+Push (P1)
+—
+—
+7. State machines and business rules
+Reservations move through five states; only the vendor's QR scan reaches Collected. The three dashed exits are terminal.
+Listing lifecycle
+State
+Enters when
+Visible to
+Exits to
+Draft
+Vendor starts a listing or template
+Vendor
+Scheduled, Live
+Scheduled
+Publish time set in the future (recurring)
+Vendor
+Live
+Live
+Published and window not ended
+Customers
+Sold out, Charity offer, Closed
+Sold out
+Available quantity hits 0
+Customers (greyed)
+Live (if stock freed by cancellation)
+Charity offer
+T−45 min with units left
+NGOs only
+Claimed, Closed
+Closed
+Window end, vendor ends early, or all units claimed
+Vendor (history)
+—
+Business rules summary
+Rule
+Value
+Minimum discount
+50% off original price
+Minimum rescue price
+₹49
+Checkout hold
+5 min
+Max units per customer per listing
+4
+Free cancellation cut-off
+60 min before window start
+No-show grace
+15 min after window end
+Charity cascade start
+45 min before window end (vendor sets 15–120)
+Preferred-NGO first refusal
+10 min
+Payout
+T+2 working days, via UPI/bank
+Customer no-show penalty
+3 in 30 days → 7-day pause
+8. Architecture and data model
+A modular backend behind one API gateway, with a WebSocket hub pushing stock changes. The inventory service owns every stock count, which is what prevents oversell.
+Suggested stack: React Native (customer + vendor apps), Next.js (vendor web dashboard, admin), Node.js/TypeScript or Go services, PostgreSQL + PostGIS, Redis, a managed queue (SQS / Pub/Sub), Razorpay for payments and payouts (Route), Firebase Cloud Messaging + SMS fallback, Google Maps Platform.
+Core data model
+Entity
+Key fields
+Relations
+User
+id, phone, role (customer / vendor_staff / ngo / admin), diet prefs, home location
+has Orders, Ratings
+Vendor
+id, name, FSSAI no., GSTIN, geo point, hours, payout account, reliability score, status
+has Outlets, Listings
+Outlet
+id, vendor_id, address, geo point, pickup instructions
+has Listings
+ListingTemplate
+id, outlet_id, title, type, default price, allergens, photo
+creates Listings
+Listing
+id, outlet_id, type, title, original_price, rescue_price, qty_total, qty_available, veg flag, allergens, prepared_at, window_start, window_end, state
+has Reservations, CharityOffers
+Reservation
+id, listing_id, user_id, qty, amount, state, pickup_code, qr_token, collected_at
+has Payment, Rating
+Payment
+id, reservation_id, gateway_ref, status, refund_amount
+belongs to Reservation
+Charity (NGO)
+id, reg. certificate, capacity, service radius, verified_at
+has CharityClaims
+CharityOffer / Claim
+id, listing_id, qty, ngo_id, state, collected_at
+issues DonationRecord
+Payout
+id, vendor_id, period, gross, commission, net, status
+covers Reservations
+ImpactLedger
+id, source (reservation / claim), meals, kg_food, kg_co2e
+rolls up per user, vendor, city
+Key API endpoints (MVP)
+Method
+Endpoint
+Purpose
+GET
+/listings?lat&lng&radius&filters
+Discover feed
+POST
+/listings
+Vendor publishes a listing
+PATCH
+/listings/{id}/stock
+Vendor adjusts stock
+POST
+/reservations
+Create hold (returns hold expiry)
+POST
+/payments/webhook
+Gateway callback → confirm reservation (idempotent)
+POST
+/reservations/{id}/collect
+Vendor scan or code → Collected
+POST
+/charity-offers/{id}/claim
+NGO claims units
+WS
+/live/outlet/{id}, /live/area/{geohash}
+Real-time stock and order events
+9. Non-functional requirements, food safety and trust
+Area
+Requirement
+Performance
+Feed loads in < 1.5 s p95 on 4G; availability updates < 2 s p95
+Availability
+99.9% monthly for reservation and handover APIs, especially 6–10 pm peak
+Scale (MVP)
+300 vendors, 50k customers, 1,500 concurrent users at peak, 10 reservations/s burst
+Consistency
+Zero oversell: atomic stock decrement with idempotent payment callbacks
+Offline
+Vendor handover scan works offline for 10 min and syncs later
+Security
+OTP auth, JWT with refresh, role-based access, PCI handled by gateway; no card data stored
+Privacy
+Compliant with India's DPDP Act 2023: consent for location, data minimisation, deletion on request
+Accessibility
+WCAG 2.1 AA; supports English, Hindi, Kannada in MVP
+Observability
+Tracing on reserve/pay/handover; alerts on oversell, payment failure > 2%, WebSocket drop
+Food safety (must-have before launch)
+• Every vendor must hold a valid FSSAI licence or registration, checked at onboarding and re-checked on expiry.
+• Listings show prepared-at time, allergens and storage note ("keep refrigerated", "eat within 4 hours").
+• Cooked food can only be listed for the same service day; high-risk items (dairy desserts, seafood, rice dishes) have a 4-hour maximum listing age.
+• NGO donations follow FSSAI's surplus food guidance; vendor and NGO accept a donation declaration at onboarding.
+• Three verified food-quality reports in 30 days auto-pauses a vendor pending admin review.
+• Terms make clear the vendor remains the food business operator; the platform is an intermediary.
+Trust and abuse controls
+• Per-customer purchase cap (FR-R3) and device fingerprinting to stop bulk resale.
+• Vendor reliability score (cancellations, oversell, ratings) shown to admin; low scores lose feed ranking.
+• Customers with 3 no-shows in 30 days need to prepay a deposit or are paused for 7 days.
+• Two-way ratings: vendors can flag abusive customers.
+10. Business model and unit economics
+Revenue comes from a commission per paid order, with free sign-up and no fees on charity donations. The model mirrors proven surplus marketplaces: Too Good To Go charges partners an annual fee plus a commission per bag (Too Good To Go FAQ); in the UK that is a fixed fee under £4.40 and 25% above it (Startups.co.uk). RescueBite drops the annual fee to lower the barrier for small Indian vendors.
+Revenue line
+Rate
+Notes
+Commission on paid orders
+20% of rescue price (min ₹15)
+Charged to vendor, deducted from payout
+Customer convenience fee
+₹5 per order
+Covers payment gateway cost (~2%)
+Vendor Pro plan (P1)
+₹499 / month
+Recurring schedules, multi-outlet, insights, ESG certificates
+Corporate CSR sponsorship (P2)
+Custom
+Companies fund free meals routed to NGOs
+Illustrative order: Bakery box worth ₹450, rescue price ₹180. Customer pays ₹185. Vendor receives ₹144 (₹180 − ₹36 commission) for food that would have earned ₹0. Platform earns ₹36 + ₹5 − ~₹4 gateway = ~₹37 gross margin per order.
+Assumption: at 300 vendors × 8 paid orders/day × 30 days = 72,000 orders/month, gross margin is about ₹26.6 lakh/month. These figures are planning estimates to validate in the pilot.
+11. Release plan
+A 12-week MVP build, an 8-week invite-only pilot, then city-wide launch. Supply goes in before demand: vendors are onboarded before customers are invited.
+Team for the MVP: 1 PM, 1 designer, 2 mobile engineers, 2 backend engineers, 1 QA, 1 vendor-ops lead, 2 field sales for vendor onboarding. Dates assume the build starts in December 2026.
+12. Risks, mitigations and open questions
+Risk
+Likelihood
+Impact
+Mitigation
+Food-safety incident damages trust
+Medium
+High
+FSSAI checks, listing-age limits, auto-pause on reports, incident playbook, liability insurance
+Vendors fear brand cannibalisation ("why pay full price?")
+High
+Medium
+Late windows only (after peak), Surprise Bags hide specific items, show new-customer acquisition data
+Low supply in early days → empty feed
+High
+High
+Launch in 3 dense neighbourhoods, onboard 100 vendors before customer launch, "Notify me" when empty
+Oversell / inaccurate stock
+Medium
+High
+Atomic inventory, one-tap +/−, vendor reliability score
+No-shows
+Medium
+Medium
+Prepay, reminders, no-show penalties, charity fallback
+Resale by bulk buyers
+Low
+Medium
+Purchase caps, device fingerprinting, pattern detection
+Charity cascade undercuts paid sales
+Medium
+Medium
+Cascade only in last 45 min; customers can't see charity offers
+Open questions
+[ ] Should Surprise Bag photos be mandatory to improve conversion, at the cost of slower listing?
+[ ] Do we let NGOs request specific food types (e.g. veg only) or accept anything?
+[ ] Commission: flat 20% or tiered by vendor volume?
+[ ] Which payment gateway: Razorpay vs Cashfree (UPI success rate and payout speed)?
+[ ] Do we need a liability waiver for donations beyond FSSAI's surplus food guidance?
+[ ] Pilot city: Bengaluru vs Pune (vendor density vs competition)?
+Sources
+• Statista: annual household food waste by country (UNEP Food Waste Index 2024)
+• UNEP Food Waste Index Report 2024
+• Too Good To Go business FAQ
+• Startups.co.uk: zero-waste food apps for cafés
+Product mockups (customer app, charity mode and vendor dashboard): RescueBite — Product Mockups.
