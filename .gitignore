@@ -8,3 +8,5 @@ tsconfig.tsbuildinfo
 next-env.d.ts
 test-results
 data/uploads
+.DS_Store
+**/.DS_Store
