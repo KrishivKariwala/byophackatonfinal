@@ -41,3 +41,6 @@
   .display { @apply font-display font-normal tracking-[0.01em]; }
   .editorial { @apply font-editorial font-semibold; }
 }
+
+/* Opening animation: hidden for returning visitors / reduced motion (attribute is set before first paint, see app/layout.tsx) */
+html[data-sap-intro] .intro-root { display: none !important; }

@@ -19,8 +19,15 @@ const hasOfficialFonts = OFFICIAL_FONTS.some((f) => fs.existsSync(path.join(proc
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-IN">
+    <html lang="en-IN" suppressHydrationWarning>
       <head>
+        {/* Opening animation gate: runs before first paint so returning visitors never see the intro overlay flash.
+            Skipped when already played this session or when the visitor prefers reduced motion. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(sessionStorage.getItem("sap-intro-seen")||matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-sap-intro","skip")}catch(e){}`,
+          }}
+        />
         {/* eslint-disable-next-line @next/next/no-css-tags -- conditional, only when licensed font files exist */}
         {hasOfficialFonts && <link rel="stylesheet" href="/fonts/official-fonts.css" />}
       </head>
