@@ -56,8 +56,8 @@ alter table impact_events add constraint impact_events_source_check check (sourc
 -- notifications become typed (user_id, type, payload, sent_at, read_at); old rows keep working
 alter table notifications add column type notification_type not null default 'generic',
   add column payload jsonb not null default '{}', add column read_at timestamptz;
-alter table notifications rename column at to sent_at;  -- additive view below keeps the old name readable
-create view notifications_compat as select id, user_id, text, read, sent_at as at from notifications;
+-- the spec's sent_at is exposed as a generated copy of the existing `at` column (no rename of existing columns)
+alter table notifications add column sent_at timestamptz generated always as (at) stored;
 
 -- ---------------------------------------------------------------- new tables
 create table settings (key text primary key, value jsonb not null, updated_at timestamptz not null default now());

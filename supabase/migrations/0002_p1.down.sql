@@ -1,10 +1,9 @@
 -- Reverses 0002_p1.sql. Postgres cannot remove an enum value, so reservation_status keeps 'No-show' (harmless).
-drop view if exists vendor_public, vendor_order_board, notifications_compat;
+drop view if exists vendor_public, vendor_order_board;
 drop function if exists process_p1_jobs(), cancel_reservation(uuid), log_reservation_status(), review_aggregate(), review_guard() cascade;
 drop table if exists reports, reservation_events, reviews, follows, push_tokens, settings;
 
-alter table notifications rename column sent_at to at;
-alter table notifications drop column type, drop column payload, drop column read_at;
+alter table notifications drop column type, drop column payload, drop column read_at, drop column sent_at;
 
 drop index if exists donation_batches_listing_origin_key;
 delete from donation_batches where origin <> 'window_end';
