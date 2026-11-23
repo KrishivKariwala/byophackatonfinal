@@ -156,12 +156,16 @@ public/brand    official logo (original + crop, untouched)      reference/  bund
 | Food-safety / regulatory rules | Configurable defaults (donation collect-by = window end + 2 h, capped by vendor eat-by) | **Regulatory review before launch.** The FSSAI surplus-food guidance and liability terms need legal sign-off |
 | Multi-instance scaling | Demo store is single-process | Use the Supabase RPCs (row locks) in production |
 
+## P1 features
+
+P1 adds notifications (in-app + optional Expo push/SMS), follows, Surprise Bag, ratings, impact profile, cancellation and refunds, reports, pay at pickup, vendor templates, price suggestion, analytics and payouts, donation-only listings, charity scheduling with a public volunteer link, escalation, no-show handling, fraud controls, verified badges, and an admin console (approvals, reports, flagged). See `docs/P1_DEMO.md` to try each one and `docs/P1_NOTES.md` for decisions and limits. Schema: `supabase/migrations/0002_p1.sql` (+ `.down.sql`).
+
 ## Commands
 
 ```bash
 npm run dev               # dev server
 npm run build && npm start
-npm test                  # vitest service tests (incl. 50×10 concurrency)
+npm test                  # vitest: P0 + P1 service tests (incl. 50×10 concurrency)
 npm run test:concurrency  # builds must exist: real HTTP server, 50×10, realtime, negative checks
 npm run typecheck && npm run lint
 npm run seed              # fresh demo data
