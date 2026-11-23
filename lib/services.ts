@@ -2,8 +2,10 @@ import "server-only";
 import { transaction, read, now as clockNow, type TxContext } from "./store";
 import {
   iso, t, requireRole, vendorOf, approvedVendorOf, ngoOf, outletOf, listingIn, audit, notify, move, emitRes, setResStatus,
-  logNewReservation, createDonationBatchTx, recordImpact,
+  logNewReservation, createDonationBatchTx, recordImpact, openBatch,
 } from "./core";
+import { notifyFollowers } from "./follows";
+import { cancelQuote } from "./cancel";
 import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
@@ -11,7 +13,7 @@ import { co2eFor, kgFor } from "./impact-config";
 import { runScheduledJobs, jobsPending } from "./jobs";
 import type {
   ApprovalStatus, Category, CheckoutHold, DB, Diet, DonationBatch, Listing, Ngo, Outlet, Payment,
-  PaymentMethod, Profile, Reservation, Role, Vendor,
+  PaymentMethod, Profile, Reservation, RiskTag, Role, Vendor,
 } from "./types";
 
 export const CATEGORIES: Category[] = ["Bakery", "Meals", "Snacks", "Desserts"];
@@ -100,7 +102,7 @@ export async function sweep() {
 }
 
 /** All writes go through here so the processor always runs first. */
-function write<T>(fn: (tx: TxContext) => T): Promise<T> {
+export function write<T>(fn: (tx: TxContext) => T): Promise<T> {
   return transaction((tx) => {
     sweepTx(tx);
     return fn(tx);
@@ -108,6 +110,13 @@ function write<T>(fn: (tx: TxContext) => T): Promise<T> {
 }
 
 // ---------------------------------------------------------------- customer
+
+/** Upper bound used for the cheap early check; the per-vendor cap is applied once the listing is known. */
+const MAX_ANY_ORDER = 50;
+
+export function completedPickups(db: DB, customerId: string): number {
+  return db.reservations.filter((r) => r.customerId === customerId && r.status === "Picked up").length;
+}
 
 export type ReserveResult =
   | { kind: "hold"; holdId: string; expiresAt: string; amount: number; gatewayOrderId: string }
@@ -119,10 +128,15 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
     const { db, now } = tx;
     const qty = Number(input.qty);
     if (!Number.isInteger(qty) || qty < 1) throw new RuleError("qty_invalid", "Choose at least 1 unit.");
-    if (qty > RULES.MAX_UNITS_PER_ORDER) throw new RuleError("qty_cap", `Maximum ${RULES.MAX_UNITS_PER_ORDER} units per order.`);
+    if (me.suspendedUntil && t(me.suspendedUntil) > now)
+      throw new RuleError("suspended", me.suspendReason || `Reservations are paused until ${me.suspendedUntil.slice(0, 10)}.`, 403);
+    if (qty > MAX_ANY_ORDER) throw new RuleError("qty_cap", `Maximum ${RULES.MAX_UNITS_PER_ORDER} units per order.`);
     if (input.method !== "online" && input.method !== "pay_at_pickup") throw new RuleError("method_invalid", "Choose a payment method.");
     const l = listingIn(db, input.listingId);
     const vendor = db.vendors.find((v) => v.id === l.vendorId);
+    const unitCap = Math.max(RULES.MAX_UNITS_PER_ORDER, vendor?.maxUnitsPerOrder ?? 0);
+    if (qty > unitCap) throw new RuleError("qty_cap", `Maximum ${unitCap} units per order.`);
+    if (l.donationOnly || l.hiddenByAdmin || vendor?.hiddenByAdmin) throw new RuleError("not_available", "This listing is not available.", 409);
     if (vendor?.status !== "Approved") throw new RuleError("vendor_unavailable", "This vendor is not accepting orders.", 409);
     if (now >= t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended for this listing.", 409);
     if (l.status === "Sold Out") throw new RuleError("insufficient_stock", "Sold out.", 409);
@@ -130,6 +144,8 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
     const outlet = outletOf(db, l.outletId);
     if (input.method === "pay_at_pickup" && !outlet.payAtPickup)
       throw new RuleError("pay_at_pickup_off", "This vendor only accepts online payment.");
+    if (input.method === "pay_at_pickup" && completedPickups(db, me.id) < RULES.PAY_AT_PICKUP_MIN_PICKUPS)
+      throw new RuleError("pay_at_pickup_locked", `Pay at pickup unlocks after ${RULES.PAY_AT_PICKUP_MIN_PICKUPS} completed pickups. Pay online for now.`, 403);
     if (activeCount(db, me.id) >= RULES.MAX_ACTIVE_RESERVATIONS)
       throw new RuleError("active_cap", `You can have at most ${RULES.MAX_ACTIVE_RESERVATIONS} active reservations.`, 409);
     if (l.qtyAvailable < qty) throw new RuleError("insufficient_stock", l.qtyAvailable === 0 ? "Sold out." : `Only ${l.qtyAvailable} left.`, 409);
@@ -243,13 +259,16 @@ export interface ListingInput {
   originalPrice: number; rescuePrice: number; qty: number; diet: Diet; allergens?: string[];
   preparedAt: string; safeUntil?: string; storageNote?: string; windowStart: string; windowEnd: string;
   donateRest: boolean; safetyDeclaration: boolean;
+  /** P1 */
+  donationOnly?: boolean; riskTag?: RiskTag;
 }
 
 function validateListingFields(i: ListingInput, now: number, createdAt: number) {
   if (!i.title || i.title.trim().length < 3 || i.title.length > 80) throw new RuleError("title_invalid", "Title must be 3–80 characters.");
   if (!CATEGORIES.includes(i.category)) throw new RuleError("category_invalid", "Choose a category.");
   if (!DIETS.includes(i.diet)) throw new RuleError("diet_required", "Choose Vegetarian or Non-vegetarian.");
-  validatePrices(Number(i.originalPrice), Number(i.rescuePrice));
+  if (!i.donationOnly) validatePrices(Number(i.originalPrice), Number(i.rescuePrice));
+  if (i.riskTag && !["raw", "seafood", "dairy_dessert"].includes(i.riskTag)) throw new RuleError("risk_invalid", "Unknown food risk tag.");
   const q = Number(i.qty);
   if (!Number.isInteger(q) || q < 1 || q > RULES.MAX_LISTING_QTY) throw new RuleError("qty_invalid", `Quantity must be 1–${RULES.MAX_LISTING_QTY}.`);
   if (i.safetyDeclaration !== true) throw new RuleError("declaration_required", "Confirm the food-safety declaration to publish.");
@@ -257,6 +276,8 @@ function validateListingFields(i: ListingInput, now: number, createdAt: number) 
   if (!Number.isFinite(prep) || prep > now + 60_000) throw new RuleError("prepared_invalid", "Preparation time must be now or earlier.");
   const ws = t(i.windowStart), we = t(i.windowEnd);
   validateWindow(now, createdAt, ws, we);
+  if (i.riskTag && we - ws > RULES.HIGH_RISK_MAX_WINDOW_MINUTES * 60_000)
+    throw new RuleError("risk_window", "Raw, seafood and dairy-dessert items can have a pickup window of at most 2 hours.");
   if (i.safeUntil) {
     const su = t(i.safeUntil);
     if (!Number.isFinite(su) || su < we) throw new RuleError("safe_until_invalid", "Safe-to-eat deadline must be after the pickup end.");
@@ -274,7 +295,8 @@ export function createListing(actor: Profile | null, i: ListingInput) {
     const l: Listing = {
       id: newId("l"), vendorId: v.id, outletId: outlet.id, title: i.title.trim(), description: (i.description || "").trim(),
       category: i.category, imageUrl: i.imageUrl || undefined, imageIsRepresentative: true, surpriseBag: !!i.surpriseBag,
-      originalPrice: Number(i.originalPrice), rescuePrice: Number(i.rescuePrice), qtyTotal: Number(i.qty), qtyAvailable: 0,
+      originalPrice: Number(i.originalPrice) || 0, rescuePrice: i.donationOnly ? 0 : Number(i.rescuePrice), qtyTotal: Number(i.qty), qtyAvailable: 0,
+      donationOnly: !!i.donationOnly || undefined, riskTag: i.riskTag || undefined,
       diet: i.diet, allergens: (i.allergens || []).map((a) => a.trim()).filter(Boolean).slice(0, 12),
       preparedAt: iso(t(i.preparedAt)), safeUntil: i.safeUntil ? iso(t(i.safeUntil)) : undefined, storageNote: i.storageNote?.trim() || undefined,
       safetyDeclaration: { accepted: true, acceptedAt: iso(tx.now), byUserId: me.id },
@@ -283,7 +305,16 @@ export function createListing(actor: Profile | null, i: ListingInput) {
     };
     tx.db.listings.push(l);
     move(tx, l, l.qtyTotal, "listing_published");
-    audit(tx, me.id, "listing_published", "listing", l.id, `declaration accepted; donateRest=${l.donateRest}`);
+    audit(tx, me.id, "listing_published", "listing", l.id, `declaration accepted; donateRest=${l.donateRest}${l.donationOnly ? "; donation-only" : ""}`);
+    if (l.donationOnly) {
+      // Donation-only: never sold. Units go straight to a batch that charities can claim until the window ends.
+      l.donationProcessedAt = iso(tx.now);
+      move(tx, l, -l.qtyTotal, "donation_only");
+      const safeUntil = l.safeUntil ? t(l.safeUntil) : Infinity;
+      openBatch(tx, l, l.qtyTotal, Math.min(t(l.windowEnd), safeUntil), "Donation-only listing", "donation_only");
+    } else {
+      notifyFollowers(tx, l, outlet, v);
+    }
     return l;
   });
 }
@@ -304,6 +335,7 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
       preparedAt: patch.preparedAt ?? l.preparedAt, safeUntil: patch.safeUntil ?? l.safeUntil, storageNote: patch.storageNote ?? l.storageNote,
       windowStart: patch.windowStart ?? l.windowStart, windowEnd: patch.windowEnd ?? l.windowEnd,
       donateRest: patch.donateRest ?? l.donateRest, safetyDeclaration: patch.safetyDeclaration ?? true,
+      riskTag: patch.riskTag ?? l.riskTag, donationOnly: l.donationOnly,
     };
     if (patch.safetyDeclaration !== true) throw new RuleError("declaration_required", "Re-confirm the food-safety declaration to save changes.");
     // Window rules: if the window changes, the start must still be in the future and within 12 h of creation.
@@ -322,7 +354,7 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
       title: merged.title.trim(), description: merged.description || "", category: merged.category, imageUrl: merged.imageUrl,
       surpriseBag: !!merged.surpriseBag, originalPrice: Number(merged.originalPrice), rescuePrice: Number(merged.rescuePrice), diet: merged.diet,
       allergens: merged.allergens || [], preparedAt: merged.preparedAt, safeUntil: merged.safeUntil, storageNote: merged.storageNote,
-      windowStart: merged.windowStart, windowEnd: merged.windowEnd, donateRest: !!merged.donateRest,
+      windowStart: merged.windowStart, windowEnd: merged.windowEnd, donateRest: !!merged.donateRest, riskTag: merged.riskTag,
       safetyDeclaration: { accepted: true, acceptedAt: iso(now), byUserId: me.id },
     });
     const delta = newTotal - l.qtyTotal;
@@ -622,10 +654,23 @@ export function markNotificationsRead(actor: Profile | null) {
 
 // ---------------------------------------------------------------- queries (read-only)
 
-export function enrichListing(db: DB, l: Listing, origin?: { lat: number; lng: number }) {
+export const SURPRISE_HIDDEN = "Contents are a surprise: revealed at pickup. Allergens and diet are always shown.";
+
+/** Customer-facing listing. Surprise Bag contents (description) stay hidden unless `reveal` (order picked up). */
+export function enrichListing(db: DB, l: Listing, origin?: { lat: number; lng: number }, reveal = false) {
   const outlet = db.outlets.find((o) => o.id === l.outletId)!;
   const vendor = db.vendors.find((v) => v.id === l.vendorId)!;
-  return { ...l, outlet, vendor: { id: vendor.id, businessName: vendor.businessName, ratingDemo: vendor.ratingDemo }, distanceKm: origin ? distanceKm(origin, outlet) : undefined };
+  return {
+    ...l,
+    description: l.surpriseBag && !reveal ? SURPRISE_HIDDEN : l.description,
+    surpriseWorth: l.surpriseBag ? l.originalPrice : undefined,
+    outlet,
+    vendor: {
+      id: vendor.id, businessName: vendor.businessName, ratingDemo: vendor.ratingDemo,
+      ratingAvg: vendor.ratingAvg, ratingCount: vendor.ratingCount ?? 0, verified: vendor.status === "Approved", logoUrl: vendor.logoUrl,
+    },
+    distanceKm: origin ? distanceKm(origin, outlet) : undefined,
+  };
 }
 export type EnrichedListing = ReturnType<typeof enrichListing>;
 
@@ -660,7 +705,14 @@ export function customerOrders(customerId: string) {
     .filter((r) => r.customerId === customerId)
     .map((r) => {
       const l = db.listings.find((x) => x.id === r.listingId)!;
-      return { ...r, listing: enrichListing(db, l), payment: db.payments.find((p) => p.reservationId === r.id) };
+      return {
+        ...r,
+        listing: enrichListing(db, l, undefined, r.status === "Picked up"),
+        payment: db.payments.find((p) => p.reservationId === r.id),
+        review: db.reviews.find((x) => x.reservationId === r.id),
+        cancel: cancelQuote(db, r, l),
+        events: db.reservationEvents.filter((e) => e.reservationId === r.id),
+      };
     })
     .sort((a, b) => t(b.createdAt) - t(a.createdAt));
 }

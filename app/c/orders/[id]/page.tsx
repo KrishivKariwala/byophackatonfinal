@@ -6,6 +6,10 @@ import { read, now } from "@/lib/store";
 import { directionsUrl, NEIGHBOURHOODS } from "@/lib/geo";
 import { fmtDateTime, fmtWindow, StatusPill } from "@/components/bits";
 import { Countdown } from "@/components/client";
+import { CancelOrder, ReportButton, ReviewForm } from "@/components/p1";
+import { cancelQuote } from "@/lib/cancel";
+import { RULES } from "@/lib/rules";
+import { S } from "@/lib/strings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Pickup pass" };
@@ -27,6 +31,10 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
   const qr = active ? await QRCode.toDataURL(`sap:${r.qrToken}`, { margin: 1, width: 360, color: { dark: "#2A0A0A", light: "#FFFFFF" } }) : null;
   const stepIdx = STEPS.indexOf(r.status as (typeof STEPS)[number]);
   const started = n >= Date.parse(l.windowStart);
+  const quote = cancelQuote(db, r, l);
+  const review = db.reviews.find((x) => x.reservationId === r.id);
+  const canReview = r.status === "Picked up" && !review && r.pickedUpAt && n <= Date.parse(r.pickedUpAt) + RULES.REVIEW_WINDOW_HOURS * 3600_000;
+  const events = db.reservationEvents.filter((e) => e.reservationId === r.id);
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-8">
@@ -52,7 +60,7 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
           </>
         ) : (
           <p className="rounded-xl bg-cream/10 p-3 text-center text-sm">
-            {r.status === "Picked up" ? `Collected ${fmtDateTime(r.pickedUpAt!)}. Code is now invalid.` : r.cancelReason ?? `This order is ${r.status.toLowerCase()}.`}
+            {r.status === "Picked up" ? `Collected ${fmtDateTime(r.pickedUpAt!)}. Code is now invalid.` : r.status === "No-show" ? S.noShow : r.cancelReason ?? `This order is ${r.status.toLowerCase()}.`}
           </p>
         )}
       </div>
@@ -70,6 +78,15 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
         <a className="btn-primary mt-2" href={directionsUrl(o, NEIGHBOURHOODS.Koramangala)} target="_blank" rel="noreferrer">Get directions</a>
         <p className="text-[11px] text-muted">Directions start from Koramangala (demo default location).</p>
       </div>
+      {r.status === "Picked up" && l.surpriseBag && <p className="rounded-2xl bg-peach p-4 text-sm text-burgundy"><b>Your Surprise Bag:</b> {l.description.startsWith("Surprise Bag") ? "contents varied with what was left today." : l.description}</p>}
+      {active && <div className="card p-4"><p className="mb-2 text-xs text-muted">{S.cancel.policy}</p><CancelOrder reservationId={r.id} free={quote.free} refund={quote.refundAmount} freeUntil={fmtDateTime(quote.freeUntil)} /></div>}
+      {canReview && <ReviewForm reservationId={r.id} />}
+      {review && <p className="card p-4 text-sm">You rated this order {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}{review.text && <span className="text-muted"> — {review.text}</span>}</p>}
+      <details className="card p-4 text-sm">
+        <summary className="cursor-pointer font-semibold">Order history</summary>
+        <ol className="mt-2 flex flex-col gap-1 text-xs text-muted">{events.map((e) => <li key={e.id}>{fmtDateTime(e.at)} · {e.from ? `${e.from} → ` : ""}{e.to}{e.note ? ` (${e.note})` : ""}</li>)}{events.length === 0 && <li>No history recorded.</li>}</ol>
+      </details>
+      <div className="text-center"><ReportButton targetType="reservation" targetId={r.id} /></div>
     </div>
   );
 }

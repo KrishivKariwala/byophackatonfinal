@@ -5,7 +5,7 @@ import { api } from "@/components/client";
 
 type Res = { kind: "hold"; holdId: string } | { kind: "reservation"; reservationId: string };
 
-export function ReserveBox({ listingId, unitPrice, maxQty, payAtPickup, activeCount }: { listingId: string; unitPrice: number; maxQty: number; payAtPickup: boolean; activeCount: number }) {
+export function ReserveBox({ listingId, unitPrice, maxQty, payAtPickup, payAtPickupNote, activeCount, policy }: { listingId: string; unitPrice: number; maxQty: number; payAtPickup: boolean; payAtPickupNote: string; activeCount: number; policy: string }) {
   const router = useRouter();
   const [qty, setQty] = useState(1);
   const [method, setMethod] = useState<"online" | "pay_at_pickup">("online");
@@ -45,7 +45,7 @@ export function ReserveBox({ listingId, unitPrice, maxQty, payAtPickup, activeCo
         </label>
         <label className={`flex items-center gap-2 rounded-xl border-2 p-3 text-sm ${!payAtPickup ? "opacity-50" : "cursor-pointer"} ${method === "pay_at_pickup" ? "border-tomato bg-cream" : "border-line"}`}>
           <input type="radio" name="m" disabled={!payAtPickup} checked={method === "pay_at_pickup"} onChange={() => setMethod("pay_at_pickup")} className="accent-tomato" />
-          <span><b>Pay at pickup</b> · {payAtPickup ? "reserved instantly, pay the vendor at handover." : "not offered by this vendor."}</span>
+          <span><b>Pay at pickup</b> · {payAtPickup ? "reserved instantly, pay the vendor at handover." : payAtPickupNote}</span>
         </label>
       </fieldset>
       <dl className="rounded-xl bg-canvas p-3 text-sm">
@@ -53,6 +53,7 @@ export function ReserveBox({ listingId, unitPrice, maxQty, payAtPickup, activeCo
         <div className="flex justify-between text-muted"><dt>Convenience fee</dt><dd>₹0 (pilot)</dd></div>
         <div className="mt-1 flex justify-between border-t border-line pt-1 font-bold"><dt>Total</dt><dd>₹{qty * unitPrice}</dd></div>
       </dl>
+      <p className="rounded-xl bg-cream p-3 text-xs text-burgundy"><b>Cancellation policy.</b> {policy}</p>
       <button className="btn-primary !py-4 text-base" disabled={busy} onClick={submit}>
         {busy ? "Reserving…" : method === "online" ? `Reserve & pay ₹${qty * unitPrice}` : `Reserve ${qty} · pay at pickup`}
       </button>

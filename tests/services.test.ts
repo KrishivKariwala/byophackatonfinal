@@ -24,9 +24,24 @@ async function freshListing(opts: Partial<{ qty: number; startMin: number; endMi
     donateRest: opts.donateRest ?? false, safetyDeclaration: true,
   });
 }
+/** P1 (A8): pay-at-pickup needs 3 completed pickups. Fixture customers get that history so P0 scenarios run unchanged. */
+async function withPickupHistory(c: Profile) {
+  await store.transaction((tx) => {
+    for (let k = 0; k < 3; k++)
+      tx.db.reservations.push({
+        id: `hist_${c.id}_${k}`, ref: `HIST-${c.id}-${k}`, listingId: "l_3", vendorId: "v_1", outletId: "o_1", customerId: c.id, qty: 1, unitPrice: 90, amount: 90,
+        method: "online", status: "Picked up", qrToken: "x", code: "0000", qrTokenHash: `h${c.id}${k}`, codeHash: `c${c.id}${k}`,
+        createdAt: new Date(tx.now - 86400_000 * (k + 2)).toISOString(), pickedUpAt: new Date(tx.now - 86400_000 * (k + 2)).toISOString(),
+      });
+  });
+}
 async function makeCustomers(count: number) {
   const out: Profile[] = [];
-  for (let i = 0; i < count; i++) out.push(await svc.createAccount({ name: `Load Tester ${i}`, phone: `+91900000${String(i).padStart(4, "0")}`, role: "customer" }));
+  for (let i = 0; i < count; i++) {
+    const c = await svc.createAccount({ name: `Load Tester ${i}`, phone: `+91900000${String(i).padStart(4, "0")}`, role: "customer" });
+    await withPickupHistory(c);
+    out.push(c);
+  }
   return out;
 }
 const codeOf = (e: unknown) => (e as { code?: string }).code;

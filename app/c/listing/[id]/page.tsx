@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
-import { enrichListing, isCustomerVisible } from "@/lib/services";
+import { completedPickups, enrichListing, isCustomerVisible } from "@/lib/services";
+import { isFollowing, vendorReviews } from "@/lib/p1";
+import { CANCEL_POLICY_TEXT } from "@/lib/cancel";
+import { S } from "@/lib/strings";
+import { FollowButton, Rating, ReportButton, SurpriseBadge, VerifiedBadge } from "@/components/p1";
 import { directionsUrl } from "@/lib/geo";
 import { RULES } from "@/lib/rules";
 import { DietTag, Photo, Price, fmtDateTime, fmtWindow, StatusPill } from "@/components/bits";
@@ -21,6 +25,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const l = enrichListing(db, raw);
   const n = now(db);
   const visible = isCustomerVisible(db, raw, n);
+  const suspended = me.suspendedUntil && Date.parse(me.suspendedUntil) > n ? me.suspendedUntil.slice(0, 10) : null;
+  const picks = completedPickups(db, me.id);
+  const payOk = l.outlet.payAtPickup && picks >= RULES.PAY_AT_PICKUP_MIN_PICKUPS;
+  const vendorRow = db.vendors.find((v) => v.id === raw.vendorId)!;
+  const unitCap = Math.max(RULES.MAX_UNITS_PER_ORDER, vendorRow.maxUnitsPerOrder ?? 0);
+  const reviews = vendorReviews(raw.vendorId).slice(0, 3);
   const active = db.reservations.filter((r) => r.customerId === me.id && (r.status === "Reserved" || r.status === "Ready")).length +
     db.holds.filter((h) => h.customerId === me.id && h.status === "Active").length;
 
@@ -32,7 +42,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="flex flex-wrap items-center gap-2">
           <DietTag diet={l.diet} large />
           <span className="chip bg-cream text-burgundy">{l.category}</span>
-          {l.surpriseBag && <span className="chip bg-peach text-burgundy">Surprise Bag · contents vary</span>}
+          {l.surpriseBag && <SurpriseBadge worth={l.surpriseWorth} />}
+          {l.vendor.verified && <VerifiedBadge />}
           {!visible && <StatusPill status={raw.status} />}
         </div>
         <h1 className="editorial text-5xl leading-none">{l.title}</h1>
@@ -43,12 +54,25 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <div className="card p-3"><dt className="text-xs text-muted">Prepared</dt><dd className="font-bold">{fmtDateTime(l.preparedAt)}</dd></div>
           <div className="card p-3"><dt className="text-xs text-muted">Allergens (vendor-supplied)</dt><dd className="font-bold">{l.allergens.length ? l.allergens.join(", ") : "None declared"}</dd></div>
           {l.safeUntil && <div className="card p-3"><dt className="text-xs text-muted">Eat by (vendor-supplied)</dt><dd className="font-bold">{fmtDateTime(l.safeUntil)}</dd></div>}
-          <div className="card p-3"><dt className="text-xs text-muted">Restaurant</dt><dd className="font-bold">{l.vendor.businessName}</dd><dd className="text-xs text-muted">No ratings yet (demo)</dd></div>
+          <div className="card p-3"><dt className="text-xs text-muted">Restaurant</dt><dd className="font-bold">{l.vendor.businessName}</dd><dd><Rating avg={l.vendor.ratingAvg} count={l.vendor.ratingCount} /></dd></div>
         </dl>
         <div className="rounded-2xl bg-cream p-4 text-sm text-burgundy">
           <b>Food-safety declaration</b> signed by the vendor for this listing on {fmtDateTime(l.safetyDeclaration.acceptedAt)}.
           {l.storageNote && <> Storage: {l.storageNote}</>}
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <FollowButton vendorId={l.vendor.id} initial={isFollowing(me.id, l.vendor.id)} lat={l.outlet.lat} lng={l.outlet.lng} />
+          <span className="text-xs text-muted">{S.follow.hint}</span>
+        </div>
+        {reviews.length > 0 && (
+          <section aria-label="Recent ratings" className="card flex flex-col gap-2 p-4">
+            <h2 className="editorial text-xl">What customers say</h2>
+            <ul className="flex flex-col gap-2 text-sm">{reviews.map((r) => (
+              <li key={r.id}><span className="font-semibold">{r.reviewer}</span> · {"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}{r.text && <span className="text-muted"> — {r.text}</span>}</li>
+            ))}</ul>
+          </section>
+        )}
+        <ReportButton targetType="listing" targetId={l.id} />
         <p className="text-sm">
           {l.outlet.address} ·{" "}
           <a className="font-semibold underline" href={directionsUrl(l.outlet)} target="_blank" rel="noreferrer">Directions in Google Maps</a>
@@ -57,18 +81,22 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       <aside className="lg:sticky lg:top-32 lg:self-start">
         <div className="card flex flex-col gap-4 p-5">
           <Price original={l.originalPrice} rescue={l.rescuePrice} size="lg" />
-          {visible ? (
+          {l.surpriseBag && <p className="rounded-xl bg-peach p-3 text-sm font-semibold text-burgundy">{S.surprise.note}. {S.surprise.worth(l.originalPrice)} for ₹{l.rescuePrice}.</p>}
+          {suspended && <p role="alert" className="rounded-xl bg-sand p-3 text-sm font-semibold text-tomato">{S.suspended(suspended)}</p>}
+          {visible && !suspended ? (
             <ReserveBox
               listingId={l.id}
               unitPrice={l.rescuePrice}
-              maxQty={Math.min(RULES.MAX_UNITS_PER_ORDER, l.qtyAvailable)}
-              payAtPickup={l.outlet.payAtPickup}
+              maxQty={Math.min(unitCap, l.qtyAvailable)}
+              payAtPickup={payOk}
+              payAtPickupNote={!l.outlet.payAtPickup ? S.payAtPickup.off : S.payAtPickup.locked(picks, RULES.PAY_AT_PICKUP_MIN_PICKUPS)}
               activeCount={active}
+              policy={CANCEL_POLICY_TEXT}
             />
-          ) : (
+          ) : suspended ? null : (
             <p className="rounded-xl bg-sand p-3 text-sm font-semibold text-muted">This listing is no longer available to reserve ({raw.status.toLowerCase()}).</p>
           )}
-          <p className="text-[11px] text-muted">Max {RULES.MAX_UNITS_PER_ORDER} units per order · up to {RULES.MAX_ACTIVE_RESERVATIONS} active reservations · you have {active}.</p>
+          <p className="text-[11px] text-muted">Max {unitCap} units per order · up to {RULES.MAX_ACTIVE_RESERVATIONS} active reservations · you have {active}.</p>
         </div>
       </aside>
     </div>

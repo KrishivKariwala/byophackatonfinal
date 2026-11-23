@@ -9,18 +9,27 @@ const NAV: Record<string, { href: string; label: string }[]> = {
   customer: [
     { href: "/c", label: "Discover" },
     { href: "/c/orders", label: "My orders" },
+    { href: "/c/following", label: "Following" },
+    { href: "/c/impact", label: "My impact" },
   ],
   vendor: [
     { href: "/v", label: "Today" },
     { href: "/v/new", label: "Quick list" },
     { href: "/v/scan", label: "Scan & hand over" },
+    { href: "/v/analytics", label: "Analytics" },
+    { href: "/v/payouts", label: "Payouts" },
     { href: "/v/onboarding", label: "Outlet profile" },
   ],
   ngo: [
     { href: "/n", label: "Donation feed" },
     { href: "/n/onboarding", label: "Verification" },
   ],
-  admin: [{ href: "/admin", label: "City impact" }],
+  admin: [
+    { href: "/admin", label: "City impact" },
+    { href: "/admin/approvals", label: "Approvals" },
+    { href: "/admin/reports", label: "Reports" },
+    { href: "/admin/flagged", label: "Flagged" },
+  ],
 };
 
 export async function Header() {

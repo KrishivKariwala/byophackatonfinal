@@ -8,6 +8,7 @@ import { DietTag, Photo, Price, fmtWindow } from "@/components/bits";
 import { LiveCount, useLive } from "@/components/LiveProvider";
 import { api } from "@/components/client";
 import { DemoMap } from "@/components/DemoMap";
+import { Rating, SurpriseBadge, VerifiedBadge } from "@/components/p1";
 
 type F = { q: string; category: string; diet: string; maxPrice: string; after: string; by: string; radius: number };
 const EMPTY: F = { q: "", category: "", diet: "", maxPrice: "", after: "", by: "", radius: 5 };
@@ -149,6 +150,11 @@ export function Discover({ initial, hasMapKey }: { initial: EnrichedListing[]; h
                   <div className="flex items-start justify-between gap-2">
                     <h2 className="text-base font-bold leading-tight">{l.title}</h2>
                     <DietTag diet={l.diet} />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {l.surpriseBag && <SurpriseBadge worth={l.surpriseWorth} />}
+                    {l.vendor.verified && <VerifiedBadge />}
+                    <Rating avg={l.vendor.ratingAvg} count={l.vendor.ratingCount} />
                   </div>
                   <p className="text-xs text-muted">{l.vendor.businessName} · {l.outlet.neighbourhood} · {l.distanceKm?.toFixed(1)} km</p>
                   <div className="mt-1 flex items-center justify-between"><Price original={l.originalPrice} rescue={l.rescuePrice} /><LiveCount listingId={l.id} initial={l.qtyAvailable} /></div>

@@ -64,7 +64,7 @@ export function StatusPill({ status }: { status: string }) {
     Live: "bg-cream text-burgundy", Reserved: "bg-cream text-burgundy", Ready: "bg-peach text-burgundy", "Picked up": "bg-[#E6F2E9] text-veg",
     "Sold Out": "bg-sand text-muted", Paused: "bg-sand text-muted", Expired: "bg-sand text-muted", Cancelled: "bg-sand text-muted",
     Open: "bg-cream text-burgundy", Claimed: "bg-peach text-burgundy", Collected: "bg-[#E6F2E9] text-veg", Pending: "bg-peach text-burgundy",
-    Approved: "bg-[#E6F2E9] text-veg", Rejected: "bg-sand text-tomato", Hold: "bg-peach text-burgundy",
+    Approved: "bg-[#E6F2E9] text-veg", Rejected: "bg-sand text-tomato", Hold: "bg-peach text-burgundy", "No-show": "bg-sand text-tomato", Dismissed: "bg-sand text-muted", Actioned: "bg-[#E6F2E9] text-veg",
   };
   return <span className={`chip ${map[status] ?? "bg-sand text-muted"}`}>{status}</span>;
 }
