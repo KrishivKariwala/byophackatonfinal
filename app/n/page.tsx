@@ -4,6 +4,7 @@ import { read, now } from "@/lib/store";
 import { distanceKm, directionsUrl } from "@/lib/geo";
 import { DietTag, StatusPill, fmtDateTime, fmtTime, Photo } from "@/components/bits";
 import { ActionButton } from "@/components/client";
+import { ScheduleForm, VerifiedBadge } from "@/components/p1";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Donation feed" };
@@ -28,6 +29,7 @@ export default async function NgoFeed() {
       <div>
         <p className="eyebrow text-burgundy">{ngo.orgName}</p>
         <h1 className="display text-4xl text-tomato sm:text-5xl">DONATION FEED</h1>
+        <p className="flex items-center gap-2 text-sm font-semibold">{approved && <VerifiedBadge label="Verified NGO" />}</p>
         <p className="text-sm text-muted">Free batches within {ngo.serviceAreaKm} km. Claims are all-or-nothing: the whole batch locks to the first approved NGO.</p>
       </div>
       {!approved && (
@@ -68,13 +70,14 @@ export default async function NgoFeed() {
               <li key={b.id} className="card flex flex-col gap-1 p-4 text-sm">
                 <div className="flex items-center justify-between"><b>{b.ref}</b><StatusPill status={b.status} /></div>
                 <span>{b.qty} × {b.title}</span>
-                <span className="text-muted">{b.vendor.businessName}</span>
+                <span className="flex flex-wrap items-center gap-1.5 text-muted">{b.vendor.businessName}{b.vendor.status === "Approved" && <VerifiedBadge />}</span>
                 {b.status === "Claimed" && (
                   <>
                     <span className="mt-1 text-xs">Show this collection code to the vendor:</span>
                     <span className="display text-4xl tracking-[0.3em] text-tomato">{b.collectionCode}</span>
                     <span className="text-xs font-semibold">Collect by {fmtTime(b.collectBy)}</span>
                     <a className="btn-outline mt-1" href={directionsUrl(b.outlet, ngo)} target="_blank" rel="noreferrer">Directions to vendor</a>
+                    <ScheduleForm batchId={b.id} serverNow={n} collectBy={b.collectBy} initial={{ slot: b.pickupSlot, name: b.volunteerName, phone: b.volunteerPhone, url: b.volunteerToken ? `/volunteer/${b.volunteerToken}` : undefined }} />
                     <ActionButton path={`/api/ngo/batches/${b.id}`} body={{ action: "release" }} label="Release claim" className="btn-quiet" confirm="Release this batch so another NGO can collect it?" />
                   </>
                 )}

@@ -138,6 +138,8 @@ export default async function VendorHome() {
                   <span>{b.qty} × {b.title}</span>
                   <span className="text-xs text-muted">Collect by {fmtTime(b.collectBy)} · from listing {b.listingId}</span>
                   {ngo && <span className="text-xs">Claimed by <b>{ngo.orgName}</b></span>}
+                  {b.volunteerName && <span className="rounded-lg bg-cream p-2 text-xs text-burgundy">Volunteer coming: <b>{b.volunteerName}</b> · {b.volunteerPhone}{b.pickupSlot ? ` · ${fmtTime(b.pickupSlot)}` : ""}</span>}
+                  {b.origin === "no_show" && <span className="text-[11px] text-muted">From no-show orders</span>}
                   {b.status === "Claimed" && approved && <DonationVerify batchId={b.id} />}
                   {b.status === "Collected" && <span role="status" className="text-xs font-semibold text-veg">Handover verified {fmtTime(b.collectedAt!)} · Donation recorded</span>}
                   {b.status === "Open" && <span className="text-xs text-muted">Waiting for an approved NGO to claim.</span>}

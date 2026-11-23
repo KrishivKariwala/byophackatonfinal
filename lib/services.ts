@@ -552,6 +552,7 @@ export function releaseClaim(actor: Profile | null, batchId: string) {
     b.claimedAt = undefined;
     b.collectionCode = undefined;
     b.collectionCodeHash = undefined;
+    b.pickupSlot = b.volunteerName = b.volunteerPhone = b.volunteerToken = undefined; // old volunteer link dies with the claim
     b.status = t(b.collectBy) > tx.now ? "Open" : "Expired"; // reopen only while still safe to collect
     audit(tx, me.id, "donation_claim_released", "donation_batch", b.id);
     tx.emit({ type: "donation", batchId: b.id, status: b.status });

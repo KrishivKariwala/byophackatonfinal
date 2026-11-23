@@ -187,3 +187,40 @@ export function VendorSettings({ payAtPickup, maxUnits, defaultCap }: { payAtPic
     </div>
   );
 }
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const toLocalInput = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+export function ScheduleForm({ batchId, serverNow, collectBy, initial }: { batchId: string; serverNow: number; collectBy: string; initial?: { slot?: string; name?: string; phone?: string; url?: string } }) {
+  const router = useRouter();
+  const drift = serverNow - Date.now();
+  const [slot, setSlot] = useState(() => toLocalInput(initial?.slot ? Date.parse(initial.slot) : Math.min(Date.parse(collectBy) - 5 * 60_000, serverNow + 30 * 60_000)));
+  const [name, setName] = useState(initial?.name ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [url, setUrl] = useState(initial?.url ?? "");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true); setMsg(null);
+    try {
+      const d = await api<{ url: string }>(`/api/donations/${batchId}/schedule`, { slot: new Date(slot).toISOString(), volunteerName: name, volunteerPhone: phone });
+      setUrl(d.url); setMsg({ ok: true, text: "Pickup scheduled. Share the volunteer link below." }); router.refresh();
+    } catch (er) { setMsg({ ok: false, text: (er as Error).message }); } finally { setBusy(false); }
+  };
+  const full = typeof window !== "undefined" && url ? `${window.location.origin}${url}` : url;
+  return (
+    <form onSubmit={submit} className="mt-2 flex flex-col gap-2 rounded-xl bg-canvas p-3">
+      <p className="eyebrow text-burgundy">Pickup &amp; volunteer</p>
+      <label className="label">Pickup time<input type="datetime-local" required className="input" value={slot} min={toLocalInput(serverNow - drift)} max={toLocalInput(Date.parse(collectBy) - drift)} onChange={(e) => setSlot(e.target.value)} /></label>
+      <label className="label">Volunteer name<input required className="input" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="label">Volunteer phone<input required className="input" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+      <button className="btn-primary" disabled={busy}>{busy ? "Saving…" : initial?.name ? "Update pickup" : "Schedule pickup"}</button>
+      {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs font-semibold ${msg.ok ? "text-veg" : "text-tomato"}`}>{msg.text}</span>}
+      {full && (
+        <label className="label">Volunteer link (no login, expires at the deadline)
+          <input readOnly className="input text-xs" value={full} onFocus={(e) => e.currentTarget.select()} />
+        </label>
+      )}
+    </form>
+  );
+}
