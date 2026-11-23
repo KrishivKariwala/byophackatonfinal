@@ -1,6 +1,10 @@
+"use client";
+import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 
 export function Footer() {
+  // The landing page is kept clean: the demo notice stays in the header bar there.
+  if (usePathname() === "/") return null;
   return (
     <footer className="mt-16 bg-logobg">
       <div className="mx-auto flex max-w-7xl flex-col items-start gap-4 px-4 py-8 sm:flex-row sm:items-center sm:px-6">
