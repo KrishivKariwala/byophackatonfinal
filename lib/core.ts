@@ -28,8 +28,9 @@ export function approvedVendorOf(db: DB, actor: Profile): Vendor {
   const v = vendorOf(db, actor);
   if (v.status !== "Approved")
     throw new RuleError("approval_required", `Your vendor application is ${v.status}. Only approved vendors can do this.`, 403);
-  if (actor.suspendedUntil && t(actor.suspendedUntil) > Date.now())
-    throw new RuleError("account_suspended", actor.suspendReason || "Your account is suspended.", 403);
+  const live = db.profiles.find((p) => p.id === actor.id) ?? actor; // never trust a stale actor snapshot
+  if (live.suspendedUntil && t(live.suspendedUntil) > Date.now() + (db.clockOffsetMs || 0))
+    throw new RuleError("account_suspended", live.suspendReason || "Your account is suspended.", 403);
   return v;
 }
 export function ngoOf(db: DB, actor: Profile): Ngo {

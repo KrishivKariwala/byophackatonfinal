@@ -1,7 +1,8 @@
 import type {
   Category, DB, Diet, DonationBatch, ImpactEvent, Listing, ListingStatus, Ngo, Outlet, Payment,
-  Profile, Reservation, ReservationStatus, Template, Vendor,
+  Profile, Report, Reservation, ReservationEvent, ReservationStatus, Review, Template, Vendor,
 } from "./types";
+import { co2eFor, kgFor } from "./impact-config";
 import { NEIGHBOURHOODS, type Neighbourhood } from "./geo";
 import { sha256 } from "./crypto";
 
@@ -239,6 +240,104 @@ export function buildSeed(T: number): DB {
     { id: "t_3", vendorId: "v_2", title: "Chicken Biryani Tray", description: "Dum biryani, serves one.", category: "Meals", originalPrice: 320, rescuePrice: 160, diet: "Non-vegetarian", allergens: [], surpriseBag: false, storageNote: "Keep refrigerated; reheat thoroughly." },
   ];
 
+
+  // ================================================================ P1 demo data
+  // Past, collected orders so analytics, payouts, impact profiles and ratings are not empty.
+  const customers = ["u_priya", "u_arjun", "u_sana", "u_kiran", "u_meghna", "u_dev"];
+  const reviews: Review[] = [];
+  const history: [number, Category][] = [[1, "Bakery"], [2, "Meals"], [4, "Snacks"], [5, "Meals"], [6, "Desserts"], [7, "Meals"], [9, "Meals"], [10, "Bakery"], [11, "Meals"]];
+  const REV_TEXT = ["Fresh and great value.", "Good portion, easy pickup.", "Loved it, will be back.", "Decent, a little cold.", "Friendly staff.", ""];
+  let hp = 0;
+  const pastOrder = (l: Listing, vIdx: number, customerId: string, qty: number, rating: number | null, method: Reservation["method"], pickedAt: number) => {
+    const id = `r_${reservations.length + 1}`;
+    const code = String(1000 + ((reservations.length * 37) % 8999));
+    const token = `demo-token-${id}`;
+    const r: Reservation = {
+      id, ref: `SAP-${++seq}`, listingId: l.id, vendorId: l.vendorId, outletId: l.outletId, customerId, qty, unitPrice: l.rescuePrice, amount: qty * l.rescuePrice,
+      method, status: "Picked up", qrToken: token, code, qrTokenHash: sha256(token), codeHash: sha256(`${l.vendorId}:${code}`),
+      createdAt: iso(pickedAt - m(90)), readyAt: iso(pickedAt - m(40)), pickedUpAt: iso(pickedAt), codeUsedAt: iso(pickedAt),
+    };
+    reservations.push(r);
+    payments.push({
+      id: `p_${reservations.length}`, reservationId: id, customerId, method, amount: r.amount, status: method === "online" ? "Test Payment Successful" : "Paid at Pickup",
+      gateway: method === "online" ? "demo" : "cash_at_pickup", gatewayOrderId: method === "online" ? `demo_order_${id}` : undefined, createdAt: r.createdAt, updatedAt: iso(pickedAt),
+    });
+    const o = outlets.find((x) => x.id === l.outletId)!;
+    impact.push({ id: `ie_${impact.length + 1}`, source: "customer_pickup", refId: id, units: qty, vendorId: l.vendorId, neighbourhood: o.neighbourhood, at: r.pickedUpAt! });
+    if (rating !== null) reviews.push({ id: `rv_${reviews.length + 1}`, reservationId: id, customerId, vendorId: l.vendorId, rating, text: REV_TEXT[(hp + rating) % REV_TEXT.length] || undefined, createdAt: iso(pickedAt + h(2)) });
+  };
+  const pastListing = (vIdx: number, category: Category, k: number, donateRest: boolean, qtyTotal: number, qtyLeft: number): Listing => {
+    const days = 1 + k * 2 + (vIdx % 2);
+    const end = T - h(days * 24) + h((k * 3 + vIdx) % 8 - 4) - m(60);
+    const start = end - m(120);
+    const price = category === "Bakery" ? [220, 110] : category === "Desserts" ? [300, 150] : category === "Snacks" ? [160, 80] : [320, 160];
+    const l: Listing = {
+      id: `lp_${vIdx}_${k}`, vendorId: `v_${vIdx}`, outletId: `o_${vIdx}`, title: `${category} Box (past)`, description: "Past demo listing.", category, imageIsRepresentative: true, surpriseBag: false,
+      originalPrice: price[0], rescuePrice: price[1], qtyTotal, qtyAvailable: qtyLeft, diet: "Vegetarian", allergens: [], preparedAt: iso(start - h(3)), safeUntil: iso(end + h(4)),
+      safetyDeclaration: { accepted: true, acceptedAt: iso(start - h(1)), byUserId: vIdx === 1 ? "u_ravi" : `u_vendor${vIdx}` },
+      windowStart: iso(start), windowEnd: iso(end), donateRest, status: "Expired", createdAt: iso(start - h(1)), updatedAt: iso(end), donationProcessedAt: iso(end),
+    };
+    listings.push(l);
+    return l;
+  };
+  for (const [vIdx, cat] of history) {
+    for (let k = 0; k < 5; k++) {
+      const donate = k !== 4; // the oldest listing was not donated: its leftovers count as expired
+      const l = pastListing(vIdx, cat, k, donate, 10, k === 4 ? 3 : 0);
+      const pickedAt = Date.parse(l.windowStart) + m(25 + ((k * 13) % 60));
+      const c1 = customers[hp++ % customers.length];
+      const c2 = customers[hp++ % customers.length];
+      pastOrder(l, vIdx, c1, 2 + (k % 2), [5, 4, 5, 3, 4][(k + vIdx) % 5], k % 2 === 0 ? "online" : "pay_at_pickup", pickedAt);
+      pastOrder(l, vIdx, c2, 1 + (k % 4), null, "online", pickedAt + m(20));
+      if (k === 4) { const o = outlets.find((x) => x.id === l.outletId)!; impact.push({ id: `ie_${impact.length + 1}`, source: "expired", refId: l.id, units: 3, vendorId: l.vendorId, neighbourhood: o.neighbourhood, at: l.windowEnd }); }
+    }
+  }
+  // One low-rated vendor (20 ratings, average 2.5) so the admin "Flagged" list has a real example.
+  for (let k = 0; k < 20; k++) {
+    const l = k < 5 ? pastListing(8, "Snacks", k, false, 10, 0) : listings.find((x) => x.id === `lp_8_${k % 5}`)!;
+    pastOrder(l, 8, customers[(k + 2) % customers.length], 1 + (k % 3), k % 2 === 0 ? 2 : 3, "online", Date.parse(l.windowStart) + m(20 + k));
+  }
+  // Two more applications for the approval demo (a third pending vendor and the pending NGO already exist).
+  profiles.push({ id: "u_vendor13", name: "Pooja (Demo vendor)", role: "vendor", phone: "+91 90000 01013", createdAt: iso(T - h(30)), demo: true });
+  vendors.push({ id: "v_13", ownerId: "u_vendor13", businessName: "Spice Route Tiffins (Demo)", contactName: "Pooja", phone: "+91 90000 01013", email: "demo-vendor13@example.invalid", fssaiNumber: "DEMO-FSSAI-10013", operatingHours: "07:00–21:00", payoutUpi: "demo13@upi", documents: ["demo-fssai-certificate.pdf", "demo-id-proof.pdf"], status: "Pending", createdAt: iso(T - h(26)) });
+  outlets.push({ id: "o_13", vendorId: "v_13", address: "Demo address 13, Jayanagar, Bengaluru", neighbourhood: "Jayanagar", lat: 12.9291, lng: 77.5851, payAtPickup: false });
+  // Follows.
+  const follows = [
+    { id: "f_1", customerId: "u_priya", vendorId: "v_1", createdAt: iso(T - h(70)) },
+    { id: "f_2", customerId: "u_priya", vendorId: "v_6", createdAt: iso(T - h(60)) },
+    { id: "f_3", customerId: "u_sana", vendorId: "v_1", createdAt: iso(T - h(50)) },
+    { id: "f_4", customerId: "u_arjun", vendorId: "v_2", createdAt: iso(T - h(40)) },
+  ];
+  // Three open reports for the disputes queue.
+  const reports: Report[] = [
+    { id: "rp_1", reporterId: "u_sana", targetType: "listing", targetId: "l_4", reason: "wrong_item", text: "The tray had veg biryani, not chicken.", status: "Open", createdAt: iso(T - h(5)) },
+    { id: "rp_2", reporterId: "u_arjun", targetType: "reservation", targetId: "r_4", reason: "food_safety", text: "Bread felt stale and a bit damp.", status: "Open", createdAt: iso(T - h(3)) },
+    { id: "rp_3", reporterId: "u_priya", targetType: "vendor", targetId: "v_8", reason: "rude_behaviour", text: "Staff were dismissive at the counter.", status: "Open", createdAt: iso(T - h(2)) },
+  ];
+  // Rating aggregates (same maths as submitReview).
+  for (const v of vendors) {
+    const rs = reviews.filter((r) => r.vendorId === v.id);
+    if (rs.length) { v.ratingCount = rs.length; v.ratingAvg = +(rs.reduce((a, r) => a + r.rating, 0) / rs.length).toFixed(2); }
+  }
+  // Impact events carry the P1 fields; every reservation gets a state-change log.
+  for (const e of impact) {
+    if (e.type) continue;
+    e.type = e.source === "customer_pickup" ? "sold" : e.source === "ngo_collection" ? "donated" : "wasted";
+    e.qty = e.units; e.kgEst = kgFor(e.units); e.co2eKg = co2eFor(e.units);
+    if (e.source === "customer_pickup") {
+      const r = reservations.find((x) => x.id === e.refId);
+      const l = r && listings.find((x) => x.id === r.listingId);
+      if (r && l) { e.listingId = l.id; e.customerId = r.customerId; e.rupeesSaved = (l.originalPrice - r.unitPrice) * r.qty; }
+    }
+  }
+  const reservationEvents: ReservationEvent[] = [];
+  for (const r of reservations) {
+    const ev = (to: ReservationStatus, at: string, from?: ReservationStatus, note?: string) => reservationEvents.push({ id: `re_${reservationEvents.length + 1}`, reservationId: r.id, from, to, at, note });
+    ev("Reserved", r.createdAt, undefined, "created");
+    if (r.readyAt) ev("Ready", r.readyAt, "Reserved", "vendor marked ready");
+    if (r.pickedUpAt) ev("Picked up", r.pickedUpAt, r.readyAt ? "Ready" : "Reserved", "code");
+  }
+
   return {
     version: 1, clockOffsetMs: 0, seq, profiles, vendors, outlets, ngos, listings, templates,
     holds: [], reservations, payments, refunds: [], inventory: [], donationBatches, impact,
@@ -246,6 +345,6 @@ export function buildSeed(T: number): DB {
       { id: "nt_1", userId: "u_priya", text: "SAP-4801 is ready for pickup at Crumb & Co. Bakery (Demo).", at: iso(T - m(5)), read: false },
     ],
     audit: [], processedWebhooks: [],
-    reservationEvents: [], pushTokens: [], follows: [], reviews: [], reports: [], settings: { platformFeeBps: 1000 },
+    reservationEvents, pushTokens: [], follows, reviews, reports, settings: { platformFeeBps: 1000 },
   };
 }

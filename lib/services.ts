@@ -126,10 +126,11 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const { db, now } = tx;
+    const live = db.profiles.find((p) => p.id === me.id) ?? me; // suspension is read from stored state, not the caller's snapshot
     const qty = Number(input.qty);
     if (!Number.isInteger(qty) || qty < 1) throw new RuleError("qty_invalid", "Choose at least 1 unit.");
-    if (me.suspendedUntil && t(me.suspendedUntil) > now)
-      throw new RuleError("suspended", me.suspendReason || `Reservations are paused until ${me.suspendedUntil.slice(0, 10)}.`, 403);
+    if (live.suspendedUntil && t(live.suspendedUntil) > now)
+      throw new RuleError("suspended", live.suspendReason || `Reservations are paused until ${live.suspendedUntil.slice(0, 10)}.`, 403);
     if (qty > MAX_ANY_ORDER) throw new RuleError("qty_cap", `Maximum ${RULES.MAX_UNITS_PER_ORDER} units per order.`);
     if (input.method !== "online" && input.method !== "pay_at_pickup") throw new RuleError("method_invalid", "Choose a payment method.");
     const l = listingIn(db, input.listingId);

@@ -93,12 +93,13 @@ async function main() {
     // ---- 1. concurrency
     const cookies = await Promise.all(Array.from({ length: 50 }, (_, i) => signup(i)));
     const t0 = Date.now();
-    const attempts = await Promise.all(cookies.map((c) => post("/api/reservations", { listingId, qty: 1, method: "pay_at_pickup" }, c)));
+    const attempts = await Promise.all(cookies.map((c) => post("/api/reservations", { listingId, qty: 1, method: "online" }, c)));
     const ok = attempts.filter((a) => a.json.ok).length;
     const failed = attempts.filter((a) => !a.json.ok);
     const db = JSON.parse(fs.readFileSync(DB, "utf8"));
     const listing = db.listings.find((l: any) => l.id === listingId);
-    const resv = db.reservations.filter((r: any) => r.listingId === listingId);
+    // P1: pay at pickup is for customers with 3+ pickups, so the load test uses online holds (same stock lock, 5-minute hold).
+    const resv = db.holds.filter((r: any) => r.listingId === listingId && r.status === "Active");
     let running = 0, minRunning = Infinity;
     for (const m of db.inventory.filter((x: any) => x.listingId === listingId)) { running += m.delta; minRunning = Math.min(minRunning, running); }
     results.concurrency = {
@@ -128,7 +129,7 @@ async function main() {
     const buyers = cookies.slice(10, 15);
     for (const b of buyers) {
       sentAt = Date.now();
-      const r = await post("/api/reservations", { listingId: rtId, qty: 1, method: "pay_at_pickup" }, b);
+      const r = await post("/api/reservations", { listingId: rtId, qty: 1, method: "online" }, b);
       if (!r.json.ok) throw new Error(r.json.error);
       await new Promise((r) => setTimeout(r, 300));
     }
@@ -147,8 +148,8 @@ async function main() {
     const neg: Record<string, string | undefined> = {};
     neg.customerCreatesListing = (await post("/api/vendor/listings", { title: "x" }, priya)).json.code;
     neg.customerApproves = (await post("/api/admin/approve", { kind: "vendor", id: "v_3", status: "Approved" }, priya)).json.code;
-    neg.unauthenticatedReserve = (await post("/api/reservations", { listingId: rtId, qty: 1, method: "pay_at_pickup" })).json.code;
-    neg.sixUnits = (await post("/api/reservations", { listingId: rtId, qty: 6, method: "pay_at_pickup" }, cookies[20])).json.code;
+    neg.unauthenticatedReserve = (await post("/api/reservations", { listingId: rtId, qty: 1, method: "online" })).json.code;
+    neg.sixUnits = (await post("/api/reservations", { listingId: rtId, qty: 6, method: "online" }, cookies[20])).json.code;
     const pending = await login("u_vendor3");
     neg.pendingVendorPublish = (await post("/api/vendor/listings", { title: "Pending Test", category: "Bakery", diet: "Vegetarian", originalPrice: 200, rescuePrice: 100, qty: 3, preparedAt: iso(now), windowStart: iso(now + 600_000), windowEnd: iso(now + 3_600_000), donateRest: false, safetyDeclaration: true }, pending)).json.code;
     const vendor2 = await login("u_vendor2");
