@@ -7,6 +7,25 @@ export const RULES = {
   MAX_UNITS_PER_ORDER: 5,
   MAX_LISTING_QTY: 500,
   DONATION_COLLECT_HOURS_DEFAULT: 2, // configurable policy: collection window after window end, capped by safeUntil
+
+  // ---- P1
+  CANCEL_FREE_MINUTES_BEFORE_START: 30, // customer cancels free until 30 min before pickup start
+  NO_SHOW_GRACE_MINUTES: 15, // not scanned 15 min after pickup end => no-show
+  NO_SHOW_SUSPEND_COUNT: 3, // 3 no-shows ...
+  NO_SHOW_SUSPEND_WINDOW_DAYS: 30, // ... in 30 days ...
+  SUSPEND_DAYS: 7, // ... suspends reservations for 7 days
+  NO_SHOW_FLAG_COUNT: 2, // admin "flagged customers" threshold
+  REMINDER_MINUTES_LEFT: 15, // "15 minutes left in your pickup window"
+  ESCALATE_MINUTES_BEFORE_DEADLINE: 60, // unclaimed donation batches escalate 60 min before collect-by
+  ESCALATION_RADIUS_KM: 10,
+  FOLLOW_ALERT_RADIUS_KM: 10,
+  REVIEW_WINDOW_HOURS: 48,
+  FLAG_RATING_BELOW: 3.0, // flagged for admin review: average below 3.0 ...
+  FLAG_MIN_RATINGS: 20, // ... with at least 20 ratings
+  PAY_AT_PICKUP_MIN_PICKUPS: 3, // pay at pickup only for customers with 3+ completed pickups
+  HIGH_RISK_MAX_WINDOW_MINUTES: 120, // raw / seafood / dairy dessert
+  MAX_DISCOUNT_SUGGESTION: 0.8, // suggestion cap; the enforced minimum is still 30% off
+  RESERVE_RATE_LIMIT: { max: 8, windowMs: 60_000 }, // per customer, per minute
 } as const;
 
 export class RuleError extends Error {

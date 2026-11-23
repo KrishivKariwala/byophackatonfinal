@@ -35,13 +35,24 @@ function load(): DB {
   if (g.__sapDb && g.__sapDbPath === p) return g.__sapDb;
   let db: DB;
   if (fs.existsSync(p)) {
-    db = JSON.parse(fs.readFileSync(p, "utf8")) as DB;
+    db = migrate(JSON.parse(fs.readFileSync(p, "utf8")) as DB);
   } else {
     db = buildSeed(Date.now());
     persist(db);
   }
   g.__sapDb = db;
   g.__sapDbPath = p;
+  return db;
+}
+
+/** Additive upgrade of stores written before P1: fill the new collections and settings with defaults. */
+export function migrate(db: DB): DB {
+  db.reservationEvents ??= [];
+  db.pushTokens ??= [];
+  db.follows ??= [];
+  db.reviews ??= [];
+  db.reports ??= [];
+  db.settings ??= { platformFeeBps: 1000 };
   return db;
 }
 
@@ -76,6 +87,8 @@ export interface TxContext {
   now: number;
   emit: (e: Omit<LiveEvent, "committedAt"> & Record<string, unknown>) => void;
   nextSeq: () => number;
+  /** Runs only after the transaction has been persisted (push delivery, SMS). Never runs on rollback. */
+  afterCommit: (fn: () => void | Promise<void>) => void;
 }
 
 export async function transaction<T>(fn: (tx: TxContext) => T | Promise<T>): Promise<T> {
@@ -88,17 +101,20 @@ export async function transaction<T>(fn: (tx: TxContext) => T | Promise<T>): Pro
     const current = load();
     const draft: DB = structuredClone(current);
     const pending: Omit<LiveEvent, "committedAt">[] = [];
+    const after: (() => void | Promise<void>)[] = [];
     const tx: TxContext = {
       db: draft,
       now: now(draft),
       emit: (e) => pending.push(e as Omit<LiveEvent, "committedAt">),
       nextSeq: () => ++draft.seq,
+      afterCommit: (fn) => after.push(fn),
     };
     const result = await fn(tx);
     persist(draft);
     g.__sapDb = draft; // commit
     const committedAt = Date.now();
     for (const e of pending) bus().emit("live", { ...e, committedAt } as LiveEvent);
+    for (const fn of after) Promise.resolve().then(fn).catch((err) => console.error("afterCommit failed", err));
     return result;
   } finally {
     release();

@@ -6,7 +6,8 @@ export type Diet = "Vegetarian" | "Non-vegetarian";
 export type Category = "Bakery" | "Meals" | "Snacks" | "Desserts";
 
 export type ListingStatus = "Draft" | "Live" | "Paused" | "Sold Out" | "Expired" | "Cancelled";
-export type ReservationStatus = "Hold" | "Reserved" | "Ready" | "Picked up" | "Cancelled" | "Expired";
+export type RiskTag = "raw" | "seafood" | "dairy_dessert";
+export type ReservationStatus = "Hold" | "Reserved" | "Ready" | "Picked up" | "Cancelled" | "Expired" | "No-show";
 export type PaymentStatus =
   | "Pending"
   | "Test Payment Successful"
@@ -25,6 +26,12 @@ export interface Profile {
   role: Role;
   createdAt: string;
   demo: true;
+  /** P1: reservations suspended until this ISO time (3 no-shows in 30 days, or admin action). */
+  suspendedUntil?: string;
+  suspendReason?: string;
+  /** P1: last known location, used for "within 10 km" alerts. */
+  homeLat?: number;
+  homeLng?: number;
 }
 
 export interface Vendor {
@@ -42,6 +49,14 @@ export interface Vendor {
   rejectionReason?: string;
   ratingDemo?: number; // demo-labelled only
   createdAt: string;
+  /** P1 */
+  logoUrl?: string;
+  ratingAvg?: number;
+  ratingCount?: number;
+  /** Vendor allows orders above RULES.MAX_UNITS_PER_ORDER, up to this many units. */
+  maxUnitsPerOrder?: number;
+  /** Hidden from customers by an admin (report action). */
+  hiddenByAdmin?: boolean;
 }
 
 export interface Outlet {
@@ -103,6 +118,10 @@ export interface Listing {
   updatedAt: string;
   cancelReason?: string;
   donationProcessedAt?: string;
+  /** P1 */
+  donationOnly?: boolean; // never sold; goes straight to a donation batch
+  riskTag?: RiskTag; // raw / seafood / dairy dessert: pickup window capped at 2 h
+  hiddenByAdmin?: boolean;
 }
 
 export interface Template {
@@ -117,6 +136,12 @@ export interface Template {
   allergens: string[];
   surpriseBag: boolean;
   storageNote?: string;
+  /** P1 */
+  qty?: number;
+  donateRest?: boolean;
+  donationOnly?: boolean;
+  riskTag?: RiskTag;
+  createdAt?: string;
 }
 
 export interface CheckoutHold {
@@ -154,6 +179,21 @@ export interface Reservation {
   pickedUpAt?: string;
   cancelledAt?: string;
   cancelReason?: string;
+  /** P1 */
+  cancelledBy?: "customer" | "vendor" | "system" | "admin";
+  reminderSentAt?: string;
+  noShowAt?: string;
+}
+
+/** P1: every reservation state change is logged here with a timestamp. */
+export interface ReservationEvent {
+  id: string;
+  reservationId: string;
+  from?: ReservationStatus;
+  to: ReservationStatus;
+  at: string;
+  actorId?: string;
+  note?: string;
 }
 
 export interface Payment {
@@ -209,24 +249,95 @@ export interface DonationBatch {
   collectedAt?: string;
   createdAt: string;
   vendorInstruction: string;
+  /** P1 */
+  origin?: "window_end" | "no_show" | "donation_only";
+  pickupSlot?: string;
+  volunteerName?: string;
+  volunteerPhone?: string;
+  volunteerToken?: string;
+  escalatedAt?: string;
 }
+
+export type ImpactType = "sold" | "donated" | "wasted";
 
 export interface ImpactEvent {
   id: string;
-  source: "customer_pickup" | "ngo_collection";
+  /** "expired" rows are P1 "wasted" events and are excluded from rescued-meal totals. */
+  source: "customer_pickup" | "ngo_collection" | "expired";
   refId: string;
   units: number;
   vendorId: string;
   neighbourhood: string;
   at: string;
+  /** P1 impact_events fields (additive) */
+  type?: ImpactType;
+  listingId?: string;
+  qty?: number;
+  kgEst?: number;
+  co2eKg?: number;
+  customerId?: string;
+  rupeesSaved?: number;
 }
+
+export type NotificationType =
+  | "order_confirmed" | "order_ready" | "pickup_reminder" | "order_cancelled" | "refund_issued"
+  | "new_listing_followed" | "new_donation" | "donation_escalation" | "review_prompt"
+  | "approval_decision" | "report_update" | "no_show" | "suspension" | "new_order" | "generic";
 
 export interface Notification {
   id: string;
   userId: string;
   text: string;
-  at: string;
+  at: string; // sent_at
   read: boolean;
+  /** P1 */
+  type?: NotificationType;
+  payload?: Record<string, unknown>;
+  readAt?: string;
+}
+
+export interface PushToken {
+  id: string;
+  userId: string;
+  token: string;
+  platform: "ios" | "android" | "web";
+  deviceId: string;
+  createdAt: string;
+}
+
+export interface Follow { id: string; customerId: string; vendorId: string; lat?: number; lng?: number; createdAt: string }
+
+export interface Review {
+  id: string;
+  reservationId: string; // unique
+  customerId: string;
+  vendorId: string;
+  rating: number;
+  text?: string;
+  createdAt: string;
+}
+
+export type ReportReason = "food_safety" | "wrong_item" | "rude_behaviour" | "other";
+export type ReportTarget = "reservation" | "listing" | "vendor";
+export type ReportStatus = "Open" | "Dismissed" | "Actioned";
+export interface Report {
+  id: string;
+  reporterId: string;
+  targetType: ReportTarget;
+  targetId: string;
+  reason: ReportReason;
+  photoUrl?: string;
+  text?: string;
+  status: ReportStatus;
+  resolution?: string;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  createdAt: string;
+}
+
+export interface Settings {
+  /** Platform fee in basis points of order value (1000 = 10%). */
+  platformFeeBps: number;
 }
 
 export interface AuditLog {
@@ -259,6 +370,13 @@ export interface DB {
   notifications: Notification[];
   audit: AuditLog[];
   processedWebhooks: string[];
+  /** P1 (optional so older persisted stores still load; see store.load) */
+  reservationEvents: ReservationEvent[];
+  pushTokens: PushToken[];
+  follows: Follow[];
+  reviews: Review[];
+  reports: Report[];
+  settings: Settings;
 }
 
 export type LiveEvent =

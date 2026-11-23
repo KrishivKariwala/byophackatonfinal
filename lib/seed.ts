@@ -246,5 +246,6 @@ export function buildSeed(T: number): DB {
       { id: "nt_1", userId: "u_priya", text: "SAP-4801 is ready for pickup at Crumb & Co. Bakery (Demo).", at: iso(T - m(5)), read: false },
     ],
     audit: [], processedWebhooks: [],
+    reservationEvents: [], pushTokens: [], follows: [], reviews: [], reports: [], settings: { platformFeeBps: 1000 },
   };
 }

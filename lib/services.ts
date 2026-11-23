@@ -1,8 +1,14 @@
 import "server-only";
 import { transaction, read, now as clockNow, type TxContext } from "./store";
+import {
+  iso, t, requireRole, vendorOf, approvedVendorOf, ngoOf, outletOf, listingIn, audit, notify, move, emitRes, setResStatus,
+  logNewReservation, createDonationBatchTx, recordImpact,
+} from "./core";
 import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
+import { co2eFor, kgFor } from "./impact-config";
+import { runScheduledJobs, jobsPending } from "./jobs";
 import type {
   ApprovalStatus, Category, CheckoutHold, DB, Diet, DonationBatch, Listing, Ngo, Outlet, Payment,
   PaymentMethod, Profile, Reservation, Role, Vendor,
@@ -11,62 +17,8 @@ import type {
 export const CATEGORIES: Category[] = ["Bakery", "Meals", "Snacks", "Desserts"];
 export const DIETS: Diet[] = ["Vegetarian", "Non-vegetarian"];
 
-const iso = (ms: number) => new Date(ms).toISOString();
-const t = (s: string) => Date.parse(s);
-
 // ---------------------------------------------------------------- helpers
 
-function requireRole(actor: Profile | null, ...roles: Role[]): Profile {
-  if (!actor) throw new RuleError("unauthenticated", "Please sign in.", 401);
-  if (!roles.includes(actor.role)) throw new RuleError("forbidden", "Your account cannot do this.", 403);
-  return actor;
-}
-
-function vendorOf(db: DB, actor: Profile): Vendor {
-  const v = db.vendors.find((x) => x.ownerId === actor.id);
-  if (!v) throw new RuleError("no_vendor", "Complete vendor onboarding first.", 403);
-  return v;
-}
-function approvedVendorOf(db: DB, actor: Profile): Vendor {
-  const v = vendorOf(db, actor);
-  if (v.status !== "Approved")
-    throw new RuleError("approval_required", `Your vendor application is ${v.status}. Only approved vendors can do this.`, 403);
-  return v;
-}
-function ngoOf(db: DB, actor: Profile): Ngo {
-  const n = db.ngos.find((x) => x.ownerId === actor.id);
-  if (!n) throw new RuleError("no_ngo", "Complete NGO verification first.", 403);
-  return n;
-}
-function outletOf(db: DB, outletId: string): Outlet {
-  const o = db.outlets.find((x) => x.id === outletId);
-  if (!o) throw new RuleError("not_found", "Outlet not found.", 404);
-  return o;
-}
-function listingIn(db: DB, id: string): Listing {
-  const l = db.listings.find((x) => x.id === id);
-  if (!l) throw new RuleError("not_found", "Listing not found.", 404);
-  return l;
-}
-
-function audit(tx: TxContext, actorId: string, action: string, entity: string, entityId: string, detail?: string) {
-  tx.db.audit.push({ id: newId("au"), actorId, action, entity, entityId, detail, at: iso(tx.now) });
-}
-function notify(tx: TxContext, userId: string, text: string) {
-  tx.db.notifications.push({ id: newId("nt"), userId, text, at: iso(tx.now), read: false });
-}
-function move(tx: TxContext, l: Listing, delta: number, reason: string, refId?: string) {
-  if (l.qtyAvailable + delta < 0) throw new RuleError("insufficient_stock", "Not enough units left.", 409);
-  l.qtyAvailable += delta;
-  l.updatedAt = iso(tx.now);
-  tx.db.inventory.push({ id: newId("im"), listingId: l.id, delta, reason, refId, at: iso(tx.now) });
-  if (l.status === "Live" && l.qtyAvailable === 0) l.status = "Sold Out";
-  else if (l.status === "Sold Out" && l.qtyAvailable > 0 && tx.now < t(l.windowEnd)) l.status = "Live";
-  tx.emit({ type: "listing", listingId: l.id, qtyAvailable: l.qtyAvailable, status: l.status });
-}
-function emitRes(tx: TxContext, r: Reservation) {
-  tx.emit({ type: "reservation", reservationId: r.id, status: r.status, customerId: r.customerId, vendorId: r.vendorId });
-}
 function uniqueCode(db: DB, vendorId: string): string {
   const inUse = new Set(
     db.reservations
@@ -88,6 +40,7 @@ function newReservation(tx: TxContext, l: Listing, customerId: string, qty: numb
     qrToken: token, code, qrTokenHash: sha256(token), codeHash: sha256(`${l.vendorId}:${code}`), createdAt: iso(tx.now),
   };
   tx.db.reservations.push(r);
+  logNewReservation(tx, r, customerId);
   return r;
 }
 function activeCount(db: DB, customerId: string): number {
@@ -97,7 +50,7 @@ function activeCount(db: DB, customerId: string): number {
 }
 export function isCustomerVisible(db: DB, l: Listing, nowMs: number): boolean {
   const v = db.vendors.find((x) => x.id === l.vendorId);
-  return l.status === "Live" && l.qtyAvailable > 0 && nowMs < t(l.windowEnd) && v?.status === "Approved";
+  return l.status === "Live" && l.qtyAvailable > 0 && nowMs < t(l.windowEnd) && v?.status === "Approved" && !l.donationOnly && !l.hiddenByAdmin && !v?.hiddenByAdmin;
 }
 
 // ---------------------------------------------------------------- window-end processor
@@ -121,7 +74,7 @@ export function sweepTx(tx: TxContext) {
       l.status = "Expired";
       l.updatedAt = iso(now);
       tx.emit({ type: "listing", listingId: l.id, qtyAvailable: l.qtyAvailable, status: l.status });
-      if (l.donateRest && !l.donationProcessedAt) createDonationBatchTx(tx, l);
+      if (l.donateRest && !l.donationProcessedAt && !l.donationOnly) createDonationBatchTx(tx, l);
     }
   }
   // 3. Expire batches past their collection deadline.
@@ -131,34 +84,8 @@ export function sweepTx(tx: TxContext) {
       tx.emit({ type: "donation", batchId: b.id, status: b.status });
     }
   }
-}
-
-function createDonationBatchTx(tx: TxContext, l: Listing) {
-  const { db, now } = tx;
-  l.donationProcessedAt = iso(now);
-  // No hold may remain (holds expire no later than window end and were resolved above).
-  const openHold = db.holds.some((h) => h.listingId === l.id && h.status === "Active");
-  if (openHold) throw new RuleError("hold_open", "Internal: hold still open at window end.", 500);
-  // Eligible = unreserved, unheld units, i.e. qtyAvailable. Reserved/held/collected units never enter.
-  const qty = l.qtyAvailable;
-  const safeUntil = l.safeUntil ? t(l.safeUntil) : Infinity;
-  const collectBy = Math.min(t(l.windowEnd) + RULES.DONATION_COLLECT_HOURS_DEFAULT * 3600_000, safeUntil);
-  const eligible = qty > 0 && l.safetyDeclaration?.accepted === true && safeUntil > now && collectBy > now;
-  if (!eligible) {
-    audit(tx, "system", "donation_skipped", "listing", l.id, qty > 0 ? "Not eligible: safety deadline passed" : "No units left");
-    return;
-  }
-  move(tx, l, -qty, "donation_batch");
-  const b: DonationBatch = {
-    id: newId("d"), ref: `DON-${tx.nextSeq()}`, listingId: l.id, vendorId: l.vendorId, outletId: l.outletId, qty,
-    title: l.title, diet: l.diet, allergens: l.allergens, preparedAt: l.preparedAt, collectBy: iso(collectBy),
-    status: "Open", createdAt: iso(now), vendorInstruction: "Donate the rest at window end",
-  };
-  db.donationBatches.push(b);
-  audit(tx, "system", "donation_batch_created", "donation_batch", b.id, `${qty} units from ${l.id}`);
-  const vendor = db.vendors.find((v) => v.id === l.vendorId);
-  for (const n of db.ngos.filter((x) => x.status === "Approved")) notify(tx, n.ownerId, `${qty} × ${l.title} free at ${vendor?.businessName}. Collect by ${iso(collectBy)}.`);
-  tx.emit({ type: "donation", batchId: b.id, status: b.status });
+  // 4. P1 scheduled jobs (reminders, no-shows, escalation, wasted impact).
+  runScheduledJobs(tx);
 }
 
 export async function sweep() {
@@ -167,7 +94,8 @@ export async function sweep() {
   const needs =
     db.holds.some((h) => h.status === "Active" && t(h.expiresAt) <= n) ||
     db.listings.some((l) => (l.status === "Live" || l.status === "Paused" || l.status === "Sold Out") && t(l.windowEnd) <= n) ||
-    db.donationBatches.some((b) => (b.status === "Open" || b.status === "Claimed") && t(b.collectBy) <= n);
+    db.donationBatches.some((b) => (b.status === "Open" || b.status === "Claimed") && t(b.collectBy) <= n) ||
+    jobsPending(db, n);
   if (needs) await transaction((tx) => sweepTx(tx));
 }
 
@@ -227,7 +155,8 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
       gateway: "cash_at_pickup", createdAt: iso(now), updatedAt: iso(now),
     });
     emitRes(tx, r);
-    notify(tx, vendor.ownerId, `New order ${r.ref}: ${qty} × ${l.title} (pay at pickup).`);
+    notify(tx, vendor.ownerId, `New order ${r.ref}: ${qty} × ${l.title} (pay at pickup).`, "new_order", { reservationId: r.id });
+    notify(tx, me.id, `Order ${r.ref} confirmed: ${qty} × ${l.title}. Pay at pickup.`, "order_confirmed", { reservationId: r.id });
     return { kind: "reservation", reservationId: r.id } as const;
   });
 }
@@ -275,7 +204,7 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
       const refund = { id: newId("rf"), paymentId: p.id, amount: p.amount, reason: "Payment arrived after checkout hold expired", status: "Refund Pending" as const, createdAt: iso(now) };
       db.refunds.push(refund);
       audit(tx, "system", "late_payment_refund", "payment", p.id, input.gatewayPaymentId);
-      notify(tx, h.customerId, `Your payment arrived after the 5-minute hold expired. A full test-mode refund of ₹${p.amount} has been initiated.`);
+      notify(tx, h.customerId, `Your payment arrived after the 5-minute hold expired. A full test-mode refund of ₹${p.amount} has been initiated.`, "refund_issued", { amount: p.amount });
       return { outcome: "late_refund", refundId: refund.id } as const;
     }
     const l = listingIn(db, h.listingId);
@@ -287,7 +216,8 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
     p.updatedAt = iso(now);
     emitRes(tx, r);
     const vendor = db.vendors.find((v) => v.id === l.vendorId)!;
-    notify(tx, vendor.ownerId, `New order ${r.ref}: ${r.qty} × ${l.title} (paid, test mode).`);
+    notify(tx, vendor.ownerId, `New order ${r.ref}: ${r.qty} × ${l.title} (paid, test mode).`, "new_order", { reservationId: r.id });
+    notify(tx, h.customerId, `Order ${r.ref} confirmed: ${r.qty} × ${l.title}. Collect between ${l.windowStart} and ${l.windowEnd}.`, "order_confirmed", { reservationId: r.id });
     return { outcome: "confirmed", reservationId: r.id } as const;
   });
 }
@@ -446,8 +376,9 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
     }
     // Cancel outstanding orders; refund captured online payments; never fake a refund for unpaid pay-at-pickup.
     for (const r of db.reservations.filter((x) => x.listingId === l.id && (x.status === "Reserved" || x.status === "Ready"))) {
-      r.status = "Cancelled";
+      setResStatus(tx, r, "Cancelled", me.id, "vendor cancelled listing");
       r.cancelledAt = iso(now);
+      r.cancelledBy = "vendor";
       r.cancelReason = `Vendor cancelled listing: ${l.cancelReason}`;
       const p = db.payments.find((x) => x.reservationId === r.id);
       if (p && p.status === "Test Payment Successful") {
@@ -458,7 +389,8 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
         db.refunds.push({ id: newId("rf"), paymentId: p.id, amount: p.amount, reason: r.cancelReason, status: settled ? "Refunded" : "Refund Pending", createdAt: iso(now) });
         refunds++;
       }
-      notify(tx, r.customerId, `${r.ref} was cancelled by the vendor (${l.cancelReason}).${p?.method === "online" ? " A full test-mode refund was issued." : ""}`);
+      notify(tx, r.customerId, `${r.ref} was cancelled by the vendor (${l.cancelReason}).${p?.method === "online" ? " A full test-mode refund was issued." : ""}`, "order_cancelled", { reservationId: r.id });
+      if (p?.method === "online" && refunds > 0) notify(tx, r.customerId, `Refund of ₹${p.amount} issued for ${r.ref}.`, "refund_issued", { reservationId: r.id, amount: p.amount });
       emitRes(tx, r);
     }
     const remaining = l.qtyAvailable;
@@ -478,9 +410,9 @@ export function markReady(actor: Profile | null, reservationId: string) {
     const r = tx.db.reservations.find((x) => x.id === reservationId);
     if (!r || r.vendorId !== v.id) throw new RuleError("not_found", "Order not found for this outlet.", 404);
     if (r.status !== "Reserved") throw new RuleError("bad_transition", `Order is ${r.status}; only Reserved orders can be marked Ready.`, 409);
-    r.status = "Ready";
+    setResStatus(tx, r, "Ready", me.id, "vendor marked ready");
     r.readyAt = iso(tx.now);
-    notify(tx, r.customerId, `${r.ref} is ready for pickup.`);
+    notify(tx, r.customerId, `${r.ref} is ready for pickup.`, "order_ready", { reservationId: r.id });
     emitRes(tx, r);
     return r;
   });
@@ -510,7 +442,7 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
     const l = listingIn(db, r.listingId);
     if (now < t(l.windowStart)) throw new RuleError("too_early", `Pickup window opens at ${l.windowStart}.`, 409);
     if (now > t(l.windowEnd)) throw new RuleError("too_late", "The pickup window has ended.", 409);
-    r.status = "Picked up";
+    setResStatus(tx, r, "Picked up", me.id, input.token ? "qr" : "code");
     r.pickedUpAt = iso(now);
     r.codeUsedAt = iso(now);
     const p = db.payments.find((x) => x.reservationId === r!.id);
@@ -521,9 +453,9 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
       collect = p.amount;
     }
     const outlet = outletOf(db, r.outletId);
-    db.impact.push({ id: newId("ie"), source: "customer_pickup", refId: r.id, units: r.qty, vendorId: v.id, neighbourhood: outlet.neighbourhood, at: iso(now) });
+    recordImpact(tx, { source: "customer_pickup", refId: r.id, units: r.qty, vendorId: v.id, outlet, listingId: l.id, type: "sold", customerId: r.customerId, rupeesSaved: (l.originalPrice - r.unitPrice) * r.qty });
     audit(tx, me.id, "handover", "reservation", r.id, input.token ? "qr" : "code");
-    notify(tx, r.customerId, `${r.ref} picked up. Thanks for saving a plate!`);
+    notify(tx, r.customerId, `${r.ref} picked up. Thanks for saving a plate! You can rate your order for 48 hours.`, "review_prompt", { reservationId: r.id });
     emitRes(tx, r);
     tx.emit({ type: "impact" });
     return { ok: true, ref: r.ref, qty: r.qty, title: l.title, collectAmount: collect, method: r.method };
@@ -542,7 +474,7 @@ export function donationHandover(actor: Profile | null, batchId: string, code: s
     b.status = "Collected";
     b.collectedAt = iso(tx.now);
     const outlet = outletOf(tx.db, b.outletId);
-    tx.db.impact.push({ id: newId("ie"), source: "ngo_collection", refId: b.id, units: b.qty, vendorId: v.id, neighbourhood: outlet.neighbourhood, at: iso(tx.now) });
+    recordImpact(tx, { source: "ngo_collection", refId: b.id, units: b.qty, vendorId: v.id, outlet, listingId: b.listingId, type: "donated" });
     const ngo = tx.db.ngos.find((n) => n.id === b.claimedByNgoId);
     if (ngo) notify(tx, ngo.ownerId, `${b.ref} collected: ${b.qty} × ${b.title}. Donation recorded.`);
     audit(tx, me.id, "donation_handover", "donation_batch", b.id);
@@ -659,7 +591,7 @@ export function setApproval(actor: Profile | null, kind: "vendor" | "ngo", id: s
     if (!rec) throw new RuleError("not_found", "Application not found.", 404);
     rec.status = status;
     rec.rejectionReason = status === "Rejected" ? reason!.trim() : undefined;
-    notify(tx, rec.ownerId, `Your ${kind === "vendor" ? "vendor" : "NGO"} application was ${status.toLowerCase()} (demo approval, not a regulatory approval).`);
+    notify(tx, rec.ownerId, `Your ${kind === "vendor" ? "vendor" : "NGO"} application was ${status.toLowerCase()}${status === "Rejected" ? `: ${reason!.trim()}` : ""} (demo approval, not a regulatory approval).`, "approval_decision", { kind, id, status });
     audit(tx, me.id, `${kind}_${status.toLowerCase()}`, kind, id, reason);
     tx.emit({ type: "impact" });
     return rec;
@@ -735,21 +667,25 @@ export function customerOrders(customerId: string) {
 
 export function impactSummary() {
   const db = read();
-  const sum = (src?: string) => db.impact.filter((e) => !src || e.source === src).reduce((s, e) => s + e.units, 0);
+  const rescued = db.impact.filter((e) => e.source !== "expired");
+  const sum = (src?: string) => rescued.filter((e) => !src || e.source === src).reduce((s, e) => s + e.units, 0);
   const n = clockNow(db);
   const byHood: Record<string, number> = {};
-  for (const e of db.impact) byHood[e.neighbourhood] = (byHood[e.neighbourhood] || 0) + e.units;
+  for (const e of rescued) byHood[e.neighbourhood] = (byHood[e.neighbourhood] || 0) + e.units;
   return {
     totalUnits: sum(),
     customerUnits: sum("customer_pickup"),
     ngoUnits: sum("ngo_collection"),
     activeListings: db.listings.filter((l) => isCustomerVisible(db, l, n)).length,
-    completedPickups: db.impact.filter((e) => e.source === "customer_pickup").length,
-    completedCollections: db.impact.filter((e) => e.source === "ngo_collection").length,
+    completedPickups: rescued.filter((e) => e.source === "customer_pickup").length,
+    completedCollections: rescued.filter((e) => e.source === "ngo_collection").length,
+    kgRescued: +rescued.reduce((s, e) => s + (e.kgEst ?? kgFor(e.units)), 0).toFixed(1),
+    co2eAvoidedKg: +rescued.reduce((s, e) => s + (e.co2eKg ?? co2eFor(e.units)), 0).toFixed(1),
+    wastedUnits: db.impact.filter((e) => e.source === "expired").reduce((s, e) => s + e.units, 0),
     approvedVendors: db.vendors.filter((v) => v.status === "Approved").length,
     approvedNgos: db.ngos.filter((x) => x.status === "Approved").length,
     byHood: Object.entries(byHood).sort((a, b) => b[1] - a[1]),
-    recent: [...db.impact].sort((a, b) => t(b.at) - t(a.at)).slice(0, 8).map((e) => ({
+    recent: [...rescued].sort((a, b) => t(b.at) - t(a.at)).slice(0, 8).map((e) => ({
       ...e,
       vendor: db.vendors.find((v) => v.id === e.vendorId)?.businessName ?? "",
       ngo: e.source === "ngo_collection" ? db.ngos.find((x) => x.id === db.donationBatches.find((b) => b.id === e.refId)?.claimedByNgoId)?.orgName : undefined,
