@@ -44,3 +44,7 @@
 
 /* Opening animation: hidden for returning visitors / reduced motion (attribute is set before first paint, see app/layout.tsx) */
 html[data-sap-intro] .intro-root { display: none !important; }
+
+/* Refresh / returning visitors: hide what the quick re-entry animates until its start states are set (prevents a flash of the finished page).
+   The attribute is set before first paint by the script in app/layout.tsx and removed by components/Landing.tsx. */
+html[data-sap-quick] :is(.hero-fade, .hero-word, .plate-wrap, .decor) { opacity: 0; }

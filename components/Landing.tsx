@@ -17,7 +17,7 @@ gsap.registerPlugin(useGSAP, SplitText);
  *   1. Red + burgundy halves meet; the plate spins up from a standstill while a 0 to 100% bar fills (speed ramps up).
  *   2. At 100% the curtains slide apart, the plate decelerates and flies into the hero plate's exact spot.
  *   3. The headline rises letter by letter, then a gold wave runs once through every letter.
- * Returning visitors get the quick entrance below instead. A Skip button / Esc fast-forwards the intro.
+ * Refreshes and later visits get a quick re-entry instead: the wheel whirls and settles while the gold wave runs through the headline. A Skip button / Esc fast-forwards the intro.
  *
  * Interaction model for the plate (keeps junctions from flickering):
  *   - VISUAL slices animate freely but never receive the pointer (pointer-events: none).
@@ -27,7 +27,6 @@ gsap.registerPlugin(useGSAP, SplitText);
 
 const CX = 300, CY = 300;
 const R_OUT = 236; // pie radius
-const R_CRUST = 214; // inner edge of the crust band
 const R_HUB = 62;
 const SEEN_KEY = "sap-intro-seen";
 const GOLD = "#F4B63F";
@@ -40,24 +39,15 @@ function wedge(a0: number, a1: number, r = R_OUT) {
   const p0 = polar(a0, r), p1 = polar(a1, r);
   return `M${CX} ${CY} L${f(p0.x)} ${f(p0.y)} A${r} ${r} 0 0 1 ${f(p1.x)} ${f(p1.y)} Z`;
 }
-/** Crust band along the outer edge of a slice. */
-function ring(a0: number, a1: number, r0 = R_CRUST, r1 = R_OUT) {
-  const o0 = polar(a0, r1), o1 = polar(a1, r1), i1 = polar(a1, r0), i0 = polar(a0, r0);
-  return `M${f(o0.x)} ${f(o0.y)} A${r1} ${r1} 0 0 1 ${f(o1.x)} ${f(o1.y)} L${f(i1.x)} ${f(i1.y)} A${r0} ${r0} 0 0 0 ${f(i0.x)} ${f(i0.y)} Z`;
-}
-
 type SliceId = "customer" | "vendor" | "ngo";
 type Slice = {
-  id: SliceId; a0: number; a1: number; ink: string; lines: [string, string]; word: string; sub: string; Icon: typeof MapPin; aria: string;
-  stops: [string, string, string]; crust: string;
+  id: SliceId; a0: number; a1: number; color: string; ink: string; lines: [string, string]; word: string; sub: string; Icon: typeof MapPin; aria: string;
 };
+// Each slice is ONE flat colour (brand tomato, peach, burgundy): the same shade from the hub to the edge.
 const SLICES: Slice[] = [
-  { id: "customer", a0: -150, a1: -30, ink: "#FEF2C0", lines: ["FIND FOOD", "NEAR ME"], word: "EAT", sub: "Grab discounted surplus from kitchens near you tonight.", Icon: MapPin, aria: "Find food near me. Sign in as a customer",
-    stops: ["#EC3A33", "#CB0001", "#A80000"], crust: "#7A0000" },
-  { id: "vendor", a0: -30, a1: 90, ink: "#790000", lines: ["LIST SURPLUS", "AS A VENDOR"], word: "LIST", sub: "Turn today's extra into rescued meals in under a minute.", Icon: Store, aria: "List surplus as a vendor. Sign in as a vendor",
-    stops: ["#FFE9C4", "#FDD599", "#EDBE78"], crust: "#B9792A" },
-  { id: "ngo", a0: 90, a1: 210, ink: "#FDD599", lines: ["COLLECT AS", "AN NGO"], word: "FEED", sub: "Claim free leftovers and get them to people who need them.", Icon: HeartHandshake, aria: "Collect as an NGO. Sign in as an NGO",
-    stops: ["#A01616", "#790000", "#5A0000"], crust: "#2A0A0A" },
+  { id: "customer", a0: -150, a1: -30, color: "#CB0001", ink: "#FEF2C0", lines: ["FIND FOOD", "NEAR ME"], word: "EAT", sub: "Grab discounted surplus from kitchens near you tonight.", Icon: MapPin, aria: "Find food near me. Sign in as a customer" },
+  { id: "vendor", a0: -30, a1: 90, color: "#FDD599", ink: "#790000", lines: ["LIST SURPLUS", "AS A VENDOR"], word: "LIST", sub: "Turn today's extra into rescued meals in under a minute.", Icon: Store, aria: "List surplus as a vendor. Sign in as a vendor" },
+  { id: "ngo", a0: 90, a1: 210, color: "#790000", ink: "#FDD599", lines: ["COLLECT AS", "AN NGO"], word: "FEED", sub: "Claim free leftovers and get them to people who need them.", Icon: HeartHandshake, aria: "Collect as an NGO. Sign in as an NGO" },
 ];
 const mid = (s: Slice) => (s.a0 + s.a1) / 2;
 const REDUCED = "(prefers-reduced-motion: reduce)";
@@ -96,26 +86,17 @@ function PlateDefs({ p }: { p: string }) {
       <radialGradient id={`${p}wellGrad`} cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="#FFFDF5" /><stop offset=".8" stopColor="#F8EBCD" /><stop offset="1" stopColor="#E7D3A8" /></radialGradient>
       <filter id={`${p}blur6`} x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="7" /></filter>
       <filter id={`${p}popShadow`} x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="9" floodColor="#2A0A0A" floodOpacity=".45" /></filter>
-      <pattern id={`${p}dots`} width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.2" fill="#fff" opacity=".35" /><circle cx="10" cy="10" r="1" fill="#000" opacity=".12" /></pattern>
-      {SLICES.map((s) => (
-        <radialGradient key={s.id} id={`${p}grad-${s.id}`} gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r={R_OUT}>
-          <stop offset="0" stopColor={s.stops[0]} /><stop offset=".62" stopColor={s.stops[1]} /><stop offset="1" stopColor={s.stops[2]} />
-        </radialGradient>
-      ))}
     </defs>
   );
 }
 
 /** One slice as drawn artwork (used for the base pie, the hover "pop" overlay and the intro plate). */
-function SliceArt({ s, p }: { s: Slice; p: string }) {
+function SliceArt({ s }: { s: Slice }) {
   const pt = polar(mid(s), 146);
   return (
     <>
-      <path d={wedge(s.a0, s.a1)} fill={`url(#${p}grad-${s.id})`} stroke={s.stops[1]} strokeWidth="1" strokeLinejoin="round" />
-      <path d={wedge(s.a0, s.a1)} fill={`url(#${p}dots)`} opacity=".5" />
-      <path d={ring(s.a0, s.a1)} fill={s.crust} opacity=".22" />
-      <path d={wedge(s.a0, s.a1, R_CRUST)} fill="none" stroke="#fff" strokeOpacity=".28" strokeWidth="2" />
-      <path d={wedge(s.a0, s.a1, R_OUT - 6)} fill="none" stroke={s.ink} strokeOpacity=".3" strokeWidth="1.5" strokeDasharray="2 8" strokeLinecap="round" />
+      {/* one flat colour per slice: identical shade from the hub to the edge, no gradient, no highlight, no texture */}
+      <path d={wedge(s.a0, s.a1)} fill={s.color} stroke={s.color} strokeWidth="1" strokeLinejoin="round" />
       <g style={{ fill: s.ink, color: s.ink }}>
         <s.Icon x={pt.x - 18} y={pt.y - 60} width={36} height={36} strokeWidth={2.25} />
         <text x={pt.x} y={pt.y - 2} textAnchor="middle" className="display" fontSize="21" fill={s.ink}>{s.lines[0]}</text>
@@ -125,7 +106,7 @@ function SliceArt({ s, p }: { s: Slice; p: string }) {
   );
 }
 
-/** Rim + bevel + well. `c` is the class prefix used by the hero's entrance animation ("plate") or the intro ("ip"). */
+/** Rim + bevel + well. `c` is the class prefix used by the hero's idle animation ("plate") or the intro ("ip"). */
 function PlateBase({ p, c }: { p: string; c: string }) {
   return (
     <>
@@ -149,7 +130,7 @@ function IntroPlate() {
     <svg viewBox="0 0 600 600" aria-hidden="true" className="block h-full w-full overflow-visible drop-shadow-[0_26px_26px_rgba(42,10,10,0.35)]">
       <PlateDefs p="i-" />
       <PlateBase p="i-" c="ip" />
-      {SLICES.map((s) => (<g key={s.id}><SliceArt s={s} p="i-" /></g>))}
+      {SLICES.map((s) => (<g key={s.id}><SliceArt s={s} /></g>))}
       <circle cx={CX} cy={CY} r={R_HUB + 6} fill="#2A0A0A" opacity=".18" filter="url(#i-blur6)" />
       <circle cx={CX} cy={CY} r={R_HUB} fill="url(#i-rimGrad)" stroke="#CB0001" strokeWidth="5" />
       <circle cx={CX} cy={CY} r={R_HUB - 12} fill="none" stroke="#CB0001" strokeOpacity=".3" strokeWidth="2" strokeDasharray="2 6" />
@@ -184,6 +165,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
       if (!playIntro) {
         setShowIntro(false);
         html.setAttribute("data-sap-intro", "skip");
+        if (reduced) html.removeAttribute("data-sap-quick"); // reduced motion: show the page as-is, nothing to hide
       }
 
       const mm = gsap.matchMedia();
@@ -259,22 +241,27 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
           window.addEventListener("keydown", onKey);
           cleanups.push(() => window.removeEventListener("keydown", onKey));
         } else {
-          // ------------------------------------------------------------------ quick entrance (returning visitors)
-          const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-          tl.from(".hero-fade", { y: 26, opacity: 0, duration: 0.7, stagger: 0.09 }, 0)
-            .from(".hero-word", { yPercent: 115, rotate: 4, duration: 0.9, stagger: 0.07, ease: "power4.out" }, 0.1)
-            .from(".plate-rim", { scale: 0.3, rotate: -140, transformOrigin: "300px 300px", duration: 1.2, ease: "back.out(1.3)" }, 0.15)
-            .from(".plate-well", { scale: 0.2, transformOrigin: "300px 300px", duration: 0.9, ease: "back.out(1.6)" }, 0.45)
-            .from(
-              ".plate-slice",
-              {
-                opacity: 0, scale: 0.4, transformOrigin: "300px 300px", rotate: (i) => (i % 2 ? 40 : -40), duration: 0.9, stagger: 0.14, ease: "back.out(1.7)",
-                x: (i) => Math.cos(rad(mid(SLICES[i]))) * 160, y: (i) => Math.sin(rad(mid(SLICES[i]))) * 160,
-              },
-              0.65,
-            )
-            .from(".plate-hub", { scale: 0, transformOrigin: "300px 300px", duration: 1, ease: "elastic.out(1, 0.55)" }, 1.0)
-            .from(".decor", { scale: 0, rotate: -90, duration: 0.8, stagger: 0.12, ease: "back.out(2.4)" }, 1.1);
+          // ------------------------------------------------------------------ quick re-entry (refresh / returning visitors)
+          // No loader, no curtains. One thing after the other: first the wheel whirls and settles (power3.out starts fast
+          // and ends at rest; 1.5 turns lands it upright) while the headline letters rise into place, THEN the gold wave
+          // runs through the letters. About 2 s in total.
+          const WHIRL = 1.15;
+          const split = SplitText.create(".hero-word", { type: "chars", charsClass: "ch" });
+          gsap.set(split.chars, { yPercent: 125 });
+          gsap.set(".hero-fade", { opacity: 0, y: 20 });
+          gsap.set(".plate-wrap", { opacity: 0, rotation: -540, scale: 0.82 });
+          gsap.set(".plate-hub", { scale: 0, svgOrigin: "300 300" });
+          gsap.set(".decor", { scale: 0 });
+          html.removeAttribute("data-sap-quick"); // the start states above now hold, so the CSS pre-hide (no flash) can go
+          const tl = gsap.timeline({ onComplete: () => { gsap.set(split.chars, { clearProps: "color" }); } });
+          tl.to(".hero-fade", { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" }, 0.1)
+            .to(split.chars, { yPercent: 0, duration: 0.45, stagger: { each: 0.014 }, ease: "power4.out" }, 0)
+            .to(".plate-wrap", { opacity: 1, rotation: 0, scale: 1, duration: WHIRL, ease: "power3.out" }, 0)
+            .to(".plate-hub", { scale: 1, svgOrigin: "300 300", duration: 0.6, ease: "elastic.out(1, 0.6)" }, WHIRL - 0.35)
+            .to(".decor", { scale: 1, duration: 0.5, stagger: 0.07, ease: "back.out(2.4)" }, WHIRL - 0.4)
+            // the gold wave starts only once the wheel has come to rest
+            .add("settled", WHIRL)
+            .to(split.chars, { keyframes: [{ color: GOLD, duration: 0.1, ease: "power1.out" }, { color: "#CB0001", duration: 0.28, ease: "power1.in" }], stagger: { each: 0.018 } }, "settled");
         }
 
         // idle motion: rim dashes turn slowly, decor floats
@@ -361,6 +348,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
         <div className="intro-root fixed inset-0 z-[70]" style={{ ["--ip" as string]: "min(72vw, 46svh)" }}>
           <div className="intro-l absolute inset-y-0 left-0 w-[50.2%] bg-tomato" />
           <div className="intro-r absolute inset-y-0 right-0 w-[50.2%] bg-burgundy" />
+          {/* the shadow sits on this non-rotating wrapper, so it stays put while the plate spins inside it */}
           <div className="intro-plate absolute left-1/2 top-[44%]" style={{ width: "var(--ip)", height: "var(--ip)", marginLeft: "calc(var(--ip) / -2)", marginTop: "calc(var(--ip) / -2)" }}>
             <div className="intro-spin h-full w-full will-change-transform"><IntroPlate /></div>
           </div>
@@ -423,13 +411,13 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
               {/* visual slices: animated, never receive the pointer */}
               <g pointerEvents="none">
                 {SLICES.map((s) => (
-                  <g key={s.id} className={`plate-slice slice-${s.id}`}><SliceArt s={s} p="" /></g>
+                  <g key={s.id} className={`plate-slice slice-${s.id}`}><SliceArt s={s} /></g>
                 ))}
               </g>
 
               {/* hover "pop" overlay: a lifted copy of the active slice */}
               <g ref={popRef} className="plate-pop" pointerEvents="none" filter="url(#popShadow)" opacity="0">
-                {popSlice ? <SliceArt s={popSlice} p="" /> : null}
+                {popSlice ? <SliceArt s={popSlice} /> : null}
               </g>
 
               {/* hub medallion */}
@@ -437,7 +425,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
                 <circle cx={CX} cy={CY} r={R_HUB + 6} fill="#2A0A0A" opacity=".18" filter="url(#blur6)" />
                 <circle cx={CX} cy={CY} r={R_HUB} fill="url(#rimGrad)" stroke="#CB0001" strokeWidth="5" />
                 <circle cx={CX} cy={CY} r={R_HUB - 12} fill="none" stroke="#CB0001" strokeOpacity=".3" strokeWidth="2" strokeDasharray="2 6" />
-                <text ref={hubWord} x={CX} y={CY - 1} textAnchor="middle" className="display" fontSize="26" fill={activeSlice ? (activeSlice.id === "vendor" ? "#790000" : activeSlice.stops[1]) : "#CB0001"}>{hubTop}</text>
+                <text ref={hubWord} x={CX} y={CY - 1} textAnchor="middle" className="display" fontSize="26" fill={activeSlice ? (activeSlice.id === "vendor" ? "#790000" : activeSlice.color) : "#CB0001"}>{hubTop}</text>
                 <text x={CX} y={CY + 19} textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="1.4" fill="#790000">{hubBottom}</text>
               </g>
 

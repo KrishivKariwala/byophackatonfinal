@@ -25,9 +25,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Skipped when already played this session or when the visitor prefers reduced motion. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{if(sessionStorage.getItem("sap-intro-seen")||matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.setAttribute("data-sap-intro","skip")}catch(e){}`,
+            __html: `try{var d=document.documentElement;if(matchMedia("(prefers-reduced-motion: reduce)").matches){d.setAttribute("data-sap-intro","skip")}else if(sessionStorage.getItem("sap-intro-seen")){d.setAttribute("data-sap-intro","skip");d.setAttribute("data-sap-quick","1")}}catch(e){}`,
           }}
         />
+        {/* Without JavaScript neither animation can run: never leave the page covered or hidden. */}
+        <noscript>
+          <style>{`.intro-root{display:none!important}html[data-sap-quick] :is(.hero-fade,.hero-word,.plate-wrap,.decor){opacity:1!important}`}</style>
+        </noscript>
         {/* eslint-disable-next-line @next/next/no-css-tags -- conditional, only when licensed font files exist */}
         {hasOfficialFonts && <link rel="stylesheet" href="/fonts/official-fonts.css" />}
       </head>
