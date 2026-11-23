@@ -23,7 +23,7 @@ export default async function VendorOnboarding() {
           businessName: v?.businessName ?? "", contactName: v?.contactName ?? me.name, phone: v?.phone ?? me.phone ?? "", email: v?.email ?? "",
           address: o?.address ?? "", neighbourhood: o?.neighbourhood ?? "Koramangala", lat: o?.lat, lng: o?.lng,
           fssaiNumber: v?.fssaiNumber ?? "", operatingHours: v?.operatingHours ?? "", payoutUpi: v?.payoutUpi ?? "",
-          documents: v?.documents ?? [], payAtPickup: o?.payAtPickup ?? true,
+          documents: v?.documents ?? [], payAtPickup: o?.payAtPickup ?? true, logoUrl: v?.logoUrl,
         }}
       />
     </div>

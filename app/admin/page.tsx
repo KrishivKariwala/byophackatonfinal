@@ -19,6 +19,7 @@ export default async function Admin() {
   const tiles: [string, number | string][] = [
     ["Customer pickup units", s.customerUnits], ["NGO collection units", s.ngoUnits], ["Active listings", s.activeListings],
     ["Completed customer pickups", s.completedPickups], ["Completed NGO collections", s.completedCollections], ["Approved vendors", s.approvedVendors], ["Approved NGOs", s.approvedNgos],
+    ["kg food rescued (est.)", s.kgRescued], ["kg CO₂e avoided (est.)", s.co2eAvoidedKg], ["Units expired unsold", s.wastedUnits],
   ];
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6">

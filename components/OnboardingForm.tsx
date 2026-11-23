@@ -25,6 +25,28 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
   const docsKey = kind === "vendor" ? "documents" : "registrationDocs";
   const docs = (f[docsKey] as string[]) || [];
   const hood = (f.neighbourhood as Neighbourhood) || "Koramangala";
+  const [upErr, setUpErr] = useState<string | null>(null);
+
+  const upload = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.set("file", file);
+    const res = await fetch("/api/uploads", { method: "POST", body: fd });
+    const j = await res.json().catch(() => ({ ok: false, error: "Upload failed" }));
+    if (!j.ok) throw new Error(j.error);
+    return j.data.url as string;
+  };
+  const addDocs = async (files: File[]) => {
+    setUpErr(null);
+    try {
+      const urls = await Promise.all(files.map(upload));
+      setF((x) => ({ ...x, [docsKey]: [...((x[docsKey] as string[]) || []), ...urls] }));
+    } catch (e) { setUpErr((e as Error).message); }
+  };
+  const addLogo = async (file?: File) => {
+    if (!file) return;
+    setUpErr(null);
+    try { const url = await upload(file); setF((x) => ({ ...x, logoUrl: url })); } catch (e) { setUpErr((e as Error).message); }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,9 +84,16 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
         {kind === "vendor" && (
           <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={!!f.payAtPickup} onChange={(e) => setF({ ...f, payAtPickup: e.target.checked })} />Accept pay-at-pickup orders</label>
         )}
+        {kind === "vendor" && (
+          <label className="label sm:col-span-2">Logo (JPG, PNG or WebP, under 3 MB)
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="input" onChange={(e) => addLogo(e.target.files?.[0])} />
+            <span className="font-normal">{f.logoUrl ? "Logo uploaded." : "Part of a complete profile; optional to submit."}</span>
+          </label>
+        )}
         <label className="label sm:col-span-2">{kind === "vendor" ? "Supporting documents (FSSAI certificate, ID)" : "Registration documents (12A/80G, trust deed) *"}
-          <input type="file" multiple className="input" onChange={(e) => setF({ ...f, [docsKey]: [...docs, ...Array.from(e.target.files || []).map((x) => x.name)] })} />
-          <span className="font-normal">Demo mode records file names only; files are uploaded to Supabase Storage once it is configured.{docs.length ? ` Attached: ${docs.join(", ")}` : ""}</span>
+          <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="input" onChange={(e) => addDocs(Array.from(e.target.files || []))} />
+          <span className="font-normal">Files are stored privately in the demo (data/uploads) and shown to the admin reviewer.{docs.length ? ` ${docs.length} attached.` : ""}</span>
+          {upErr && <span role="alert" className="font-semibold text-tomato">{upErr}</span>}
         </label>
         {!locked && <button className="btn-primary sm:col-span-2" disabled={busy}>{busy ? "Submitting…" : "Submit for review"}</button>}
       </fieldset>

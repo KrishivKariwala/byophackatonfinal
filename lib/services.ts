@@ -377,6 +377,7 @@ export function setPaused(actor: Profile | null, id: string, paused: boolean) {
       l.status = "Paused";
     } else {
       if (l.status !== "Paused") throw new RuleError("bad_transition", "Listing is not paused.", 409);
+      if (l.hiddenByAdmin) throw new RuleError("hidden_by_admin", "This listing was hidden by an administrator and can't be resumed.", 403);
       if (tx.now >= t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended.", 409);
       l.status = l.qtyAvailable > 0 ? "Live" : "Sold Out";
     }
@@ -576,6 +577,7 @@ export function createAccount(input: { name: string; phone?: string; email?: str
 export function submitVendorApplication(actor: Profile | null, i: {
   businessName: string; contactName: string; phone: string; email: string; address: string; neighbourhood: string;
   lat: number; lng: number; fssaiNumber: string; operatingHours: string; payoutUpi: string; documents: string[]; payAtPickup: boolean;
+  logoUrl?: string;
 }) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
@@ -589,6 +591,8 @@ export function submitVendorApplication(actor: Profile | null, i: {
       businessName: i.businessName.trim(), contactName: i.contactName.trim(), phone: i.phone.trim(), email: i.email.trim(),
       fssaiNumber: i.fssaiNumber.trim(), operatingHours: i.operatingHours.trim(), payoutUpi: i.payoutUpi.trim(), documents: i.documents || [],
     };
+    if (i.logoUrl && !/^\/api\/uploads\/[\w.-]+$/.test(i.logoUrl)) throw new RuleError("logo_invalid", "Upload the logo as an image file.");
+    if (i.logoUrl) Object.assign(base, { logoUrl: i.logoUrl });
     if (v) Object.assign(v, base, { status: "Pending" as ApprovalStatus, rejectionReason: undefined });
     else { v = { id: newId("v"), ownerId: me.id, ...base, status: "Pending", createdAt: iso(tx.now) }; tx.db.vendors.push(v); }
     const o = tx.db.outlets.find((x) => x.vendorId === v!.id);
