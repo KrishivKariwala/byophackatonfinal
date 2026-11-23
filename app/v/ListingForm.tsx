@@ -3,13 +3,17 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/client";
 import { discountPercent, suggestedRescuePrice } from "@/lib/rules";
-import type { Category, Diet, Template } from "@/lib/types";
+import type { Category, Diet, RiskTag, Template } from "@/lib/types";
+import { S } from "@/lib/strings";
 
 export type FormInit = {
   title: string; description: string; category: Category; originalPrice: number | ""; rescuePrice: number | ""; qty: number;
   diet: Diet | ""; allergens: string[]; surpriseBag: boolean; storageNote: string; donateRest: boolean;
   windowStart?: string; windowEnd?: string; preparedAt?: string; safeUntil?: string;
+  donationOnly?: boolean; riskTag?: RiskTag | "";
 };
+
+type Suggestion = { discount: number; price: number; hoursLeft: number; historyUsed: boolean };
 
 const ALLERGENS = ["Gluten", "Milk", "Egg", "Nuts", "Peanuts", "Soy", "Fish", "Shellfish", "Sesame"];
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -25,6 +29,8 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
   const [err, setErr] = useState<string | null>(null);
   const [t0] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
+  const [sugg, setSugg] = useState<Suggestion | null>(null);
+  const [suggErr, setSuggErr] = useState<string | null>(null);
 
   useEffect(() => {
     // Defaults computed from the server clock, shown in the device's local time.
@@ -38,12 +44,30 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
 
   const set = <K extends keyof FormInit>(k: K, v: FormInit[K]) => setF((x) => ({ ...x, [k]: v }));
   const pct = useMemo(() => (f.originalPrice && f.rescuePrice ? discountPercent(Number(f.originalPrice), Number(f.rescuePrice)) : null), [f.originalPrice, f.rescuePrice]);
-  const priceOk = pct !== null && Number(f.rescuePrice) <= Number(f.originalPrice) * 0.7 && Number(f.rescuePrice) > 0;
+  const priceOk = f.donationOnly || pct !== null && Number(f.rescuePrice) <= Number(f.originalPrice) * 0.7 && Number(f.rescuePrice) > 0;
+
+  // Dynamic price suggestion (FR-2.3): refreshed when the original price, category or pickup end changes.
+  useEffect(() => {
+    setSugg(null); setSuggErr(null);
+    if (f.donationOnly || !f.originalPrice || !times.end) return;
+    const drift = serverNow - Date.now();
+    const hoursLeft = (Date.parse(fromLocal(times.end)) - (Date.now() + drift)) / 3600_000;
+    if (!Number.isFinite(hoursLeft)) return;
+    const h = setTimeout(async () => {
+      try {
+        const q = new URLSearchParams({ original_price: String(f.originalPrice), category: f.category, hours_left: String(Math.max(0, hoursLeft)) });
+        const res = await fetch(`/api/suggested-discount?${q}`);
+        const j = await res.json();
+        if (j.ok) setSugg(j.data as Suggestion); else setSuggErr(j.error);
+      } catch { setSuggErr(S.states.error); }
+    }, 350);
+    return () => clearTimeout(h);
+  }, [f.originalPrice, f.category, f.donationOnly, times.end, serverNow]);
 
   const applyTemplate = (id: string) => {
     const t = templates.find((x) => x.id === id);
     if (!t) return;
-    setF((x) => ({ ...x, title: t.title, description: t.description, category: t.category, originalPrice: t.originalPrice, rescuePrice: t.rescuePrice, diet: t.diet, allergens: t.allergens, surpriseBag: t.surpriseBag, storageNote: t.storageNote || "" }));
+    setF((x) => ({ ...x, title: t.title, description: t.description, category: t.category, originalPrice: t.originalPrice, rescuePrice: t.rescuePrice, diet: t.diet, allergens: t.allergens, surpriseBag: t.surpriseBag, storageNote: t.storageNote || "", qty: t.qty ?? x.qty, donateRest: t.donateRest ?? x.donateRest, donationOnly: t.donationOnly ?? false, riskTag: t.riskTag ?? "" }));
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -51,7 +75,8 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
     setBusy(true);
     setErr(null);
     const payload = {
-      title: f.title, description: f.description, category: f.category, originalPrice: Number(f.originalPrice), rescuePrice: Number(f.rescuePrice),
+      title: f.title, description: f.description, category: f.category, originalPrice: Number(f.originalPrice) || 0, rescuePrice: f.donationOnly ? 0 : Number(f.rescuePrice),
+      donationOnly: !!f.donationOnly, riskTag: f.riskTag || undefined,
       qty: Number(f.qty), diet: f.diet, allergens: f.allergens, surpriseBag: f.surpriseBag, storageNote: f.storageNote, donateRest: f.donateRest,
       windowStart: fromLocal(times.start), windowEnd: fromLocal(times.end), preparedAt: fromLocal(times.prepared), safeUntil: times.safe ? fromLocal(times.safe) : undefined,
       safetyDeclaration: declared,
@@ -87,7 +112,16 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
               <option>Bakery</option><option>Meals</option><option>Snacks</option><option>Desserts</option>
             </select>
           </label>
-          <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={f.surpriseBag} onChange={(e) => set("surpriseBag", e.target.checked)} />Surprise Bag (contents vary)</label>
+          <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={f.surpriseBag} onChange={(e) => set("surpriseBag", e.target.checked)} />{S.surprise.badge} (fixed price, contents hidden until pickup)</label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {mode === "create" && <label className="flex items-start gap-2 text-sm font-semibold"><input type="checkbox" className="mt-0.5 h-5 w-5 accent-tomato" checked={!!f.donationOnly} onChange={(e) => set("donationOnly", e.target.checked)} /><span>Donation-only<span className="block text-xs font-normal text-muted">Never sold. Goes straight to verified NGOs.</span></span></label>}
+          <label className="label">Food risk tag
+            <select className="input" value={f.riskTag ?? ""} onChange={(e) => set("riskTag", e.target.value as RiskTag | "")}>
+              <option value="">None</option><option value="raw">Raw</option><option value="seafood">Seafood</option><option value="dairy_dessert">Dairy dessert</option>
+            </select>
+            {f.riskTag ? <span className="text-[11px] font-normal text-tomato">High-risk items: pickup window max 2 hours.</span> : null}
+          </label>
         </div>
         <fieldset>
           <legend className="label mb-1">Diet * (exactly one)</legend>
@@ -114,14 +148,23 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
       <div className="flex flex-col gap-4">
         <div className="card flex flex-col gap-4 p-5">
           {mode === "create" && <p className="self-end rounded-full bg-cream px-3 py-1 text-xs font-bold text-burgundy" aria-live="off">Time to list: {elapsed}s</p>}
+          {f.donationOnly ? <p className="rounded-xl bg-cream p-3 text-sm font-semibold text-burgundy">Donation-only: no price. Charities can claim it free until the pickup window ends.</p> : <>
           <div className="grid grid-cols-2 gap-3">
             <label className="label">Original price ₹ *<input className="input" required inputMode="numeric" value={f.originalPrice} onChange={(e) => set("originalPrice", e.target.value === "" ? "" : Number(e.target.value.replace(/\D/g, "")))} /></label>
             <label className="label">Rescue price ₹ *<input className="input" required inputMode="numeric" value={f.rescuePrice} onChange={(e) => set("rescuePrice", e.target.value === "" ? "" : Number(e.target.value.replace(/\D/g, "")))} /></label>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             {pct !== null && <span className={`font-semibold ${priceOk ? "text-veg" : "text-tomato"}`}>{pct}% off · {priceOk ? "meets the 30% minimum" : "must be at least 30% off"}</span>}
-            {f.originalPrice ? <button type="button" className="font-semibold text-tomato underline" onClick={() => set("rescuePrice", suggestedRescuePrice(Number(f.originalPrice)))}>Use suggested ₹{suggestedRescuePrice(Number(f.originalPrice))} (50% off)</button> : null}
+            {f.originalPrice ? <button type="button" className="font-semibold text-tomato underline" onClick={() => set("rescuePrice", suggestedRescuePrice(Number(f.originalPrice)))}>Use 50% off (₹{suggestedRescuePrice(Number(f.originalPrice))})</button> : null}
           </div>
+          {(sugg || suggErr) && (
+            <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl bg-cream p-3 text-sm text-burgundy">
+              {sugg ? (<>
+                <span><b>Suggested ₹{sugg.price}</b> ({Math.round(sugg.discount * 100)}% off) · {sugg.hoursLeft.toFixed(1)} h left{sugg.historyUsed ? ", based on your last 7 days" : ", no history yet"}</span>
+                <button type="button" className="btn-primary !min-h-[44px] !py-2" onClick={() => set("rescuePrice", sugg.price)} aria-label={`Apply suggested price ₹${sugg.price}`}>Apply</button>
+              </>) : <span className="text-xs">{suggErr}</span>}
+            </div>
+          )}</>}
           <div className="flex items-center justify-between gap-3">
             <span className="label">Quantity *</span>
             <div className="flex items-center gap-2">

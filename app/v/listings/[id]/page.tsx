@@ -22,7 +22,7 @@ export default async function EditListing({ params }: { params: Promise<{ id: st
         mode="edit"
         listingId={l.id}
         serverNow={now(db)}
-        init={{ title: l.title, description: l.description, category: l.category, originalPrice: l.originalPrice, rescuePrice: l.rescuePrice, qty: l.qtyTotal, diet: l.diet, allergens: l.allergens, surpriseBag: l.surpriseBag, storageNote: l.storageNote || "", donateRest: l.donateRest, windowStart: l.windowStart, windowEnd: l.windowEnd, preparedAt: l.preparedAt, safeUntil: l.safeUntil }}
+        init={{ title: l.title, description: l.description, category: l.category, originalPrice: l.originalPrice, rescuePrice: l.rescuePrice, qty: l.qtyTotal, diet: l.diet, allergens: l.allergens, surpriseBag: l.surpriseBag, storageNote: l.storageNote || "", donateRest: l.donateRest, windowStart: l.windowStart, windowEnd: l.windowEnd, preparedAt: l.preparedAt, safeUntil: l.safeUntil, riskTag: l.riskTag ?? "", donationOnly: l.donationOnly }}
       />
     </div>
   );

@@ -141,6 +141,7 @@ export interface Template {
   donateRest?: boolean;
   donationOnly?: boolean;
   riskTag?: RiskTag;
+  windowMinutes?: number; // pickup window length, so a repost gets fresh times of the same length
   createdAt?: string;
 }
 

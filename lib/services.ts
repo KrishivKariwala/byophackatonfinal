@@ -1,7 +1,7 @@
 import "server-only";
 import { transaction, read, now as clockNow, type TxContext } from "./store";
 import {
-  iso, t, requireRole, vendorOf, approvedVendorOf, ngoOf, outletOf, listingIn, audit, notify, move, emitRes, setResStatus,
+  iso, t, requireRole, approvedVendorOf, ngoOf, outletOf, listingIn, audit, notify, move, emitRes, setResStatus,
   logNewReservation, createDonationBatchTx, recordImpact, openBatch,
 } from "./core";
 import { notifyFollowers } from "./follows";
@@ -12,8 +12,8 @@ import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
 import { runScheduledJobs, jobsPending } from "./jobs";
 import type {
-  ApprovalStatus, Category, CheckoutHold, DB, Diet, DonationBatch, Listing, Ngo, Outlet, Payment,
-  PaymentMethod, Profile, Reservation, RiskTag, Role, Vendor,
+  ApprovalStatus, Category, CheckoutHold, DB, Diet, Listing, Ngo, Payment,
+  PaymentMethod, Profile, Reservation, RiskTag, Role,
 } from "./types";
 
 export const CATEGORIES: Category[] = ["Bakery", "Meals", "Snacks", "Desserts"];

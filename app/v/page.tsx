@@ -6,6 +6,9 @@ import { StatusPill, fmtTime, fmtWindow, DietTag } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { LiveCount } from "@/components/LiveProvider";
 import { CancelListingButton, DonationVerify } from "./VendorClient";
+import { RepostButton, VendorSettings, VerifiedBadge, Rating } from "@/components/p1";
+import { profileCompleteness } from "@/lib/vendor";
+import { RULES } from "@/lib/rules";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vendor · Today" };
@@ -38,13 +41,16 @@ export default async function VendorHome() {
   const live = listings.filter((l) => l.status === "Live");
   const salesToday = res.filter((r) => r.status === "Picked up" && recent(r.pickedUpAt)).reduce((s, r) => s + r.amount, 0);
   const soon = [...cols.Reserved, ...cols.Ready].filter((r) => { const s = Date.parse(lt(r.listingId).windowStart); return s - n < 30 * 60_000 && Date.parse(lt(r.listingId).windowEnd) > n; }).length;
+  const outlet = db.outlets.find((o) => o.vendorId === v.id);
+  const completeness = profileCompleteness(v, outlet);
+  const templates = db.templates.filter((x) => x.vendorId === v.id);
   const batches = db.donationBatches.filter((b) => b.vendorId === v.id).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 6);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow text-burgundy">{v.businessName}</p>
+          <p className="eyebrow flex flex-wrap items-center gap-2 text-burgundy">{v.businessName}{approved && <VerifiedBadge />}<Rating avg={v.ratingAvg} count={v.ratingCount} /></p>
           <h1 className="display text-4xl text-tomato sm:text-5xl">TODAY</h1>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -64,11 +70,33 @@ export default async function VendorHome() {
         </div>
       )}
 
+      {completeness.percent < 100 && (
+        <div role="status" className="rounded-2xl border-2 border-peach bg-cream p-4 text-sm text-burgundy">
+          <b>Profile {completeness.percent}% complete.</b> Missing: {completeness.missing.join(", ")}. <Link className="font-semibold underline" href="/v/onboarding">Complete your profile</Link>
+        </div>
+      )}
+
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Today at a glance">
         {[["Live listings", live.length], ["Units left", live.reduce((s, l) => s + l.qtyAvailable, 0)], ["Pickups in next 30 min", soon], ["Collected today (demo ₹)", `₹${salesToday}`]].map(([k, val]) => (
           <div key={k as string} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="display text-3xl text-tomato">{val}</p></div>
         ))}
       </section>
+
+      {approved && (
+        <section aria-labelledby="tpl-h">
+          <h2 id="tpl-h" className="editorial mb-3 text-3xl">Templates</h2>
+          {templates.length === 0 ? <p className="text-sm text-muted">No templates yet. Use “Save as template” on any listing below, then repost it in one tap.</p> : (
+            <ul className="grid gap-3 md:grid-cols-3">
+              {templates.map((tp) => (
+                <li key={tp.id} className="card flex items-center justify-between gap-3 p-4 text-sm">
+                  <div><b>{tp.title}</b><p className="text-xs text-muted">₹{tp.rescuePrice} · {tp.qty ?? 10} units · {tp.windowMinutes ?? 90} min window</p></div>
+                  <RepostButton templateId={tp.id} title={tp.title} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section aria-labelledby="orders-h">
         <h2 id="orders-h" className="editorial mb-3 text-3xl">Live orders</h2>
@@ -120,6 +148,13 @@ export default async function VendorHome() {
         )}
       </section>
 
+      {approved && outlet && (
+        <section aria-labelledby="set-h">
+          <h2 id="set-h" className="editorial mb-3 text-3xl">Settings</h2>
+          <VendorSettings payAtPickup={outlet.payAtPickup} maxUnits={v.maxUnitsPerOrder} defaultCap={RULES.MAX_UNITS_PER_ORDER} />
+        </section>
+      )}
+
       <section aria-labelledby="list-h">
         <h2 id="list-h" className="editorial mb-3 text-3xl">Listings</h2>
         <div className="card overflow-x-auto">
@@ -146,6 +181,7 @@ export default async function VendorHome() {
                           {l.status === "Paused" && <ActionButton path={`/api/vendor/listings/${l.id}`} body={{ action: "resume" }} label="Resume" className="btn-quiet !min-h-[40px] !py-2" />}
                           {open && <CancelListingButton listingId={l.id} />}
                           <Link href={`/v/new?from=${l.id}`} className="btn-quiet !min-h-[40px] !py-2">Duplicate</Link>
+                          <ActionButton path="/api/vendor/templates" body={{ listingId: l.id }} label="Save as template" successText="Saved" className="btn-quiet !min-h-[40px] !py-2" />
                         </div>
                       )}
                     </td>

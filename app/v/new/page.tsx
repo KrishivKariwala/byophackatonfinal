@@ -23,7 +23,7 @@ export default async function NewListing({ searchParams }: { searchParams: Promi
   const src = from ? db.listings.find((l) => l.id === from && l.vendorId === v.id) : undefined;
   const init: FormInit = src
     ? { title: src.title, description: src.description, category: src.category, originalPrice: src.originalPrice, rescuePrice: src.rescuePrice, qty: src.qtyTotal, diet: src.diet, allergens: src.allergens, surpriseBag: src.surpriseBag, storageNote: src.storageNote || "", donateRest: src.donateRest }
-    : { title: "", description: "", category: "Bakery", originalPrice: "", rescuePrice: "", qty: 10, diet: "", allergens: [], surpriseBag: false, storageNote: "", donateRest: true };
+    : { title: "", description: "", category: "Bakery", originalPrice: "", rescuePrice: "", qty: 10, diet: "", allergens: [], surpriseBag: false, storageNote: "", donateRest: true, donationOnly: false, riskTag: "" };
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6">
       <div>

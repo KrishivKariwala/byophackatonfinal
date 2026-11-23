@@ -148,3 +148,42 @@ export function ReportButton({ targetType, targetId }: { targetType: "reservatio
     </div>
   );
 }
+
+export function RepostButton({ templateId, title }: { templateId: string; title: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const go = async () => {
+    if (!window.confirm(`Repost "${title}" with fresh pickup times?\n\nBy continuing you confirm the food-safety declaration: this food was prepared and stored hygienically and is fit to eat within the stated time.`)) return;
+    setBusy(true); setMsg(null);
+    try { await api(`/api/vendor/templates/${templateId}/repost`, { declaration: true }); setMsg({ ok: true, text: "Live!" }); router.refresh(); }
+    catch (e) { setMsg({ ok: false, text: (e as Error).message }); } finally { setBusy(false); }
+  };
+  return (
+    <span className="inline-flex flex-col gap-1">
+      <button type="button" className="btn-primary !min-h-[44px] !py-2" disabled={busy} onClick={go} aria-label={`Repost ${title} with fresh pickup times`}>{busy ? "Posting…" : "Repost"}</button>
+      {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs font-semibold ${msg.ok ? "text-veg" : "text-tomato"}`}>{msg.text}</span>}
+    </span>
+  );
+}
+
+export function VendorSettings({ payAtPickup, maxUnits, defaultCap }: { payAtPickup: boolean; maxUnits?: number; defaultCap: number }) {
+  const router = useRouter();
+  const [pap, setPap] = useState(payAtPickup);
+  const [cap, setCap] = useState(String(maxUnits ?? defaultCap));
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const save = async () => {
+    setBusy(true); setMsg(null);
+    try { await api("/api/vendor/settings", { payAtPickup: pap, maxUnitsPerOrder: Number(cap) <= defaultCap ? null : Number(cap) }); setMsg({ ok: true, text: "Saved." }); router.refresh(); }
+    catch (e) { setMsg({ ok: false, text: (e as Error).message }); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card flex flex-col gap-3 p-4 text-sm">
+      <label className="flex items-start gap-3 font-semibold"><input type="checkbox" className="mt-0.5 h-5 w-5 accent-tomato" checked={pap} onChange={(e) => setPap(e.target.checked)} /><span>Allow pay at pickup<span className="block text-xs font-normal text-muted">Offered only to customers with 3+ completed pickups.</span></span></label>
+      <label className="label">Max units per order (default {defaultCap})<input className="input w-28" inputMode="numeric" value={cap} onChange={(e) => setCap(e.target.value.replace(/\D/g, ""))} /></label>
+      <div className="flex items-center gap-3"><button type="button" className="btn-primary" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save settings"}</button>
+        {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs font-semibold ${msg.ok ? "text-veg" : "text-tomato"}`}>{msg.text}</span>}</div>
+    </div>
+  );
+}
