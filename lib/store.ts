@@ -53,6 +53,25 @@ export function migrate(db: DB): DB {
   db.reviews ??= [];
   db.reports ??= [];
   db.settings ??= { platformFeeBps: 1000 };
+  // P2 collections
+  db.settingsAudit ??= [];
+  db.memberships ??= [];
+  db.invites ??= [];
+  db.priceSteps ??= [];
+  db.referralCodes ??= [];
+  db.referrals ??= [];
+  db.creditLedger ??= [];
+  db.distributionLogs ??= [];
+  db.receipts ??= [];
+  db.receiptSeq ??= {};
+  db.deliveryRequests ??= [];
+  db.certificates ??= [];
+  db.moderationActions ??= [];
+  // every vendor owner is an owner of their organization (the vendor record), even in stores written before P2
+  for (const v of db.vendors) {
+    if (!db.memberships.some((m) => m.userId === v.ownerId && m.vendorId === v.id && m.role === "owner" && !m.revokedAt))
+      db.memberships.push({ id: `m_${v.id}_owner`, userId: v.ownerId, vendorId: v.id, role: "owner", createdAt: v.createdAt });
+  }
   return db;
 }
 

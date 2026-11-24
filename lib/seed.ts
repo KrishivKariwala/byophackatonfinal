@@ -346,5 +346,8 @@ export function buildSeed(T: number): DB {
     ],
     audit: [], processedWebhooks: [],
     reservationEvents, pushTokens: [], follows, reviews, reports, settings: { platformFeeBps: 1000 },
+    settingsAudit: [], memberships: vendors.map((v) => ({ id: `m_${v.id}_owner`, userId: v.ownerId, vendorId: v.id, role: "owner" as const, createdAt: v.createdAt })),
+    invites: [], priceSteps: [], referralCodes: [], referrals: [], creditLedger: [], distributionLogs: [], receipts: [], receiptSeq: {},
+    deliveryRequests: [], certificates: [], moderationActions: [],
   };
 }

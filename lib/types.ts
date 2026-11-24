@@ -67,6 +67,9 @@ export interface Outlet {
   lat: number;
   lng: number;
   payAtPickup: boolean;
+  /** P2 */
+  name?: string;
+  hours?: string;
 }
 
 export interface Ngo {
@@ -88,6 +91,9 @@ export interface Ngo {
   status: ApprovalStatus;
   rejectionReason?: string;
   createdAt: string;
+  /** P2: shown on donation receipts; a valid 80G number turns the receipt into a tax-eligible one */
+  registrationNumber?: string;
+  eightyG?: { number: string; validUntil: string };
 }
 
 export interface Listing {
@@ -122,6 +128,11 @@ export interface Listing {
   donationOnly?: boolean; // never sold; goes straight to a donation batch
   riskTag?: RiskTag; // raw / seafood / dairy dessert: pickup window capped at 2 h
   hiddenByAdmin?: boolean;
+  /** P2 */
+  priorityMinutes?: number; // "offer to charities first" window length (15 / 30 / 45)
+  publicVisibleAt?: string; // customers can't see or reserve before this; charities see it immediately
+  initialRescuePrice?: number; // price at publish; auto-markdown steps are measured against the ORIGINAL price and can only lower it
+  moderationNote?: string;
 }
 
 export interface Template {
@@ -143,6 +154,7 @@ export interface Template {
   riskTag?: RiskTag;
   windowMinutes?: number; // pickup window length, so a repost gets fresh times of the same length
   createdAt?: string;
+  priorityMinutes?: number;
 }
 
 export interface CheckoutHold {
@@ -155,6 +167,8 @@ export interface CheckoutHold {
   status: "Active" | "Converted" | "Released" | "Expired";
   gatewayOrderId: string;
   createdAt: string;
+  /** P2: referral credit (₹) applied to this checkout; `amount` is the CASH still to pay */
+  creditApplied?: number;
 }
 
 export interface Reservation {
@@ -184,6 +198,11 @@ export interface Reservation {
   cancelledBy?: "customer" | "vendor" | "system" | "admin";
   reminderSentAt?: string;
   noShowAt?: string;
+  /** P2: referral credit (₹) paid with; `amount` is the full order value, the payment holds only the cash part */
+  creditApplied?: number;
+  /** P2 live ETA: only the minutes and when they were last updated are stored, never any location */
+  etaMinutes?: number;
+  etaUpdatedAt?: string;
 }
 
 /** P1: every reservation state change is logged here with a timestamp. */
@@ -257,6 +276,9 @@ export interface DonationBatch {
   volunteerPhone?: string;
   volunteerToken?: string;
   escalatedAt?: string;
+  /** P2 */
+  fromPriorityListing?: boolean; // a charity claimed a priority-window listing
+  deliveryRequestId?: string;
 }
 
 export type ImpactType = "sold" | "donated" | "wasted";
@@ -316,6 +338,7 @@ export interface Review {
   rating: number;
   text?: string;
   createdAt: string;
+  hidden?: boolean; // P2 moderation
 }
 
 export type ReportReason = "food_safety" | "wrong_item" | "rude_behaviour" | "other";
@@ -336,9 +359,79 @@ export interface Report {
   createdAt: string;
 }
 
+export type FlagName =
+  | "referrals" | "i18n" | "liveEta" | "autoMarkdown" | "impactCertificate" | "multiOutlet"
+  | "priorityWindow" | "distributionLog" | "donationReceipts" | "delivery" | "moderation" | "platformSettings";
+
 export interface Settings {
   /** Platform fee in basis points of order value (1000 = 10%). */
   platformFeeBps: number;
+  /** P2 platform settings (all optional: anything unset uses the default in lib/p2/settings.ts) */
+  holdMinutes?: number;
+  freeCancelMinutes?: number;
+  defaultRadiusKm?: number;
+  maxActiveReservations?: number;
+  maxDiscountPct?: number;
+  priorityOptions?: number[];
+  referralCreditInr?: number;
+  creditMaxPct?: number;
+  moderationKeywords?: string[];
+  /** P2 feature flags. Missing = on. */
+  flags?: Partial<Record<FlagName, boolean>>;
+}
+
+export interface SettingChange { id: string; adminId: string; key: string; from: string; to: string; at: string }
+
+// ---------------------------------------------------------------- P2
+
+export type OrgRole = "owner" | "manager" | "staff";
+/** The vendor record IS the organization (brand). A membership links a user to it, optionally limited to one outlet. */
+export interface Membership { id: string; userId: string; vendorId: string; outletId?: string; role: OrgRole; createdAt: string; revokedAt?: string }
+export interface StaffInvite {
+  id: string; vendorId: string; outletId?: string; role: Exclude<OrgRole, "owner">; contact: string; token: string;
+  createdBy: string; createdAt: string; expiresAt: string; acceptedBy?: string; acceptedAt?: string; revokedAt?: string;
+}
+
+export interface PriceStep { id: string; listingId: string; effectiveAt: string; discountPct: number; appliedAt?: string }
+
+export interface ReferralCode { userId: string; code: string }
+export type ReferralStatus = "pending" | "rewarded" | "rejected";
+export interface Referral {
+  id: string; referrerId: string; refereeId: string; code: string; status: ReferralStatus;
+  deviceId?: string; phoneKey: string; createdAt: string; rewardedAt?: string; rejectReason?: string;
+}
+export interface CreditEntry {
+  id: string; userId: string; amount: number; type: "earned" | "spent" | "expired"; refId?: string; note?: string;
+  createdAt: string; expiresAt?: string;
+  /** earned lots only: what is still unspent (FIFO by expiry) */
+  remaining?: number;
+}
+
+export interface DistributionLog {
+  id: string; batchId: string; ngoId: string; vendorId: string; servings: number; beneficiaries: number;
+  centreName: string; notes?: string; photoUrls: string[]; createdAt: string;
+}
+export interface DonationReceipt {
+  id: string; number: string; batchId: string; vendorId: string; ngoId: string; createdAt: string;
+  item: string; qty: number; servings: number; estimatedValue: number; eightyG?: { number: string; validUntil: string };
+}
+
+export type DeliveryStatus = "Requested" | "Rider assigned" | "Picked up" | "Delivered" | "No rider found" | "Failed" | "Cancelled";
+export interface DeliveryRequest {
+  id: string; batchId: string; ngoId: string; vendorId: string; provider: string; externalId: string;
+  status: DeliveryStatus; fee: number; pickupAddress: string; dropAddress: string; riderName?: string;
+  createdAt: string; updatedAt: string; error?: string;
+}
+
+export interface ImpactCertificate {
+  id: string; vendorId: string; month: string; createdAt: string;
+  mealsSold: number; mealsDonated: number; kgRescued: number; rupeesRecovered: number; co2eKg: number; charitiesServed: number;
+}
+
+export type ModerationTarget = "listing" | "review" | "vendor";
+export type ModerationActionType = "hide" | "restore" | "edit" | "warn" | "suspend" | "dismiss";
+export interface ModerationAction {
+  id: string; adminId: string; targetType: ModerationTarget; targetId: string; action: ModerationActionType; reason: string; createdAt: string;
 }
 
 export interface AuditLog {
@@ -378,6 +471,20 @@ export interface DB {
   reviews: Review[];
   reports: Report[];
   settings: Settings;
+  /** P2 (optional so older persisted stores still load; see store.migrate) */
+  settingsAudit: SettingChange[];
+  memberships: Membership[];
+  invites: StaffInvite[];
+  priceSteps: PriceStep[];
+  referralCodes: ReferralCode[];
+  referrals: Referral[];
+  creditLedger: CreditEntry[];
+  distributionLogs: DistributionLog[];
+  receipts: DonationReceipt[];
+  receiptSeq: Record<string, number>; // per year
+  deliveryRequests: DeliveryRequest[];
+  certificates: ImpactCertificate[];
+  moderationActions: ModerationAction[];
 }
 
 export type LiveEvent =
