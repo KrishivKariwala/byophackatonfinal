@@ -1,6 +1,7 @@
 import "server-only";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { DB, LiveEvent } from "./types";
 import { buildSeed } from "./seed";
@@ -26,8 +27,13 @@ type G = {
 };
 const g = globalThis as unknown as G;
 
+/**
+ * Where the demo store lives. Serverless hosts such as Vercel have a read-only project folder, so there the file goes in the
+ * temp directory (writable, but private to one instance and cleared on a cold start: the demo simply re-seeds).
+ */
 export function dbPath(): string {
-  return path.resolve(process.env.DEMO_DB_PATH || "./data/demo-db.json");
+  const fallback = process.env.VERCEL ? path.join(os.tmpdir(), "sap-demo-db.json") : "./data/demo-db.json";
+  return path.resolve(process.env.DEMO_DB_PATH || fallback);
 }
 
 function load(): DB {

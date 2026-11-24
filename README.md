@@ -172,6 +172,14 @@ P2 adds referral credits, Hindi and Kannada (switcher in the header), a live "I'
 
 Extra environment variables: `DELIVERY_PROVIDER` (`mock` default | `dunzo` | `porter`), `DUNZO_API_KEY`, `PORTER_API_KEY`, `DELIVERY_WEBHOOK_SECRET` (see `.env.example`).
 
+## Deploying to Vercel
+
+1. Import the repo in Vercel (framework: Next.js, no build settings to change).
+2. In **Settings → Environment Variables** add `SESSION_SECRET` (any long random string). Everything else is optional; leave `DATA_MODE` unset (demo).
+3. Deploy.
+
+Notes for this demo build: Vercel's project folder is read-only, so on Vercel the demo data is kept in the temp directory. It is seeded on first request and **resets whenever Vercel starts a fresh instance**, and different instances do not share data. That is fine for a demo and not for real use: production needs the Supabase adapter (see the issue backlog). If `SESSION_SECRET` is missing the demo still runs on a public fallback and logs a warning.
+
 ## Commands
 
 ```bash

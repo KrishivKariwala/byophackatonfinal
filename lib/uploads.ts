@@ -1,10 +1,11 @@
 import "server-only";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { RuleError } from "./rules";
 
-const DIR = () => path.resolve(process.env.UPLOAD_DIR || "./data/uploads");
+const DIR = () => path.resolve(process.env.UPLOAD_DIR || (process.env.VERCEL ? path.join(os.tmpdir(), "sap-uploads") : "./data/uploads"));
 const TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 export const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 

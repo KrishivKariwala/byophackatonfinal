@@ -6,10 +6,16 @@ import type { Profile } from "./types";
 
 export const SESSION_COOKIE = "sap_session";
 
+let warned = false;
 function secret() {
   const s = process.env.SESSION_SECRET;
-  if (!s && process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET must be set in production");
-  return s || "dev-only-insecure-secret";
+  if (s) return s;
+  // A real deployment must set SESSION_SECRET. The fictional demo (DATA_MODE unset or "demo") runs without one, using a public
+  // fallback: anyone can already pick any demo persona on /signin, so nothing private is exposed. A warning is logged once.
+  const demo = !process.env.DATA_MODE || process.env.DATA_MODE === "demo";
+  if (process.env.NODE_ENV === "production" && !demo) throw new Error("SESSION_SECRET must be set in production");
+  if (process.env.NODE_ENV === "production" && !warned) { warned = true; console.warn("SESSION_SECRET is not set: using the public demo fallback. Set it in your hosting settings."); }
+  return "dev-only-insecure-secret";
 }
 
 export function signSession(userId: string) {
