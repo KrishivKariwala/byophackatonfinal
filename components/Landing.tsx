@@ -140,7 +140,9 @@ function IntroPlate() {
   );
 }
 
-export function PlateHero({ actor }: { actor: { name: string; href: string } | null }) {
+export function PlateHero({ actor }: { actor: { name: string; href: string; role: string } | null }) {
+  /** A slice opens that side's own sign-in; if you're already signed in on that side it goes straight to your dashboard. */
+  const sliceHref = (s: Slice) => (actor && actor.role === s.id ? actor.href : `/signin?role=${s.id}`);
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const caption = useRef<HTMLParagraphElement>(null);
@@ -330,9 +332,9 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
 
   const go = contextSafe((e: React.MouseEvent, s: Slice) => {
     e.preventDefault();
-    if (window.matchMedia(REDUCED).matches) { router.push("/signin"); return; }
+    if (window.matchMedia(REDUCED).matches) { router.push(sliceHref(s)); return; }
     token.current++;
-    gsap.timeline({ onComplete: () => router.push("/signin") })
+    gsap.timeline({ onComplete: () => router.push(sliceHref(s)) })
       .to(popRef.current, { scale: 1.5, opacity: 0, svgOrigin: "300 300", duration: 0.5, ease: "power2.in" })
       .to(`.slice-${s.id}`, { scale: 1.5, opacity: 0, svgOrigin: "300 300", duration: 0.5, ease: "power2.in" }, "<")
       .to(`.plate-slice:not(.slice-${s.id})`, { opacity: 0, duration: 0.3 }, "<");
@@ -385,7 +387,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
           <ul className="flex flex-wrap gap-2">
             {SLICES.map((s) => (
               <li key={s.id}>
-                <Link href="/signin" onMouseEnter={() => enter(s)} onMouseLeave={leave} onFocus={() => enter(s)} onBlur={leave}
+                <Link href={sliceHref(s)} onMouseEnter={() => enter(s)} onMouseLeave={leave} onFocus={() => enter(s)} onBlur={leave}
                   className="inline-flex min-h-[44px] items-center gap-2 rounded-full border-2 border-tomato bg-white/60 px-4 py-2 text-sm font-semibold text-tomato transition hover:bg-tomato hover:text-cream">
                   <s.Icon size={16} aria-hidden="true" />{s.lines.join(" ")}
                 </Link>
@@ -432,7 +434,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string } | n
               {/* STATIC hit layer: exact 120° wedges, always on top, owns hover / focus / click */}
               <g>
                 {SLICES.map((s) => (
-                  <a key={s.id} href="/signin" aria-label={s.aria} onClick={(e) => go(e, s)} onMouseEnter={() => enter(s)} onMouseLeave={leave} onFocus={() => enter(s)} onBlur={leave}
+                  <a key={s.id} href={sliceHref(s)} aria-label={s.aria} onClick={(e) => go(e, s)} onMouseEnter={() => enter(s)} onMouseLeave={leave} onFocus={() => enter(s)} onBlur={leave}
                     className="cursor-pointer outline-none [&:focus-visible_path]:stroke-[#2A0A0A] [&:focus-visible_path]:stroke-[5]">
                     <path d={wedge(s.a0, s.a1, R_OUT)} fill="transparent" stroke="none" pointerEvents="all" />
                   </a>

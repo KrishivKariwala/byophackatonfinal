@@ -18,12 +18,12 @@ export function SignInClient({ personas }: { personas: Persona[] }) {
   const [otp, setOtp] = useState("");
   const [googleNote, setGoogleNote] = useState(false);
 
-  const go = async (fn: () => Promise<{ role: string }>, redirectFor?: (r: string) => string) => {
+  const go = async (fn: () => Promise<{ role: string; home?: string }>, redirectFor?: (r: string) => string) => {
     setBusy(true);
     setErr(null);
     try {
       const r = await fn();
-      router.push(redirectFor ? redirectFor(r.role) : HOME[r.role]);
+      router.push(r.home ?? (redirectFor ? redirectFor(r.role) : HOME[r.role]));
       router.refresh();
     } catch (e) {
       setErr((e as Error).message);

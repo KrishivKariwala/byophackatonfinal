@@ -20,7 +20,13 @@ The demo store (`data/demo-db.json`) is created and seeded on first request, wit
 
 ### Demo access
 
-Open **/signin** and click a persona. No password.
+**From the landing page:** click a slice of the plate (Find food, List surplus, Collect as an NGO). You get that side's own sign-in: enter a mobile number (and your name the first time), then the simulated code **123456**. The same number signs you back in to the same account. A number registered on one side can't be used on another.
+
+**Skip:** every side's sign-in has a **Skip, use demo {side}** button that signs you in as an approved demo account (customer: Priya, vendor: Ravi, NGO: Joseph) and goes straight to that side's home. It is demo-only (disabled when `DATA_MODE` is not `demo`) and every use is written to the audit log. Brand-new vendors and NGOs still start **Pending** until an admin approves them.
+
+If you are already signed in on that side, clicking its slice goes straight to your dashboard.
+
+**All demo accounts:** open **/signin** (or "More demo accounts") and click a persona. No password.
 
 | Persona | Role | What to try |
 |---|---|---|
