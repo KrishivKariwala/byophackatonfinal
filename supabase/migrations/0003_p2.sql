@@ -128,7 +128,7 @@ create table impact_certificates (
 create table moderation_actions (
   id uuid primary key default gen_random_uuid(), admin_id uuid not null references profiles(id),
   target_type moderation_target not null, target_id text not null, action moderation_action_type not null,
-  reason text not null check (char_length(reason) >= 3), created_at timestamptz not null default now()
+  reason text not null check (char_length(reason) >= 3), content_hash text, created_at timestamptz not null default now()
 );
 
 -- ---------------------------------------------------------------- backfill: every vendor owner is an owner of their organization

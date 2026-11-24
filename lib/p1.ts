@@ -73,7 +73,7 @@ export function isFollowing(customerId: string, vendorId: string) {
 
 // ---------------------------------------------------------------- reviews
 export function recomputeVendorRating(db: DB, vendorId: string) {
-  const rs = db.reviews.filter((r) => r.vendorId === vendorId);
+  const rs = db.reviews.filter((r) => r.vendorId === vendorId && !r.hidden); // reviews hidden by moderation never count
   const v = db.vendors.find((x) => x.id === vendorId);
   if (!v) return;
   v.ratingCount = rs.length;
@@ -108,7 +108,7 @@ export function submitReview(actor: Profile | null, i: { reservationId: string; 
 
 export function vendorReviews(vendorId: string) {
   const db = read();
-  return db.reviews.filter((r) => r.vendorId === vendorId).sort((a, b) => t(b.createdAt) - t(a.createdAt)).slice(0, 20).map((r) => ({
+  return db.reviews.filter((r) => r.vendorId === vendorId && !r.hidden).sort((a, b) => t(b.createdAt) - t(a.createdAt)).slice(0, 20).map((r) => ({
     id: r.id, rating: r.rating, text: r.text, createdAt: r.createdAt,
     reviewer: (db.profiles.find((p) => p.id === r.customerId)?.name ?? "Customer").split(" ")[0],
   }));

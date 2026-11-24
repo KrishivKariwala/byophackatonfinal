@@ -441,6 +441,8 @@ export type ModerationTarget = "listing" | "review" | "vendor";
 export type ModerationActionType = "hide" | "restore" | "edit" | "warn" | "suspend" | "dismiss";
 export interface ModerationAction {
   id: string; adminId: string; targetType: ModerationTarget; targetId: string; action: ModerationActionType; reason: string; createdAt: string;
+  /** fingerprint of the text the admin looked at, so a dismissed item only returns when its wording changes */
+  contentHash?: string;
 }
 
 export interface AuditLog {

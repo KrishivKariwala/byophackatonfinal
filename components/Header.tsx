@@ -36,6 +36,8 @@ const NAV: Record<string, { href: string; label: string }[]> = {
     { href: "/admin/approvals", label: "nav.approvals" },
     { href: "/admin/reports", label: "nav.reports" },
     { href: "/admin/flagged", label: "nav.flagged" },
+    { href: "/admin/moderation", label: "nav.moderation" },
+    { href: "/admin/settings", label: "nav.settings" },
   ],
 };
 
@@ -48,6 +50,8 @@ export async function Header() {
   const navItems = (NAV[actor?.role ?? ""] || []).filter((n) => {
     if (actor?.role !== "vendor" || !org) return true;
     if (n.href === "/c/referrals" && !isFlagOn("referrals")) return false;
+    if (n.href === "/admin/moderation" && !isFlagOn("moderation")) return false;
+    if (n.href === "/admin/settings" && !isFlagOn("platformSettings")) return false;
     if ((n.href === "/v/receipts" || n.href === "/n/receipts") && !isFlagOn("donationReceipts")) return false;
     const need: Record<string, Parameters<typeof can>[1] | undefined> = { "/v/new": "listing.write", "/v/analytics": "analytics.view", "/v/payouts": "payouts.view", "/v/onboarding": "org.settings", "/v/receipts": "receipts.view" };
     return !need[n.href] || can(org.role, need[n.href]!);
