@@ -4,55 +4,60 @@ import { read, now } from "@/lib/store";
 import { Logo } from "./Logo";
 import { LiveDot } from "./LiveProvider";
 import { DemoControls, SignOutButton, NotificationBell } from "./HeaderClient";
+import { LanguageSwitcher } from "./I18n";
+import { getT } from "@/lib/i18n/server";
+import { isFlagOn } from "@/lib/p2/platform";
 
 const NAV: Record<string, { href: string; label: string }[]> = {
   customer: [
-    { href: "/c", label: "Discover" },
-    { href: "/c/orders", label: "My orders" },
-    { href: "/c/following", label: "Following" },
-    { href: "/c/impact", label: "My impact" },
+    { href: "/c", label: "nav.discover" },
+    { href: "/c/orders", label: "nav.myOrders" },
+    { href: "/c/following", label: "nav.following" },
+    { href: "/c/impact", label: "nav.myImpact" },
   ],
   vendor: [
-    { href: "/v", label: "Today" },
-    { href: "/v/new", label: "Quick list" },
-    { href: "/v/scan", label: "Scan & hand over" },
-    { href: "/v/analytics", label: "Analytics" },
-    { href: "/v/payouts", label: "Payouts" },
-    { href: "/v/onboarding", label: "Outlet profile" },
+    { href: "/v", label: "nav.today" },
+    { href: "/v/new", label: "nav.quickList" },
+    { href: "/v/scan", label: "nav.scan" },
+    { href: "/v/analytics", label: "nav.analytics" },
+    { href: "/v/payouts", label: "nav.payouts" },
+    { href: "/v/onboarding", label: "nav.outletProfile" },
   ],
   ngo: [
-    { href: "/n", label: "Donation feed" },
-    { href: "/n/onboarding", label: "Verification" },
+    { href: "/n", label: "nav.donationFeed" },
+    { href: "/n/onboarding", label: "nav.verification" },
   ],
   admin: [
-    { href: "/admin", label: "City impact" },
-    { href: "/admin/approvals", label: "Approvals" },
-    { href: "/admin/reports", label: "Reports" },
-    { href: "/admin/flagged", label: "Flagged" },
+    { href: "/admin", label: "nav.cityImpact" },
+    { href: "/admin/approvals", label: "nav.approvals" },
+    { href: "/admin/reports", label: "nav.reports" },
+    { href: "/admin/flagged", label: "nav.flagged" },
   ],
 };
 
 export async function Header() {
   const actor = await getActor();
+  const { t, fmt } = await getT();
   const db = read();
   const offsetMin = Math.round((db.clockOffsetMs || 0) / 60000);
   const notes = actor ? db.notifications.filter((n) => n.userId === actor.id).slice(-8).reverse() : [];
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-logobg/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 sm:px-6">
-        <Link href="/" aria-label="SAVE A PLATE home" className="shrink-0">
+        <Link href="/" aria-label={t("header.home")} className="shrink-0">
           <Logo width={84} priority />
         </Link>
         {actor && (
-          <nav aria-label="Main" className="flex flex-wrap gap-1">
+          <nav aria-label={t("header.main")} className="flex flex-wrap gap-1">
             {(NAV[actor.role] || []).map((n) => (
               <Link key={n.href} href={n.href} className="rounded-lg px-3 py-2 text-sm font-semibold text-burgundy hover:bg-cream">
-                {n.label}
+                {t(n.label)}
               </Link>
             ))}
           </nav>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-3">
+          {isFlagOn("i18n") && <LanguageSwitcher />}
           <LiveDot />
           {actor ? (
             <>
@@ -61,15 +66,15 @@ export async function Header() {
               <SignOutButton />
             </>
           ) : (
-            <Link href="/signin" className="btn-primary !py-2">Sign in</Link>
+            <Link href="/signin" className="btn-primary !py-2">{t("header.signIn")}</Link>
           )}
         </div>
       </div>
       <div className="border-t border-line bg-cream/70">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-1.5 text-[11px] font-semibold text-burgundy sm:px-6">
-          <span>DEMO MODE · fictional businesses · simulated payments</span>
+          <span>{t("header.demoBanner")}</span>
           <span className="text-muted">
-            Server time {new Date(now(db)).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST
+            {t("header.serverTime", { time: fmt.time(now(db)) })}
             {offsetMin !== 0 && ` (demo clock +${offsetMin} min)`}
           </span>
           {actor && <DemoControls isAdmin={actor.role === "admin"} offsetMin={offsetMin} />}

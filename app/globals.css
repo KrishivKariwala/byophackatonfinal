@@ -14,6 +14,16 @@
 @import "@fontsource/cormorant-garamond/700.css";
 @import "@fontsource/bagel-fat-one/400.css";
 
+/* Devanagari and Kannada fallbacks: Inter, Cormorant and Bagel Fat One have no glyphs for these scripts, so the browser
+   falls through to these (see fontFamily in tailwind.config.ts). Fontsource splits them by unicode-range, so they are only
+   downloaded when a page actually contains Hindi or Kannada text. */
+@import "@fontsource/noto-sans-devanagari/400.css";
+@import "@fontsource/noto-sans-devanagari/600.css";
+@import "@fontsource/noto-sans-devanagari/700.css";
+@import "@fontsource/noto-sans-kannada/400.css";
+@import "@fontsource/noto-sans-kannada/600.css";
+@import "@fontsource/noto-sans-kannada/700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

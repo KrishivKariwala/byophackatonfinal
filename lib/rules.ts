@@ -48,11 +48,14 @@ export function discountPercent(original: number, rescue: number): number {
   return Math.round((1 - rescue / original) * 100);
 }
 
-export function validatePrices(original: number, rescue: number) {
+export function validatePrices(original: number, rescue: number, maxDiscountPct = 100) {
   if (!Number.isFinite(original) || !Number.isInteger(original) || original <= 0)
     throw new RuleError("price_invalid", "Original price must be a positive whole number of rupees.");
   if (!Number.isFinite(rescue) || !Number.isInteger(rescue) || rescue <= 0)
     throw new RuleError("price_invalid", "Rescue price must be a positive whole number of rupees.");
+  const floor = Math.ceil((original * (100 - maxDiscountPct)) / 100);
+  if (maxDiscountPct < 100 && rescue < Math.max(1, floor))
+    throw new RuleError("discount_too_large", `The platform caps discounts at ${maxDiscountPct}% off (minimum ₹${Math.max(1, floor)} for ₹${original}).`);
   if (rescue > original * RULES.MIN_DISCOUNT_FACTOR)
     throw new RuleError(
       "discount_too_small",

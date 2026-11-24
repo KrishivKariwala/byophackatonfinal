@@ -22,9 +22,9 @@ const config: Config = {
         nonveg: "#8A2A00",
       },
       fontFamily: {
-        sans: ["Inter", "Arial", "sans-serif"],
-        editorial: ['"The Seasons"', '"Cormorant Garamond"', "Georgia", "serif"],
-        display: ['"Chunko Bold"', '"Bagel Fat One"', "Impact", "sans-serif"],
+        sans: ["Inter", "Arial", '"Noto Sans Devanagari"', '"Noto Sans Kannada"', "sans-serif"],
+        editorial: ['"The Seasons"', '"Cormorant Garamond"', "Georgia", '"Noto Sans Devanagari"', '"Noto Sans Kannada"', "serif"],
+        display: ['"Chunko Bold"', '"Bagel Fat One"', "Impact", '"Noto Sans Devanagari"', '"Noto Sans Kannada"', "sans-serif"],
       },
     },
   },

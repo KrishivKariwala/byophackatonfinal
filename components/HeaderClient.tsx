@@ -3,9 +3,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 import { api } from "./client";
+import { useT } from "./I18n";
 
 export function SignOutButton() {
   const router = useRouter();
+  const { t } = useT();
   return (
     <button
       className="btn-quiet !py-2 !min-h-[36px]"
@@ -15,7 +17,7 @@ export function SignOutButton() {
         router.refresh();
       }}
     >
-      Switch role
+      {t("header.switchRole")}
     </button>
   );
 }

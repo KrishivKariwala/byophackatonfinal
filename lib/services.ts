@@ -7,6 +7,7 @@ import {
 import { notifyFollowers } from "./follows";
 import { cancelQuote } from "./cancel";
 import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
+import { cfg } from "./p2/settings";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
@@ -147,12 +148,12 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
       throw new RuleError("pay_at_pickup_off", "This vendor only accepts online payment.");
     if (input.method === "pay_at_pickup" && completedPickups(db, me.id) < RULES.PAY_AT_PICKUP_MIN_PICKUPS)
       throw new RuleError("pay_at_pickup_locked", `Pay at pickup unlocks after ${RULES.PAY_AT_PICKUP_MIN_PICKUPS} completed pickups. Pay online for now.`, 403);
-    if (activeCount(db, me.id) >= RULES.MAX_ACTIVE_RESERVATIONS)
-      throw new RuleError("active_cap", `You can have at most ${RULES.MAX_ACTIVE_RESERVATIONS} active reservations.`, 409);
+    if (activeCount(db, me.id) >= cfg(db).maxActiveReservations)
+      throw new RuleError("active_cap", `You can have at most ${cfg(db).maxActiveReservations} active reservations.`, 409);
     if (l.qtyAvailable < qty) throw new RuleError("insufficient_stock", l.qtyAvailable === 0 ? "Sold out." : `Only ${l.qtyAvailable} left.`, 409);
 
     if (input.method === "online") {
-      const expiresAt = Math.min(now + RULES.HOLD_MINUTES * 60_000, t(l.windowEnd));
+      const expiresAt = Math.min(now + cfg(db).holdMinutes * 60_000, t(l.windowEnd));
       const h: CheckoutHold = {
         id: newId("h"), listingId: l.id, customerId: me.id, qty, amount: qty * l.rescuePrice, expiresAt: iso(expiresAt),
         status: "Active", gatewayOrderId: `demo_order_${newId("o")}`, createdAt: iso(now),
@@ -264,11 +265,11 @@ export interface ListingInput {
   donationOnly?: boolean; riskTag?: RiskTag;
 }
 
-function validateListingFields(i: ListingInput, now: number, createdAt: number) {
+function validateListingFields(i: ListingInput, now: number, createdAt: number, maxDiscountPct = 100) {
   if (!i.title || i.title.trim().length < 3 || i.title.length > 80) throw new RuleError("title_invalid", "Title must be 3–80 characters.");
   if (!CATEGORIES.includes(i.category)) throw new RuleError("category_invalid", "Choose a category.");
   if (!DIETS.includes(i.diet)) throw new RuleError("diet_required", "Choose Vegetarian or Non-vegetarian.");
-  if (!i.donationOnly) validatePrices(Number(i.originalPrice), Number(i.rescuePrice));
+  if (!i.donationOnly) validatePrices(Number(i.originalPrice), Number(i.rescuePrice), maxDiscountPct);
   if (i.riskTag && !["raw", "seafood", "dairy_dessert"].includes(i.riskTag)) throw new RuleError("risk_invalid", "Unknown food risk tag.");
   const q = Number(i.qty);
   if (!Number.isInteger(q) || q < 1 || q > RULES.MAX_LISTING_QTY) throw new RuleError("qty_invalid", `Quantity must be 1–${RULES.MAX_LISTING_QTY}.`);
@@ -292,7 +293,7 @@ export function createListing(actor: Profile | null, i: ListingInput) {
     const v = approvedVendorOf(tx.db, me);
     const outlet = tx.db.outlets.find((o) => o.vendorId === v.id);
     if (!outlet) throw new RuleError("no_outlet", "Add your outlet address first.", 409);
-    validateListingFields(i, tx.now, tx.now);
+    validateListingFields(i, tx.now, tx.now, cfg(tx.db).maxDiscountPct);
     const l: Listing = {
       id: newId("l"), vendorId: v.id, outletId: outlet.id, title: i.title.trim(), description: (i.description || "").trim(),
       category: i.category, imageUrl: i.imageUrl || undefined, imageIsRepresentative: true, surpriseBag: !!i.surpriseBag,
@@ -346,7 +347,7 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
     if (!windowChanged) { merged.windowStart = l.windowStart; merged.windowEnd = l.windowEnd; }
     const now = tx.now;
     if (windowChanged) validateWindow(now, t(l.createdAt), t(merged.windowStart), t(merged.windowEnd));
-    validateListingFields({ ...merged, windowStart: windowChanged ? merged.windowStart : iso(now + 120_000), windowEnd: windowChanged ? merged.windowEnd : iso(now + 180_000) }, now, now);
+    validateListingFields({ ...merged, windowStart: windowChanged ? merged.windowStart : iso(now + 120_000), windowEnd: windowChanged ? merged.windowEnd : iso(now + 180_000) }, now, now, cfg(tx.db).maxDiscountPct);
     if (!windowChanged && merged.safeUntil && t(merged.safeUntil) < t(l.windowEnd)) throw new RuleError("safe_until_invalid", "Safe-to-eat deadline must be after the pickup end.");
     const newTotal = Number(merged.qty);
     if (newTotal < allocated) throw new RuleError("qty_below_allocated", `${allocated} units are already reserved or held; quantity cannot go below that.`, 409);

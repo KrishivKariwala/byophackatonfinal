@@ -141,7 +141,12 @@ export async function transaction<T>(fn: (tx: TxContext) => T | Promise<T>): Pro
 }
 
 /** Replace the whole store (demo reset / tests). */
+let epochN = 0;
+/** Bumped whenever the whole store is replaced (reset/seed), so caches built on it can drop themselves. */
+export const storeEpoch = () => epochN;
+
 export async function resetStore(db?: DB) {
+  epochN++;
   await transaction((tx) => {
     const fresh = db ?? buildSeed(Date.now());
     Object.assign(tx.db, fresh);

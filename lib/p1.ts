@@ -5,6 +5,7 @@ import { newId } from "./crypto";
 import { write, completedPickups } from "./services";
 import { audit, emitRes, iso, listingIn, move, notify, requireRole, setResStatus, t } from "./core";
 import { cancellationOutcome } from "./cancel";
+import { cfg } from "./p2/settings";
 import { IMPACT, co2eFor, kgFor } from "./impact-config";
 import { refundRazorpayPayment, razorpayConfigured } from "./payments";
 import type { DB, Payment, Profile, Report, ReportReason, ReportTarget, Review, Vendor } from "./types";
@@ -135,7 +136,7 @@ export function cancelReservation(actor: Profile | null, reservationId: string) 
     const l = listingIn(db, r.listingId);
     const p = db.payments.find((x) => x.reservationId === r.id);
     const paidOnline = p?.status === "Test Payment Successful";
-    const out = cancellationOutcome({ nowMs: now, windowStartMs: t(l.windowStart), by: "customer", paidOnline });
+    const out = cancellationOutcome({ nowMs: now, windowStartMs: t(l.windowStart), by: "customer", paidOnline, freeMinutes: cfg(tx.db).freeCancelMinutes });
     setResStatus(tx, r, "Cancelled", me.id, out.free ? "customer cancelled (free)" : "late customer cancellation (no refund)");
     r.cancelledAt = iso(now);
     r.cancelledBy = "customer";

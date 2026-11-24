@@ -5,6 +5,9 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { LiveProvider } from "@/components/LiveProvider";
 import { Footer } from "@/components/Footer";
+import { I18nProvider } from "@/components/I18n";
+import { getLocale } from "@/lib/i18n/server";
+import { messagesFor } from "@/lib/i18n/catalog";
 
 export const metadata: Metadata = {
   title: { default: "SAVE A PLATE — rescue surplus food in Bengaluru", template: "%s · SAVE A PLATE" },
@@ -17,9 +20,10 @@ export const viewport: Viewport = { themeColor: "#CB0001", width: "device-width"
 const OFFICIAL_FONTS = ["the-seasons-regular.otf", "chunko-bold.otf"];
 const hasOfficialFonts = OFFICIAL_FONTS.some((f) => fs.existsSync(path.join(process.cwd(), "public", "fonts", f)));
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="en-IN" suppressHydrationWarning>
+    <html lang={locale === "en" ? "en-IN" : locale} suppressHydrationWarning>
       <head>
         {/* Opening animation gate: runs before first paint so returning visitors never see the intro overlay flash.
             Skipped when already played this session or when the visitor prefers reduced motion. */}
@@ -44,11 +48,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {hasOfficialFonts && <link rel="stylesheet" href="/fonts/official-fonts.css" />}
       </head>
       <body className="min-h-screen flex flex-col">
-        <LiveProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </LiveProvider>
+        <I18nProvider locale={locale} dict={messagesFor(locale)}>
+          <LiveProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </LiveProvider>
+        </I18nProvider>
       </body>
     </html>
   );
