@@ -5,6 +5,7 @@ import type {
 import { co2eFor, kgFor } from "./impact-config";
 import { NEIGHBOURHOODS, type Neighbourhood } from "./geo";
 import { sha256 } from "./crypto";
+import { seedP2 } from "./seed-p2";
 
 /**
  * Clearly fictional Bengaluru demo data. Every business and NGO name carries "(Demo)".
@@ -338,7 +339,7 @@ export function buildSeed(T: number): DB {
     if (r.pickedUpAt) ev("Picked up", r.pickedUpAt, r.readyAt ? "Ready" : "Reserved", "code");
   }
 
-  return {
+  const db: DB = {
     version: 1, clockOffsetMs: 0, seq, profiles, vendors, outlets, ngos, listings, templates,
     holds: [], reservations, payments, refunds: [], inventory: [], donationBatches, impact,
     notifications: [
@@ -350,4 +351,6 @@ export function buildSeed(T: number): DB {
     invites: [], priceSteps: [], referralCodes: [], referrals: [], creditLedger: [], distributionLogs: [], receipts: [], receiptSeq: {},
     deliveryRequests: [], certificates: [], moderationActions: [],
   };
+  seedP2(db, T);
+  return db;
 }

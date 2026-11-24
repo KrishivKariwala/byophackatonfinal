@@ -16,7 +16,8 @@ import type { DB, DonationReceipt, Ngo, Profile } from "../types";
  * the charity's official 80G receipt. Receipts are issued by a job once a donation is Collected, so older donations are covered too.
  */
 
-export const receiptNumber = (year: number, n: number) => `SAP-DR-${year}-${String(n).padStart(6, "0")}`;
+import { receiptNumber } from "./receipt-number";
+export { receiptNumber };
 const yearOf = (ms: number) => Number(new Date(ms + 5.5 * 3600_000).toISOString().slice(0, 4));
 
 /** An 80G registration counts only while it is still valid on the day of collection. */

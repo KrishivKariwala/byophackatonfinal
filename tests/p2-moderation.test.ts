@@ -52,9 +52,10 @@ describe("moderation (feature 11)", () => {
 
   it("every action is recorded with who, what, why and when, and a reason is mandatory", async () => {
     const l = await freshListing({ extra: { description: "fake discount" } });
+    const before = store.read().moderationActions.length;
     await expect(mod.moderate(admin(), "listing", l.id, { action: "hide", reason: "" })).rejects.toMatchObject({ code: "reason_required" });
     await expect(mod.moderate(admin(), "listing", l.id, { action: "hide", reason: "ab" })).rejects.toMatchObject({ code: "reason_required" });
-    expect(store.read().moderationActions).toHaveLength(0);
+    expect(store.read().moderationActions).toHaveLength(before); // refused actions leave no record
     await mod.moderate(admin(), "listing", l.id, { action: "warn", reason: "Please fix the wording" });
     await mod.moderate(admin(), "listing", l.id, { action: "hide", reason: "Still misleading" });
     const rec = store.read().moderationActions.filter((a) => a.targetId === l.id);
