@@ -4,6 +4,7 @@ import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { distanceKm } from "./geo";
 import { sendNotification } from "./notify";
+import { vendorCtx, outletRecipients, type Perm, type VendorCtx } from "./p2/org";
 import { co2eFor, kgFor } from "./impact-config";
 import type {
   DB, DonationBatch, Listing, Ngo, NotificationType, Outlet, Profile, Reservation, ReservationStatus, Role, Vendor,
@@ -19,19 +20,25 @@ export function requireRole(actor: Profile | null, ...roles: Role[]): Profile {
   if (!roles.includes(actor.role)) throw new RuleError("forbidden", "Your account cannot do this.", 403);
   return actor;
 }
-export function vendorOf(db: DB, actor: Profile): Vendor {
-  const v = db.vendors.find((x) => x.ownerId === actor.id);
-  if (!v) throw new RuleError("no_vendor", "Complete vendor onboarding first.", 403);
-  return v;
+/** The organization (vendor record) the actor works for: as its owner, or (P2) as a manager / staff member. */
+export function vendorOf(db: DB, actor: Profile, perm?: Perm): Vendor {
+  return vendorCtx(db, actor, perm).vendor;
 }
-export function approvedVendorOf(db: DB, actor: Profile): Vendor {
-  const v = vendorOf(db, actor);
+/** Like vendorCtx but also requires an approved organization and a non-suspended account. Returns the whole context (role, outlet scope). */
+export function approvedCtx(db: DB, actor: Profile, perm?: Perm): VendorCtx {
+  const ctx = vendorCtx(db, actor, perm);
+  approvedCheck(db, actor, ctx.vendor);
+  return ctx;
+}
+function approvedCheck(db: DB, actor: Profile, v: Vendor) {
   if (v.status !== "Approved")
     throw new RuleError("approval_required", `Your vendor application is ${v.status}. Only approved vendors can do this.`, 403);
   const live = db.profiles.find((p) => p.id === actor.id) ?? actor; // never trust a stale actor snapshot
   if (live.suspendedUntil && t(live.suspendedUntil) > Date.now() + (db.clockOffsetMs || 0))
     throw new RuleError("account_suspended", live.suspendReason || "Your account is suspended.", 403);
-  return v;
+}
+export function approvedVendorOf(db: DB, actor: Profile, perm?: Perm): Vendor {
+  return approvedCtx(db, actor, perm).vendor;
 }
 export function ngoOf(db: DB, actor: Profile): Ngo {
   const n = db.ngos.find((x) => x.ownerId === actor.id);
@@ -51,6 +58,11 @@ export function listingIn(db: DB, id: string): Listing {
 
 export function audit(tx: TxContext, actorId: string, action: string, entity: string, entityId: string, detail?: string) {
   tx.db.audit.push({ id: newId("au"), actorId, action, entity, entityId, detail, at: iso(tx.now) });
+}
+
+/** Tell the people who run one outlet (owner, managers, and staff pinned to it). With one outlet and one owner this is exactly the P1 behaviour. */
+export function notifyOutlet(tx: TxContext, vendor: Vendor, outletId: string | undefined, text: string, type: NotificationType = "generic", payload: Record<string, unknown> = {}) {
+  for (const uid of outletRecipients(tx.db, vendor.id, outletId)) sendNotification(tx, uid, type, text, payload);
 }
 
 /** Plain-text notification (kept for P0 call sites). New code should call sendNotification with a type. */

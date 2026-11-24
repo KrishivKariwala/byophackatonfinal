@@ -7,6 +7,7 @@ import { DemoControls, SignOutButton, NotificationBell } from "./HeaderClient";
 import { LanguageSwitcher } from "./I18n";
 import { getT } from "@/lib/i18n/server";
 import { isFlagOn } from "@/lib/p2/platform";
+import { can, resolveOrg } from "@/lib/p2/org";
 
 const NAV: Record<string, { href: string; label: string }[]> = {
   customer: [
@@ -40,6 +41,13 @@ export async function Header() {
   const { t, fmt } = await getT();
   const db = read();
   const offsetMin = Math.round((db.clockOffsetMs || 0) / 60000);
+  const org = actor?.role === "vendor" ? resolveOrg(db, actor) : null;
+  const navItems = (NAV[actor?.role ?? ""] || []).filter((n) => {
+    if (actor?.role !== "vendor" || !org) return true;
+    const need: Record<string, Parameters<typeof can>[1] | undefined> = { "/v/new": "listing.write", "/v/analytics": "analytics.view", "/v/payouts": "payouts.view", "/v/onboarding": "org.settings" };
+    return !need[n.href] || can(org.role, need[n.href]!);
+  });
+  if (org && can(org.role, "staff.manage") && isFlagOn("multiOutlet")) navItems.push({ href: "/v/team", label: "nav.team" });
   const notes = actor ? db.notifications.filter((n) => n.userId === actor.id).slice(-8).reverse() : [];
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-logobg/95 backdrop-blur">
@@ -49,7 +57,7 @@ export async function Header() {
         </Link>
         {actor && (
           <nav aria-label={t("header.main")} className="flex flex-wrap gap-1">
-            {(NAV[actor.role] || []).map((n) => (
+            {navItems.map((n) => (
               <Link key={n.href} href={n.href} className="rounded-lg px-3 py-2 text-sm font-semibold text-burgundy hover:bg-cream">
                 {t(n.label)}
               </Link>

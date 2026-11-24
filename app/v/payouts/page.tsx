@@ -8,8 +8,9 @@ export const metadata = { title: "Vendor · Payouts" };
 export default async function Payouts() {
   const me = await requirePage("vendor");
   let p;
-  try { p = payoutsFor(me); } catch { p = null; }
-  if (!p) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">PAYOUTS</h1><p className="mt-2 text-sm text-muted">Complete vendor onboarding first.</p></div>;
+  let why = "Complete vendor onboarding first.";
+  try { p = payoutsFor(me); } catch (e) { p = null; if ((e as { code?: string }).code === "forbidden_role") why = "Payouts are visible to the owner only."; }
+  if (!p) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">PAYOUTS</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6">
       <div><h1 className="display text-4xl text-tomato">PAYOUTS</h1><p className="text-sm text-muted">Daily settlement of online (test-mode) payments for collected orders. Platform fee {p.feePercent}% of order value. Demo figures, no real money moves.</p></div>

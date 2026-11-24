@@ -10,16 +10,18 @@ export type Range = 7 | 30 | 90;
 export const parseRange = (v: string | null | undefined): Range => (v === "30" ? 30 : v === "90" ? 90 : 7);
 
 /** Vendor analytics (FR-8.1). Pure over a DB snapshot so it is unit-testable. */
-export function vendorAnalytics(db: DB, vendorId: string, range: Range, nowMs: number) {
+export function vendorAnalytics(db: DB, vendorId: string, range: Range, nowMs: number, outletIds?: string[]) {
+  const okOutlet = (id?: string) => !outletIds || (!!id && outletIds.includes(id));
+  const listingOutlet = (listingId?: string) => db.listings.find((l) => l.id === listingId)?.outletId;
   const from = nowMs - range * DAY;
   const inR = (iso?: string) => !!iso && t(iso) >= from && t(iso) <= nowMs;
-  const picked = db.reservations.filter((r) => r.vendorId === vendorId && r.status === "Picked up" && inR(r.pickedUpAt));
+  const picked = db.reservations.filter((r) => r.vendorId === vendorId && okOutlet(r.outletId) && r.status === "Picked up" && inR(r.pickedUpAt));
   const recovered = picked.reduce((s, r) => s + r.amount, 0);
   const sold = picked.reduce((s, r) => s + r.qty, 0);
-  const donated = db.impact.filter((e) => e.vendorId === vendorId && e.source === "ngo_collection" && inR(e.at)).reduce((s, e) => s + e.units, 0);
+  const donated = db.impact.filter((e) => e.vendorId === vendorId && okOutlet(listingOutlet(e.listingId)) && e.source === "ngo_collection" && inR(e.at)).reduce((s, e) => s + e.units, 0);
   // Expired = leftover units that were not collected or donated (written as `expired` impact events, incl. no-show units nobody claimed).
-  const expired = db.impact.filter((e) => e.vendorId === vendorId && e.source === "expired" && inR(e.at)).reduce((s, e) => s + e.units, 0);
-  const ended = db.listings.filter((l) => l.vendorId === vendorId && !l.donationOnly && l.status !== "Cancelled" && t(l.windowEnd) <= nowMs && t(l.windowEnd) >= from);
+  const expired = db.impact.filter((e) => e.vendorId === vendorId && okOutlet(listingOutlet(e.listingId)) && e.source === "expired" && inR(e.at)).reduce((s, e) => s + e.units, 0);
+  const ended = db.listings.filter((l) => l.vendorId === vendorId && okOutlet(l.outletId) && !l.donationOnly && l.status !== "Cancelled" && t(l.windowEnd) <= nowMs && t(l.windowEnd) >= from);
   const listed = ended.reduce((s, l) => s + l.qtyTotal, 0);
   const soldOnEnded = db.reservations.filter((r) => r.status === "Picked up" && ended.some((l) => l.id === r.listingId)).reduce((s, r) => s + r.qty, 0);
   const sellThroughPct = listed ? Math.round((soldOnEnded / listed) * 100) : 0;

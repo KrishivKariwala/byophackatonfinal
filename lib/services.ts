@@ -1,13 +1,14 @@
 import "server-only";
 import { transaction, read, now as clockNow, type TxContext } from "./store";
 import {
-  iso, t, requireRole, approvedVendorOf, ngoOf, outletOf, listingIn, audit, notify, move, emitRes, setResStatus,
+  iso, t, requireRole, approvedCtx, ngoOf, outletOf, listingIn, audit, notify, notifyOutlet, move, emitRes, setResStatus,
   logNewReservation, createDonationBatchTx, recordImpact, openBatch,
 } from "./core";
 import { notifyFollowers } from "./follows";
 import { cancelQuote } from "./cancel";
 import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
 import { cfg } from "./p2/settings";
+import { assertOutlet, outletAllowed, outletsFor } from "./p2/org";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
@@ -173,7 +174,7 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
       gateway: "cash_at_pickup", createdAt: iso(now), updatedAt: iso(now),
     });
     emitRes(tx, r);
-    notify(tx, vendor.ownerId, `New order ${r.ref}: ${qty} × ${l.title} (pay at pickup).`, "new_order", { reservationId: r.id });
+    notifyOutlet(tx, vendor, r.outletId, `New order ${r.ref}: ${qty} × ${l.title} (pay at pickup).`, "new_order", { reservationId: r.id });
     notify(tx, me.id, `Order ${r.ref} confirmed: ${qty} × ${l.title}. Pay at pickup.`, "order_confirmed", { reservationId: r.id });
     return { kind: "reservation", reservationId: r.id } as const;
   });
@@ -234,7 +235,7 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
     p.updatedAt = iso(now);
     emitRes(tx, r);
     const vendor = db.vendors.find((v) => v.id === l.vendorId)!;
-    notify(tx, vendor.ownerId, `New order ${r.ref}: ${r.qty} × ${l.title} (paid, test mode).`, "new_order", { reservationId: r.id });
+    notifyOutlet(tx, vendor, r.outletId, `New order ${r.ref}: ${r.qty} × ${l.title} (paid, test mode).`, "new_order", { reservationId: r.id });
     notify(tx, h.customerId, `Order ${r.ref} confirmed: ${r.qty} × ${l.title}. Collect between ${l.windowStart} and ${l.windowEnd}.`, "order_confirmed", { reservationId: r.id });
     return { outcome: "confirmed", reservationId: r.id } as const;
   });
@@ -263,6 +264,10 @@ export interface ListingInput {
   donateRest: boolean; safetyDeclaration: boolean;
   /** P1 */
   donationOnly?: boolean; riskTag?: RiskTag;
+  /** P2 */
+  outletId?: string; // multi-outlet: which outlet this listing is for (defaults to the member's outlet / the first one)
+  priorityMinutes?: number; // offer to nearby charities first for 15 / 30 / 45 minutes
+  priceSteps?: { effectiveAt: string; discountPct: number }[]; // auto-markdown schedule
 }
 
 function validateListingFields(i: ListingInput, now: number, createdAt: number, maxDiscountPct = 100) {
@@ -290,8 +295,11 @@ function validateListingFields(i: ListingInput, now: number, createdAt: number, 
 export function createListing(actor: Profile | null, i: ListingInput) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
-    const outlet = tx.db.outlets.find((o) => o.vendorId === v.id);
+    const ctx = approvedCtx(tx.db, me, "listing.write");
+    const v = ctx.vendor;
+    const mine = outletsFor(tx.db, ctx);
+    const outlet = i.outletId ? mine.find((o) => o.id === i.outletId) : mine[0];
+    if (i.outletId && !outlet) throw new RuleError("not_found", "That outlet isn't part of your account.", 404);
     if (!outlet) throw new RuleError("no_outlet", "Add your outlet address first.", 409);
     validateListingFields(i, tx.now, tx.now, cfg(tx.db).maxDiscountPct);
     const l: Listing = {
@@ -324,9 +332,11 @@ export function createListing(actor: Profile | null, i: ListingInput) {
 export function updateListing(actor: Profile | null, id: string, patch: Partial<ListingInput>) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "listing.write");
+    const v = ctx.vendor;
     const l = listingIn(tx.db, id);
     if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
     if (!["Live", "Paused", "Sold Out"].includes(l.status)) throw new RuleError("not_editable", `A ${l.status.toLowerCase()} listing cannot be edited.`, 409);
     const allocated = l.qtyTotal - l.qtyAvailable;
     const merged: ListingInput = {
@@ -371,9 +381,11 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
 export function setPaused(actor: Profile | null, id: string, paused: boolean) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "listing.write");
+    const v = ctx.vendor;
     const l = listingIn(tx.db, id);
     if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
     if (paused) {
       if (l.status !== "Live" && l.status !== "Sold Out") throw new RuleError("bad_transition", `Cannot pause a ${l.status.toLowerCase()} listing.`, 409);
       l.status = "Paused";
@@ -393,10 +405,12 @@ export function setPaused(actor: Profile | null, id: string, paused: boolean) {
 export function cancelListing(actor: Profile | null, id: string, reason: string) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "listing.write");
+    const v = ctx.vendor;
     const { db, now } = tx;
     const l = listingIn(db, id);
     if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
     if (!["Live", "Paused", "Sold Out", "Draft"].includes(l.status)) throw new RuleError("bad_transition", `A ${l.status.toLowerCase()} listing cannot be cancelled.`, 409);
     if (!reason || reason.trim().length < 3) throw new RuleError("reason_required", "Give a short cancellation reason.");
     l.status = "Cancelled";
@@ -441,9 +455,10 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
 export function markReady(actor: Profile | null, reservationId: string) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "order.fulfil");
+    const v = ctx.vendor;
     const r = tx.db.reservations.find((x) => x.id === reservationId);
-    if (!r || r.vendorId !== v.id) throw new RuleError("not_found", "Order not found for this outlet.", 404);
+    if (!r || r.vendorId !== v.id || !outletAllowed(ctx, r.outletId)) throw new RuleError("not_found", "Order not found for this outlet.", 404);
     if (r.status !== "Reserved") throw new RuleError("bad_transition", `Order is ${r.status}; only Reserved orders can be marked Ready.`, 409);
     setResStatus(tx, r, "Ready", me.id, "vendor marked ready");
     r.readyAt = iso(tx.now);
@@ -458,17 +473,19 @@ export type HandoverResult = { ok: true; ref: string; qty: number; title: string
 export function handover(actor: Profile | null, input: { code?: string; token?: string }) {
   return write((tx): HandoverResult => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "order.fulfil");
+    const v = ctx.vendor;
     const { db, now } = tx;
     let r: Reservation | undefined;
     if (input.token) {
       const raw = input.token.trim().replace(/^sap:/, "");
       r = db.reservations.find((x) => x.qrTokenHash === sha256(raw));
       if (r && r.vendorId !== v.id) throw new RuleError("wrong_vendor", "This pickup pass belongs to a different vendor.", 403);
+      if (r && !outletAllowed(ctx, r.outletId)) throw new RuleError("wrong_outlet", "This pickup pass is for a different outlet.", 403);
     } else if (input.code) {
       if (!/^\d{4}$/.test(input.code.trim())) throw new RuleError("code_format", "Enter the 4-digit code.");
       const h = sha256(`${v.id}:${input.code.trim()}`);
-      const matches = db.reservations.filter((x) => x.vendorId === v.id && x.codeHash === h);
+      const matches = db.reservations.filter((x) => x.vendorId === v.id && outletAllowed(ctx, x.outletId) && x.codeHash === h);
       r = matches.find((x) => !x.codeUsedAt && (x.status === "Reserved" || x.status === "Ready")) ?? matches[0];
     } else throw new RuleError("code_required", "Scan the QR or enter the 4-digit code.");
     if (!r) throw new RuleError("code_not_found", "No order with this code at your outlet.", 404);
@@ -500,9 +517,10 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
 export function donationHandover(actor: Profile | null, batchId: string, code: string) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "donation.fulfil");
+    const v = ctx.vendor;
     const b = tx.db.donationBatches.find((x) => x.id === batchId);
-    if (!b || b.vendorId !== v.id) throw new RuleError("not_found", "Donation batch not found for this outlet.", 404);
+    if (!b || b.vendorId !== v.id || !outletAllowed(ctx, b.outletId)) throw new RuleError("not_found", "Donation batch not found for this outlet.", 404);
     if (b.status !== "Claimed") throw new RuleError("bad_transition", `Batch is ${b.status}.`, 409);
     if (!b.collectionCodeHash || b.collectionCodeHash !== sha256(`${v.id}:don:${String(code).trim()}`))
       throw new RuleError("code_mismatch", "Collection code does not match this batch.", 403);
@@ -538,7 +556,7 @@ export function claimBatch(actor: Profile | null, batchId: string) {
     b.collectionCode = code;
     b.collectionCodeHash = sha256(`${b.vendorId}:don:${code}`);
     const vendor = tx.db.vendors.find((v) => v.id === b.vendorId)!;
-    notify(tx, vendor.ownerId, `${n.orgName} claimed ${b.ref} (${b.qty} × ${b.title}).`);
+    notifyOutlet(tx, vendor, b.outletId, `${n.orgName} claimed ${b.ref} (${b.qty} × ${b.title}).`);
     audit(tx, me.id, "donation_claimed", "donation_batch", b.id, n.id);
     tx.emit({ type: "donation", batchId: b.id, status: b.status });
     return b;
@@ -596,7 +614,11 @@ export function submitVendorApplication(actor: Profile | null, i: {
     if (i.logoUrl && !/^\/api\/uploads\/[\w.-]+$/.test(i.logoUrl)) throw new RuleError("logo_invalid", "Upload the logo as an image file.");
     if (i.logoUrl) Object.assign(base, { logoUrl: i.logoUrl });
     if (v) Object.assign(v, base, { status: "Pending" as ApprovalStatus, rejectionReason: undefined });
-    else { v = { id: newId("v"), ownerId: me.id, ...base, status: "Pending", createdAt: iso(tx.now) }; tx.db.vendors.push(v); }
+    else {
+      v = { id: newId("v"), ownerId: me.id, ...base, status: "Pending", createdAt: iso(tx.now) };
+      tx.db.vendors.push(v);
+      tx.db.memberships.push({ id: newId("m"), userId: me.id, vendorId: v.id, role: "owner", createdAt: iso(tx.now) });
+    }
     const o = tx.db.outlets.find((x) => x.vendorId === v!.id);
     const od = { address: i.address.trim(), neighbourhood: i.neighbourhood, lat: Number(i.lat), lng: Number(i.lng), payAtPickup: !!i.payAtPickup };
     if (o) Object.assign(o, od); else tx.db.outlets.push({ id: newId("o"), vendorId: v.id, ...od });

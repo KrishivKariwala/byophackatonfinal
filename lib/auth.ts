@@ -4,6 +4,7 @@ import { newId } from "./crypto";
 import { write } from "./services";
 import { audit, iso } from "./core";
 import type { DB, Profile, Role } from "./types";
+import { resolveOrg } from "./p2/org";
 
 /**
  * Demo sign-in helpers. The one-time code is simulated (123456); a real SMS provider replaces only the code check in
@@ -25,7 +26,7 @@ export function normalizePhone(s: string): string {
 
 /** Where a signed-in user should land: vendors / NGOs without an application yet go to onboarding. */
 export function homeFor(db: DB, p: Profile): string {
-  if (p.role === "vendor" && !db.vendors.some((v) => v.ownerId === p.id)) return "/v/onboarding";
+  if (p.role === "vendor" && !resolveOrg(db, p)) return "/v/onboarding"; // owners, and (P2) managers / staff of an organization, go to the dashboard
   if (p.role === "ngo" && !db.ngos.some((n) => n.ownerId === p.id)) return "/n/onboarding";
   return HOME[p.role];
 }

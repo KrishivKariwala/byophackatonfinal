@@ -9,6 +9,9 @@ import { CancelListingButton, DonationVerify } from "./VendorClient";
 import { RepostButton, VendorSettings, VerifiedBadge, Rating } from "@/components/p1";
 import { profileCompleteness } from "@/lib/vendor";
 import { RULES } from "@/lib/rules";
+import { vendorScope } from "@/lib/p2/scope";
+import { OutletSwitcher } from "@/components/p2";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vendor · Today" };
@@ -17,8 +20,10 @@ export default async function VendorHome() {
   const me = await requirePage("vendor");
   const db = read();
   const n = now(db);
-  const v = db.vendors.find((x) => x.ownerId === me.id);
-  if (!v) {
+  const { t } = await getT();
+  const scope = await vendorScope(me);
+  const v = scope.ctx?.vendor;
+  if (!v || !scope.ctx) {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 text-center">
         <h1 className="display text-4xl text-tomato">WELCOME</h1>
@@ -28,8 +33,12 @@ export default async function VendorHome() {
     );
   }
   const approved = v.status === "Approved";
-  const listings = db.listings.filter((l) => l.vendorId === v.id).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
-  const res = db.reservations.filter((r) => r.vendorId === v.id);
+  const inScope = (outletId: string) => scope.scopeIds.includes(outletId);
+  const canList = scope.can("listing.write");
+  const multi = scope.outlets.length > 1;
+  const outletLabel = (id: string) => { const o = scope.outlets.find((x) => x.id === id); return o ? (o.name ?? o.address) : ""; };
+  const listings = db.listings.filter((l) => l.vendorId === v.id && inScope(l.outletId)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  const res = db.reservations.filter((r) => r.vendorId === v.id && inScope(r.outletId));
   const recent = (iso?: string) => !!iso && n - Date.parse(iso) < 12 * 3600_000;
   const cols = {
     Reserved: res.filter((r) => r.status === "Reserved"),
@@ -41,10 +50,10 @@ export default async function VendorHome() {
   const live = listings.filter((l) => l.status === "Live");
   const salesToday = res.filter((r) => r.status === "Picked up" && recent(r.pickedUpAt)).reduce((s, r) => s + r.amount, 0);
   const soon = [...cols.Reserved, ...cols.Ready].filter((r) => { const s = Date.parse(lt(r.listingId).windowStart); return s - n < 30 * 60_000 && Date.parse(lt(r.listingId).windowEnd) > n; }).length;
-  const outlet = db.outlets.find((o) => o.vendorId === v.id);
+  const outlet = scope.outlets.find((o) => o.id === scope.selected) ?? scope.outlets[0];
   const completeness = profileCompleteness(v, outlet);
   const templates = db.templates.filter((x) => x.vendorId === v.id);
-  const batches = db.donationBatches.filter((b) => b.vendorId === v.id).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 6);
+  const batches = db.donationBatches.filter((b) => b.vendorId === v.id && inScope(b.outletId)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)).slice(0, 6);
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6">
@@ -53,10 +62,11 @@ export default async function VendorHome() {
           <p className="eyebrow flex flex-wrap items-center gap-2 text-burgundy">{v.businessName}{approved && <VerifiedBadge />}<Rating avg={v.ratingAvg} count={v.ratingCount} /></p>
           <h1 className="display text-4xl text-tomato sm:text-5xl">TODAY</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <OutletSwitcher selected={scope.selected} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} />
           {approved ? (
             <>
-              <Link href="/v/new" className="btn-primary !px-6 !py-4 text-base"><Plus size={20} aria-hidden="true" />Quick list</Link>
+              {canList && <Link href="/v/new" className="btn-primary !px-6 !py-4 text-base"><Plus size={20} aria-hidden="true" />Quick list</Link>}
               <Link href="/v/scan" className="btn-outline !px-6 !py-4 text-base"><ScanLine size={20} aria-hidden="true" />Scan &amp; hand over</Link>
             </>
           ) : null}
@@ -70,7 +80,11 @@ export default async function VendorHome() {
         </div>
       )}
 
-      {completeness.percent < 100 && (
+      {scope.ctx.role === "staff" && outlet && (
+        <p role="status" className="rounded-2xl bg-cream p-3 text-sm font-semibold text-burgundy">{t("org.staffNote", { outlet: outlet.name ?? outlet.address })}</p>
+      )}
+
+      {completeness.percent < 100 && scope.ctx.role === "owner" && (
         <div role="status" className="rounded-2xl border-2 border-peach bg-cream p-4 text-sm text-burgundy">
           <b>Profile {completeness.percent}% complete.</b> Missing: {completeness.missing.join(", ")}. <Link className="font-semibold underline" href="/v/onboarding">Complete your profile</Link>
         </div>
@@ -82,7 +96,7 @@ export default async function VendorHome() {
         ))}
       </section>
 
-      {approved && (
+      {approved && canList && (
         <section aria-labelledby="tpl-h">
           <h2 id="tpl-h" className="editorial mb-3 text-3xl">Templates</h2>
           {templates.length === 0 ? <p className="text-sm text-muted">No templates yet. Use “Save as template” on any listing below, then repost it in one tap.</p> : (
@@ -112,7 +126,7 @@ export default async function VendorHome() {
                 return (
                   <div key={r.id} className={`card flex flex-col gap-1 p-3 text-sm ${c === "Ready" ? "ring-2 ring-peach" : ""}`}>
                     <b className="text-base">{r.ref} · {cust}</b>
-                    <span>{r.qty} × {l.title}</span>
+                    <span>{r.qty} × {l.title}{multi && <span className="text-xs text-muted"> · {outletLabel(r.outletId)}</span>}</span>
                     <span className="text-xs text-muted">Pickup {fmtWindow(l.windowStart, l.windowEnd)}</span>
                     <span className="text-xs text-muted">{r.method === "online" ? "Online" : "Pay at pickup"} · {p?.status}{r.method === "pay_at_pickup" && p?.status === "Pending" ? ` · collect ₹${r.amount}` : ""}</span>
                     {c === "Reserved" && approved && <ActionButton path={`/api/vendor/orders/${r.id}/ready`} label="Mark ready" className="btn-primary mt-1" />}
@@ -150,10 +164,10 @@ export default async function VendorHome() {
         )}
       </section>
 
-      {approved && outlet && (
+      {approved && outlet && scope.can("outlet.settings") && (
         <section aria-labelledby="set-h">
           <h2 id="set-h" className="editorial mb-3 text-3xl">Settings</h2>
-          <VendorSettings payAtPickup={outlet.payAtPickup} maxUnits={v.maxUnitsPerOrder} defaultCap={RULES.MAX_UNITS_PER_ORDER} />
+          <VendorSettings payAtPickup={outlet.payAtPickup} maxUnits={v.maxUnitsPerOrder} defaultCap={RULES.MAX_UNITS_PER_ORDER} outletId={outlet.id} canSetCap={scope.can("org.settings")} />
         </section>
       )}
 
@@ -169,14 +183,14 @@ export default async function VendorHome() {
                 const open = ["Live", "Paused", "Sold Out"].includes(l.status);
                 return (
                   <tr key={l.id} className="border-b border-line/60 align-top">
-                    <td className="p-3"><b>{l.title}</b><div className="mt-1"><DietTag diet={l.diet} /></div></td>
+                    <td className="p-3"><b>{l.title}</b>{multi && <p className="text-xs text-muted">{outletLabel(l.outletId)}</p>}<div className="mt-1"><DietTag diet={l.diet} /></div></td>
                     <td className="p-3"><StatusPill status={l.status} /></td>
                     <td className="p-3">{open ? <LiveCount listingId={l.id} initial={l.qtyAvailable} /> : "—"} <span className="text-xs text-muted">/ {l.qtyTotal}</span></td>
                     <td className="p-3">₹{l.rescuePrice} <s className="text-xs text-muted">₹{l.originalPrice}</s></td>
                     <td className="p-3 whitespace-nowrap">{fmtWindow(l.windowStart, l.windowEnd)}</td>
                     <td className="p-3">{l.donateRest ? "Yes" : "No"}</td>
                     <td className="p-3">
-                      {approved && (
+                      {approved && canList && (
                         <div className="flex flex-wrap gap-2">
                           {open && <Link href={`/v/listings/${l.id}`} className="btn-quiet !min-h-[40px] !py-2">Edit</Link>}
                           {(l.status === "Live" || l.status === "Sold Out") && <ActionButton path={`/api/vendor/listings/${l.id}`} body={{ action: "pause" }} label="Pause" className="btn-quiet !min-h-[40px] !py-2" />}

@@ -3,7 +3,8 @@ import { read, now as clockNow } from "./store";
 import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { write, createListing, CATEGORIES } from "./services";
-import { approvedVendorOf, audit, iso, listingIn, requireRole, t, vendorOf, outletOf } from "./core";
+import { approvedCtx, audit, iso, listingIn, requireRole, t, vendorOf, outletOf } from "./core";
+import { assertOutlet, outletsFor, vendorCtx } from "./p2/org";
 import { sellThroughRate, suggestPrice } from "./pricing";
 import { vendorAnalytics, vendorPayouts, type Range } from "./analytics";
 import type { DB, Outlet, Profile, Template, Vendor } from "./types";
@@ -14,9 +15,11 @@ import type { DB, Outlet, Profile, Template, Vendor } from "./types";
 export function saveTemplateFromListing(actor: Profile | null, listingId: string) {
   return write((tx): Template => {
     const me = requireRole(actor, "vendor");
-    const v = approvedVendorOf(tx.db, me);
+    const ctx = approvedCtx(tx.db, me, "listing.write");
+    const v = ctx.vendor;
     const l = listingIn(tx.db, listingId);
     if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
     const dup = tx.db.templates.find((x) => x.vendorId === v.id && x.title === l.title && x.originalPrice === l.originalPrice);
     if (dup) throw new RuleError("template_exists", "A template like this already exists.", 409);
     const tpl: Template = {
@@ -34,7 +37,7 @@ export function saveTemplateFromListing(actor: Profile | null, listingId: string
 export function deleteTemplate(actor: Profile | null, id: string) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = vendorOf(tx.db, me);
+    const v = vendorOf(tx.db, me, "listing.write");
     const i = tx.db.templates.findIndex((x) => x.id === id && x.vendorId === v.id);
     if (i < 0) throw new RuleError("not_found", "Template not found.", 404);
     tx.db.templates.splice(i, 1);
@@ -43,10 +46,10 @@ export function deleteTemplate(actor: Profile | null, id: string) {
 }
 
 /** One-tap repost: fresh pickup times (next quarter-hour at least 30 min away, same length), prepared now. Re-confirms the safety declaration. */
-export async function repostTemplate(actor: Profile | null, id: string, opts: { declaration: boolean; startInMinutes?: number }) {
+export async function repostTemplate(actor: Profile | null, id: string, opts: { declaration: boolean; startInMinutes?: number; outletId?: string }) {
   const db = read();
   const me = requireRole(actor, "vendor");
-  const v = vendorOf(db, me);
+  const v = vendorOf(db, me, "listing.write");
   const tpl = db.templates.find((x) => x.id === id && x.vendorId === v.id);
   if (!tpl) throw new RuleError("not_found", "Template not found.", 404);
   if (opts.declaration !== true) throw new RuleError("declaration_required", "Confirm the food-safety declaration to publish.");
@@ -58,17 +61,21 @@ export async function repostTemplate(actor: Profile | null, id: string, opts: { 
     title: tpl.title, description: tpl.description, category: tpl.category, originalPrice: tpl.originalPrice, rescuePrice: tpl.rescuePrice,
     qty: tpl.qty ?? 10, diet: tpl.diet, allergens: tpl.allergens, surpriseBag: tpl.surpriseBag, storageNote: tpl.storageNote,
     preparedAt: iso(n - 60_000), windowStart: iso(start), windowEnd: iso(start + len), donateRest: tpl.donateRest ?? true,
-    donationOnly: tpl.donationOnly, riskTag: tpl.riskTag, safetyDeclaration: true,
+    donationOnly: tpl.donationOnly, riskTag: tpl.riskTag, safetyDeclaration: true, outletId: opts.outletId, priorityMinutes: tpl.priorityMinutes,
   });
 }
 
 // ---------------------------------------------------------------- settings (A8 / D2)
-export function updateVendorSettings(actor: Profile | null, i: { payAtPickup?: boolean; maxUnitsPerOrder?: number | null }) {
+export function updateVendorSettings(actor: Profile | null, i: { payAtPickup?: boolean; maxUnitsPerOrder?: number | null; outletId?: string }) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    const v = vendorOf(tx.db, me);
-    const o = tx.db.outlets.find((x) => x.vendorId === v.id);
+    const ctx = vendorCtx(tx.db, me, "outlet.settings");
+    const v = ctx.vendor;
+    const mine = outletsFor(tx.db, ctx);
+    const o = i.outletId ? mine.find((x) => x.id === i.outletId) : mine[0];
+    if (i.outletId && !o) throw new RuleError("not_found", "That outlet isn't part of your account.", 404);
     if (!o) throw new RuleError("no_outlet", "Add your outlet address first.", 409);
+    if (i.maxUnitsPerOrder !== undefined) vendorCtx(tx.db, me, "org.settings"); // the order cap is brand-wide: owner only
     if (i.payAtPickup !== undefined) o.payAtPickup = !!i.payAtPickup;
     if (i.maxUnitsPerOrder !== undefined) {
       if (i.maxUnitsPerOrder === null) v.maxUnitsPerOrder = undefined;
@@ -87,13 +94,14 @@ export function updateVendorSettings(actor: Profile | null, i: { payAtPickup?: b
 export function priceSuggestion(actor: Profile | null, q: { listingId?: string; original?: number; category?: string; hoursLeft?: number }) {
   const db = read();
   const me = requireRole(actor, "vendor");
-  const v = vendorOf(db, me);
+  const ctx = vendorCtx(db, me, "listing.write");
+  const v = ctx.vendor;
   const n = clockNow(db);
   let original = Number(q.original);
   let category = q.category ?? "";
   let hoursLeft = Number(q.hoursLeft);
   if (q.listingId) {
-    const l = db.listings.find((x) => x.id === q.listingId && x.vendorId === v.id);
+    const l = db.listings.find((x) => x.id === q.listingId && x.vendorId === v.id && (!ctx.outletId || x.outletId === ctx.outletId));
     if (!l) throw new RuleError("not_found", "Listing not found.", 404);
     original = l.originalPrice;
     category = l.category;
@@ -121,14 +129,20 @@ export function profileCompleteness(v: Vendor, o?: Outlet) {
 }
 
 // ---------------------------------------------------------------- analytics + payouts (B4, B5)
-export function analyticsFor(actor: Profile | null, range: Range) {
+/** `outletId` narrows to one outlet; without it an owner / all-outlets manager sees every outlet combined, staff-pinned roles only their own. */
+export function analyticsFor(actor: Profile | null, range: Range, outletId?: string) {
   const db = read();
-  const v = vendorOf(db, requireRole(actor, "vendor"));
-  return vendorAnalytics(db, v.id, range, clockNow(db));
+  const ctx = vendorCtx(db, requireRole(actor, "vendor"), "analytics.view");
+  let ids = outletsFor(db, ctx).map((o) => o.id);
+  if (outletId) {
+    if (!ids.includes(outletId)) throw new RuleError("not_found", "Outlet not found.", 404);
+    ids = [outletId];
+  }
+  return vendorAnalytics(db, ctx.vendor.id, range, clockNow(db), ids);
 }
 export function payoutsFor(actor: Profile | null) {
   const db: DB = read();
-  const v = vendorOf(db, requireRole(actor, "vendor"));
+  const v = vendorOf(db, requireRole(actor, "vendor"), "payouts.view");
   return vendorPayouts(db, v.id);
 }
 export { outletOf };

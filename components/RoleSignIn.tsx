@@ -18,7 +18,7 @@ const THEME: Record<Role, { panel: string; word: string; title: string; sub: str
   ngo: { panel: "bg-burgundy text-peach", word: "FEED", title: "COLLECT AS AN NGO", sub: "Claim free leftovers and get them to people who need them.", label: "NGO", Icon: HeartHandshake, chip: "bg-peach text-burgundy" },
 };
 
-export function RoleSignIn({ role, actor, skipName }: { role: Role; actor: { name: string; role: string } | null; skipName: string }) {
+export function RoleSignIn({ role, actor, skipName, next }: { role: Role; actor: { name: string; role: string } | null; skipName: string; next?: string }) {
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -46,7 +46,7 @@ export function RoleSignIn({ role, actor, skipName }: { role: Role; actor: { nam
     { scope: root },
   );
 
-  const finish = (home: string) => { router.push(home); router.refresh(); };
+  const finish = (home: string) => { router.push(next ?? home); router.refresh(); };
 
   const verify = async () => {
     setBusy(true); setErr(null);

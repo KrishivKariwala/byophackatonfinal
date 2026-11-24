@@ -1,7 +1,7 @@
 import "server-only";
 import type { TxContext } from "./store";
 import { RULES } from "./rules";
-import { createNoShowBatchTx, iso, listingIn, ngosNear, notify, outletOf, recordImpact, setResStatus, audit, emitRes, t } from "./core";
+import { createNoShowBatchTx, iso, listingIn, ngosNear, notify, notifyOutlet, outletOf, recordImpact, setResStatus, audit, emitRes, t } from "./core";
 import type { DB } from "./types";
 
 /**
@@ -67,7 +67,7 @@ export function runScheduledJobs(tx: TxContext) {
     affected.add(r.customerId);
     notify(tx, r.customerId, `${r.ref} was marked a no-show because it wasn't collected. Three no-shows in 30 days pause new reservations for 7 days.`, "no_show", { reservationId: r.id });
     const vendor = db.vendors.find((v) => v.id === r.vendorId);
-    if (vendor) notify(tx, vendor.ownerId, `${r.ref} was not collected (no-show).`, "no_show", { reservationId: r.id });
+    if (vendor) notifyOutlet(tx, vendor, r.outletId, `${r.ref} was not collected (no-show).`, "no_show", { reservationId: r.id });
     emitRes(tx, r);
   }
   for (const [lid, qty] of perListing) createNoShowBatchTx(tx, listingIn(db, lid), qty);

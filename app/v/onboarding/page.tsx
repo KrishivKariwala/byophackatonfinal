@@ -2,6 +2,7 @@ import { requirePage } from "@/lib/guard";
 import { read } from "@/lib/store";
 import { StatusPill } from "@/components/bits";
 import { OnboardingForm } from "@/components/OnboardingForm";
+import { resolveOrg } from "@/lib/p2/org";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vendor onboarding" };
@@ -9,6 +10,9 @@ export const metadata = { title: "Vendor onboarding" };
 export default async function VendorOnboarding() {
   const me = await requirePage("vendor");
   const db = read();
+  const org = resolveOrg(db, me);
+  if (org && org.role !== "owner")
+    return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">OUTLET PROFILE</h1><p role="status" className="mt-2 text-sm text-muted">Only the owner can edit the business profile ({org.vendor.businessName}).</p></div>;
   const v = db.vendors.find((x) => x.ownerId === me.id);
   const o = v ? db.outlets.find((x) => x.vendorId === v.id) : undefined;
   return (

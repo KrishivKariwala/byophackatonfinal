@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
 import { ListingForm } from "../../ListingForm";
+import { vendorScope } from "@/lib/p2/scope";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit listing" };
@@ -10,9 +11,9 @@ export default async function EditListing({ params }: { params: Promise<{ id: st
   const me = await requirePage("vendor");
   const { id } = await params;
   const db = read();
-  const v = db.vendors.find((x) => x.ownerId === me.id);
-  const l = db.listings.find((x) => x.id === id && x.vendorId === v?.id);
-  if (!l) notFound();
+  const scope = await vendorScope(me);
+  const l = db.listings.find((x) => x.id === id && x.vendorId === scope.ctx?.vendor.id && scope.scopeIds.includes(x.outletId));
+  if (!l || !scope.can("listing.write")) notFound();
   const allocated = l.qtyTotal - l.qtyAvailable;
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6">

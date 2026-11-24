@@ -20,7 +20,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const toLocal = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const fromLocal = (v: string) => (v ? new Date(v).toISOString() : "");
 
-export function ListingForm({ mode, listingId, init, templates = [], serverNow }: { mode: "create" | "edit"; listingId?: string; init: FormInit; templates?: Template[]; serverNow: number }) {
+export function ListingForm({ mode, listingId, init, templates = [], serverNow, outlets = [], defaultOutletId }: { mode: "create" | "edit"; listingId?: string; init: FormInit; templates?: Template[]; serverNow: number; outlets?: { id: string; label: string }[]; defaultOutletId?: string }) {
+  const [outletId, setOutletId] = useState(defaultOutletId ?? outlets[0]?.id ?? "");
   const router = useRouter();
   const [f, setF] = useState<FormInit>(init);
   const [times, setTimes] = useState({ start: "", end: "", prepared: "", safe: "" });
@@ -80,6 +81,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
       qty: Number(f.qty), diet: f.diet, allergens: f.allergens, surpriseBag: f.surpriseBag, storageNote: f.storageNote, donateRest: f.donateRest,
       windowStart: fromLocal(times.start), windowEnd: fromLocal(times.end), preparedAt: fromLocal(times.prepared), safeUntil: times.safe ? fromLocal(times.safe) : undefined,
       safetyDeclaration: declared,
+      ...(mode === "create" && outlets.length > 1 ? { outletId } : {}),
     };
     try {
       if (mode === "create") await api("/api/vendor/listings", payload);
@@ -96,6 +98,13 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow }
   return (
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
       <div className="card flex flex-col gap-4 p-5">
+        {mode === "create" && outlets.length > 1 && (
+          <label className="label">Outlet *
+            <select className="input" value={outletId} onChange={(e) => setOutletId(e.target.value)} required>
+              {outlets.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          </label>
+        )}
         {mode === "create" && templates.length > 0 && (
           <label className="label">Start from a template
             <select className="input" defaultValue="" onChange={(e) => applyTemplate(e.target.value)}>

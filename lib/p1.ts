@@ -3,7 +3,7 @@ import { read, now as clockNow } from "./store";
 import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { write, completedPickups } from "./services";
-import { audit, emitRes, iso, listingIn, move, notify, requireRole, setResStatus, t } from "./core";
+import { audit, emitRes, iso, listingIn, move, notify, notifyOutlet, requireRole, setResStatus, t } from "./core";
 import { cancellationOutcome } from "./cancel";
 import { cfg } from "./p2/settings";
 import { IMPACT, co2eFor, kgFor } from "./impact-config";
@@ -146,7 +146,7 @@ export function cancelReservation(actor: Profile | null, reservationId: string) 
     let refund: { id: string; settled: boolean } | undefined;
     if (out.refund && p) refund = issueRefundTx(tx, p, "Customer cancellation");
     const vendor = db.vendors.find((v) => v.id === r.vendorId)!;
-    notify(tx, vendor.ownerId, `${r.ref} was cancelled by the customer.`, "order_cancelled", { reservationId: r.id });
+    notifyOutlet(tx, vendor, r.outletId, `${r.ref} was cancelled by the customer.`, "order_cancelled", { reservationId: r.id });
     notify(tx, me.id, out.free
       ? `${r.ref} cancelled.${refund ? ` Refund of ₹${r.amount} issued.` : ""}`
       : `${r.ref} cancelled. It was within 30 minutes of pickup, so it isn't refunded.`, "order_cancelled", { reservationId: r.id });

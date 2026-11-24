@@ -9,7 +9,7 @@ import { SignInClient } from "./SignInClient";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in" };
 
-export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string }> }) {
+export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string; next?: string }> }) {
   const sp = await searchParams;
   const db = read();
   const label = (id: string) => {
@@ -23,10 +23,11 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   const role = SELF_ROLES.includes(sp.role as SelfRole) && !sp.all ? (sp.role as SelfRole) : null;
   if (role) {
     const actor = await getActor();
-    if (actor && actor.role === role && !sp.switch) redirect(HOME[role]); // already signed in on this side: go straight there
+    const next = /^\/join\/[\w-]{10,}$/.test(sp.next ?? "") ? sp.next! : undefined; // only invite links may be returned to
+    if (actor && actor.role === role && !sp.switch) redirect(next ?? HOME[role]); // already signed in on this side: go straight there
     const skip = label(SKIP_PERSONA[role]);
     const skipName = skip.org ? `${skip.name.split(" (")[0]} · ${skip.org}` : skip.name.split(" (")[0];
-    return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} />;
+    return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} />;
   }
 
   const personas = ["u_priya", "u_arjun", "u_ravi", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]

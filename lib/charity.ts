@@ -3,7 +3,7 @@ import { read, now as clockNow } from "./store";
 import { RuleError } from "./rules";
 import { randomToken } from "./crypto";
 import { write } from "./services";
-import { audit, iso, ngoOf, notify, outletOf, requireRole, t } from "./core";
+import { audit, iso, ngoOf, notifyOutlet, outletOf, requireRole, t } from "./core";
 import { directionsUrl } from "./geo";
 import type { Profile } from "./types";
 
@@ -31,7 +31,7 @@ export function scheduleDonation(actor: Profile | null, batchId: string, i: { sl
     b.volunteerPhone = phone;
     b.volunteerToken ??= randomToken();
     const vendor = tx.db.vendors.find((v) => v.id === b.vendorId)!;
-    notify(tx, vendor.ownerId, `${n.orgName} is sending ${name} for ${b.ref} at ${iso(slot)}.`, "generic", { batchId: b.id });
+    notifyOutlet(tx, vendor, b.outletId, `${n.orgName} is sending ${name} for ${b.ref} at ${iso(slot)}.`, "generic", { batchId: b.id });
     audit(tx, me.id, "donation_scheduled", "donation_batch", b.id, `${name} @ ${iso(slot)}`);
     return { batchId: b.id, token: b.volunteerToken, slot: b.pickupSlot, url: `/volunteer/${b.volunteerToken}` };
   });

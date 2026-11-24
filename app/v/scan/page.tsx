@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { requirePage } from "@/lib/guard";
-import { read } from "@/lib/store";
 import { ScanClient } from "./ScanClient";
+import { vendorScope } from "@/lib/p2/scope";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Scan & hand over" };
 
 export default async function Scan() {
   const me = await requirePage("vendor");
-  const v = read().vendors.find((x) => x.ownerId === me.id);
+  const scope = await vendorScope(me);
+  const v = scope.ctx?.vendor;
   if (!v || v.status !== "Approved")
     return <div className="mx-auto max-w-xl px-4 py-12"><p className="text-sm">Only approved vendors can hand over orders. <Link className="font-semibold text-tomato underline" href="/v/onboarding">Onboarding</Link></p></div>;
   return (
