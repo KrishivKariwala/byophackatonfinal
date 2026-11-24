@@ -9,12 +9,13 @@ import { certificateJobPending, runCertificateJob } from "./certificate";
 import { creditJobPending, expireCreditsTx } from "./credits";
 import { priorityJobPending, runPriorityJob } from "./priority";
 import { receiptJobPending, runReceiptJob } from "./receipts";
+import { deliveryJobPending, runDeliveryJob } from "./delivery";
 
 /** P2 scheduled jobs. Run inside the same transaction as the P1 jobs (see lib/jobs.ts); the Postgres equivalents are in 0003_p2.sql. Idempotent. */
 
 export function p2JobsPending(db: DB, now: number): boolean {
   const c = cfg(db);
-  return (c.flags.autoMarkdown && db.priceSteps.some((s) => !s.appliedAt && t(s.effectiveAt) <= now)) || certificateJobPending(db, now) || creditJobPending(db, now) || priorityJobPending(db, now) || receiptJobPending(db);
+  return (c.flags.autoMarkdown && db.priceSteps.some((s) => !s.appliedAt && t(s.effectiveAt) <= now)) || certificateJobPending(db, now) || creditJobPending(db, now) || priorityJobPending(db, now) || receiptJobPending(db) || deliveryJobPending(db, now);
 }
 
 export function runP2Jobs(tx: TxContext) {
@@ -23,6 +24,7 @@ export function runP2Jobs(tx: TxContext) {
   expireCreditsTx(tx);
   runPriorityJob(tx);
   runReceiptJob(tx);
+  runDeliveryJob(tx);
 }
 
 /** Applies due markdown steps. A step never raises a price: if the vendor already went lower, it is marked done and changes nothing. */

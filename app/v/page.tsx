@@ -159,6 +159,7 @@ export default async function VendorHome() {
                   <span>{b.qty} × {b.title}</span>
                   <span className="text-xs text-muted">Collect by {fmtTime(b.collectBy)} · from listing {b.listingId}</span>
                   {ngo && <span className="text-xs">Claimed by <b>{ngo.orgName}</b></span>}
+                  {(() => { const d = db.deliveryRequests.filter((x) => x.batchId === b.id && ["Rider assigned", "Picked up", "Requested"].includes(x.status))[0]; return d ? <span role="status" className="rounded-lg bg-peach p-2 text-xs font-semibold text-burgundy">{t(`deliv.status.${d.status}`)}{d.riderName ? ` · ${d.riderName}` : ""} · check the collection code</span> : null; })()}
                   {b.volunteerName && <span className="rounded-lg bg-cream p-2 text-xs text-burgundy">Volunteer coming: <b>{b.volunteerName}</b> · {b.volunteerPhone}{b.pickupSlot ? ` · ${fmtTime(b.pickupSlot)}` : ""}</span>}
                   {b.origin === "no_show" && <span className="text-[11px] text-muted">From no-show orders</span>}
                   {b.status === "Claimed" && approved && <DonationVerify batchId={b.id} />}

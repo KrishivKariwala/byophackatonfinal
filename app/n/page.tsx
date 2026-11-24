@@ -5,7 +5,7 @@ import { distanceKm, directionsUrl } from "@/lib/geo";
 import { DietTag, StatusPill, fmtDateTime, fmtTime, Photo } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { ScheduleForm, VerifiedBadge } from "@/components/p1";
-import { DistributionForm } from "@/components/p2-charity";
+import { DistributionForm, DeliveryPanel } from "@/components/p2-charity";
 import { priorityOffersFor } from "@/lib/p2/priority";
 import { cfg } from "@/lib/p2/settings";
 import { getT } from "@/lib/i18n/server";
@@ -104,6 +104,7 @@ export default async function NgoFeed() {
                     <span className="display text-4xl tracking-[0.3em] text-tomato">{b.collectionCode}</span>
                     <span className="text-xs font-semibold">Collect by {fmtTime(b.collectBy)}</span>
                     <a className="btn-outline mt-1" href={directionsUrl(b.outlet, ngo)} target="_blank" rel="noreferrer">Directions to vendor</a>
+                    {flags.delivery && (() => { const d = db.deliveryRequests.filter((x) => x.batchId === b.id).sort((p, q) => (p.createdAt < q.createdAt ? 1 : -1))[0]; return <DeliveryPanel batchId={b.id} delivery={d ? { id: d.id, status: d.status, provider: d.provider, fee: d.fee, riderName: d.riderName, error: d.error } : null} />; })()}
                     <ScheduleForm batchId={b.id} serverNow={n} collectBy={b.collectBy} initial={{ slot: b.pickupSlot, name: b.volunteerName, phone: b.volunteerPhone, url: b.volunteerToken ? `/volunteer/${b.volunteerToken}` : undefined }} />
                     <ActionButton path={`/api/ngo/batches/${b.id}`} body={{ action: "release" }} label="Release claim" className="btn-quiet" confirm="Release this batch so another NGO can collect it?" />
                   </>

@@ -96,3 +96,29 @@ export function ReceiptsPanel({ rows, from, to }: { rows: ReceiptRow[]; from: st
     </div>
   );
 }
+
+// ------------------------------------------------------------------ delivery hand-off (charity)
+export interface DeliveryView { id: string; status: string; provider: string; fee: number; riderName?: string; error?: string }
+const ACTIVE = ["Requested", "Rider assigned", "Picked up"];
+
+export function DeliveryPanel({ batchId, delivery }: { batchId: string; delivery?: DeliveryView | null }) {
+  const router = useRouter();
+  const { t } = useT();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const run = async (fn: () => Promise<unknown>) => { setBusy(true); setErr(null); try { await fn(); router.refresh(); } catch (e) { setErr((e as Error).message); } finally { setBusy(false); } };
+  const live = delivery && ACTIVE.includes(delivery.status);
+  const tone = !delivery ? "" : delivery.status === "Delivered" ? "bg-veg text-white" : ["Failed", "No rider found", "Cancelled"].includes(delivery.status) ? "bg-sand text-tomato" : "bg-peach text-burgundy";
+  return (
+    <div className="mt-1 flex flex-col gap-1.5 rounded-xl border-2 border-line p-3" role="group" aria-label={t("deliv.title")}>
+      <p className="text-xs font-bold uppercase tracking-wide text-burgundy">{t("deliv.title")}</p>
+      {delivery && <p className={`chip w-fit ${tone}`} role="status">{t(`deliv.status.${delivery.status}`)}{delivery.riderName ? ` · ${delivery.riderName}` : ""}</p>}
+      {delivery && live && <p className="text-[11px] text-muted">{t("deliv.fee", { fee: `₹${delivery.fee}`, provider: delivery.provider })}</p>}
+      {delivery?.error && <p className="text-[11px] font-semibold text-tomato">{delivery.error}</p>}
+      {(!delivery || !live) && <button type="button" className="btn-outline !min-h-[44px]" disabled={busy} onClick={() => run(() => api("/api/ngo/delivery", { batchId }))}>{delivery ? t("deliv.retry") : t("deliv.request")}</button>}
+      {delivery && delivery.status !== "Picked up" && live && <button type="button" className="btn-quiet !min-h-[44px]" disabled={busy} onClick={() => run(() => api(`/api/ngo/delivery/${delivery.id}`, undefined, "DELETE"))}>{t("deliv.cancel")}</button>}
+      <p className="text-[11px] text-muted">{t("deliv.note")}</p>
+      {err && <p role="alert" className="text-xs font-semibold text-tomato">{err}</p>}
+    </div>
+  );
+}
