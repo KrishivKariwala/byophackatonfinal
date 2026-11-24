@@ -4,7 +4,6 @@ import { getActor } from "@/lib/session";
 import { HOME, SELF_ROLES, SKIP_PERSONA, type SelfRole } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { RoleSignIn } from "@/components/RoleSignIn";
-import { ReloadToHome } from "@/components/ReloadToHome";
 import { SignInClient } from "./SignInClient";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +26,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     if (actor && actor.role === role && !sp.switch) redirect(HOME[role]); // already signed in on this side: go straight there
     const skip = label(SKIP_PERSONA[role]);
     const skipName = skip.org ? `${skip.name.split(" (")[0]} · ${skip.org}` : skip.name.split(" (")[0];
-    return (
-      <>
-        <ReloadToHome />
-        <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} />
-      </>
-    );
+    return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} />;
   }
 
   const personas = ["u_priya", "u_arjun", "u_ravi", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
@@ -40,7 +34,6 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     .map(label);
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-2">
-      <ReloadToHome />
       <div className="flex flex-col gap-4">
         <Logo width={220} priority />
         <h1 className="display text-5xl text-tomato">SIGN IN</h1>

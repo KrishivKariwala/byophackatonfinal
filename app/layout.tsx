@@ -28,6 +28,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `try{var d=document.documentElement;if(matchMedia("(prefers-reduced-motion: reduce)").matches){d.setAttribute("data-sap-intro","skip")}else if(sessionStorage.getItem("sap-intro-seen")){d.setAttribute("data-sap-intro","skip");d.setAttribute("data-sap-quick","1")}}catch(e){}`,
           }}
         />
+        {/* A browser REFRESH on any screen returns to the main screen ("/"). It runs while the HTML is parsed, before anything
+            paints, so there is no flash of the page you refreshed. Only a reload triggers it: clicks, links and Back are
+            untouched, and "/" itself is never redirected. location.replace swaps the history entry so Back doesn't loop. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var n=performance.getEntriesByType("navigation")[0];if(n&&n.type==="reload"&&location.pathname!=="/")location.replace("/")}catch(e){}`,
+          }}
+        />
         {/* Without JavaScript neither animation can run: never leave the page covered or hidden. */}
         <noscript>
           <style>{`.intro-root{display:none!important}html[data-sap-quick] :is(.hero-fade,.hero-word,.plate-wrap,.decor){opacity:1!important}`}</style>
