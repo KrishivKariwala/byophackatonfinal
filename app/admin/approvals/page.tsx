@@ -6,7 +6,10 @@ import { DecideButtons, DocViewer } from "../AdminClient";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin · Approvals" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.adminApprovals") };
+}
 
 export default async function Approvals() {
   await requirePage("admin");
@@ -26,7 +29,7 @@ export default async function Approvals() {
                 <StatusPill status={a.status} />
               </div>
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-                {a.fields.map(([k, v]) => (<div key={k}><dt className="inline text-xs text-muted">{k}: </dt><dd className="inline font-semibold">{v}</dd></div>))}
+                {a.rows.map((r) => (<div key={r.key}><dt className="inline text-xs text-muted">{t(`adm.f.${r.key}`)}: </dt><dd className="inline font-semibold">{r.valueKey ? t(r.valueKey, r.vars) : r.value}</dd></div>))}
                 <div><dt className="inline text-xs text-muted">{t("admin.submitted")} </dt><dd className="inline font-semibold">{fmtDateTime(a.submittedAt)}</dd></div>
               </dl>
               {a.reason && <p className="text-xs text-tomato">{t("admin.rejected", { reason: a.reason })}</p>}

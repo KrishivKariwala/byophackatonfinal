@@ -2,11 +2,15 @@ import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/guard";
 import { ReceiptsPanel } from "@/components/p2-charity";
 import { getT } from "@/lib/i18n/server";
+import { localizeError } from "@/lib/api";
 import { listReceipts } from "@/lib/p2/receipts";
 import { isFlagOn } from "@/lib/p2/platform";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Donation receipts" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.receipts") };
+}
 
 export default async function Receipts({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
   const me = await requirePage("ngo");
@@ -17,7 +21,7 @@ export default async function Receipts({ searchParams }: { searchParams: Promise
   const from = ok(sp.from), to = ok(sp.to);
   let rows: ReturnType<typeof listReceipts> = [];
   let denied: string | null = null;
-  try { rows = listReceipts(me, { from, to }); } catch (e) { denied = (e as Error).message; }
+  try { rows = listReceipts(me, { from, to }); } catch (e) { denied = await localizeError(e); }
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6">
       <h1 className="display text-4xl text-tomato">{t("rcpt.title").toUpperCase()}</h1>

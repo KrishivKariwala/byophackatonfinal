@@ -19,7 +19,10 @@ import { statusLabel, tOr } from "@/components/i18n-helpers";
 const MISSING_KEYS: Record<string, string> = { "FSSAI number": "fssai", Address: "address", "Map location (lat/lng)": "map", "Operating hours": "hours", "Payout UPI": "upi", Logo: "logo" };
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Vendor · Today" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.vendorToday") };
+}
 
 export default async function VendorHome() {
   const me = await requirePage("vendor");

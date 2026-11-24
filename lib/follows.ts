@@ -2,7 +2,7 @@ import "server-only";
 import type { TxContext } from "./store";
 import { RULES } from "./rules";
 import { distanceKm } from "./geo";
-import { notify } from "./core";
+import { notifyT } from "./core";
 import type { Listing, Outlet, Vendor } from "./types";
 
 /** When a followed vendor publishes, notify followers within 10 km. A follower with no known location is still notified. */
@@ -15,6 +15,6 @@ export function notifyFollowers(tx: TxContext, l: Listing, outlet: Outlet, vendo
     const lng = f.lng ?? me?.homeLng;
     if (lat !== undefined && lng !== undefined && distanceKm({ lat, lng }, outlet) > RULES.FOLLOW_ALERT_RADIUS_KM) continue;
     told.add(f.customerId);
-    notify(tx, f.customerId, `${vendor.businessName} just listed ${l.title} (₹${l.rescuePrice}).`, "new_listing_followed", { listingId: l.id, vendorId: vendor.id });
+    notifyT(tx, f.customerId, "newListingFollowed", { vendor: vendor.businessName, title: l.title, price: l.rescuePrice }, "new_listing_followed", { listingId: l.id, vendorId: vendor.id });
   }
 }

@@ -7,7 +7,10 @@ import { moderationQueue } from "@/lib/p2/moderation";
 import { isFlagOn } from "@/lib/p2/platform";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin · Moderation" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.adminModeration") };
+}
 
 export default async function Moderation() {
   await requirePage("admin");

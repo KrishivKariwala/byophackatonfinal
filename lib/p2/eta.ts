@@ -1,7 +1,7 @@
 import "server-only";
 import { RuleError } from "../rules";
 import { write } from "../services";
-import { audit, emitRes, iso, notifyOutlet, requireRole, t } from "../core";
+import { audit, emitRes, iso, notifyOutletT, requireRole, t } from "../core";
 import { cfg } from "./settings";
 import type { DB, Profile, Reservation } from "../types";
 
@@ -20,15 +20,15 @@ export function setEta(actor: Profile | null, reservationId: string, body: Recor
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const { db, now } = tx;
-    if (!cfg(db).flags.liveEta) throw new RuleError("feature_off", "Live ETA is switched off.", 403);
+    if (!cfg(db).flags.liveEta) throw new RuleError("feature_off", "Live ETA is switched off.", 403, undefined, "feature_off_live_eta_switched");
     // The contract is "minutes only". A request that carries anything location-like is refused outright, never silently dropped.
     const extra = Object.keys(body).filter((k) => k !== "etaMinutes");
     if (extra.length) throw new RuleError("location_not_accepted", "Only the number of minutes is accepted. Your location is never sent to us.", 400);
     const minutes = body.etaMinutes;
-    if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < 0 || minutes > ETA_MAX_MINUTES) throw new RuleError("eta_invalid", `Choose between 0 and ${ETA_MAX_MINUTES} minutes.`);
+    if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < 0 || minutes > ETA_MAX_MINUTES) throw new RuleError("eta_invalid", `Choose between 0 and ${ETA_MAX_MINUTES} minutes.`, 400, { max: ETA_MAX_MINUTES });
     const r = db.reservations.find((x) => x.id === reservationId && x.customerId === me.id);
-    if (!r) throw new RuleError("not_found", "Order not found.", 404);
-    if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("bad_transition", "This order is no longer waiting for pickup.", 409);
+    if (!r) throw new RuleError("not_found", "Order not found.", 404, undefined, "not_found_order_not_found2");
+    if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("bad_transition", "This order is no longer waiting for pickup.", 409, undefined, "bad_transition_order_no_longer");
     const l = db.listings.find((x) => x.id === r.listingId)!;
     if (now > t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended.", 409);
     if (now < t(l.windowStart) - OPENS_EARLY_MS) throw new RuleError("too_early", "You can share an ETA up to 90 minutes before pickup opens.", 409);
@@ -41,7 +41,7 @@ export function setEta(actor: Profile | null, reservationId: string, body: Recor
     const arriving = minutes <= 2 && (prev === undefined || prev > 2);
     if (first || arriving) {
       const name = me.name.split(" ")[0];
-      notifyOutlet(tx, vendor, r.outletId, arriving && !first ? `${name} is almost there for ${r.ref}.` : `${name} is on the way to collect ${r.ref} (about ${minutes} min).`, "customer_eta", { reservationId: r.id, etaMinutes: minutes });
+      notifyOutletT(tx, vendor, r.outletId, arriving && !first ? "etaAlmostThere" : "etaOnTheWay", { name, ref: r.ref, minutes }, "customer_eta", { reservationId: r.id, etaMinutes: minutes });
     }
     if (first) audit(tx, me.id, "eta_started", "reservation", r.id);
     emitRes(tx, r);
@@ -53,7 +53,7 @@ export function clearEta(actor: Profile | null, reservationId: string) {
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const r = tx.db.reservations.find((x) => x.id === reservationId && x.customerId === me.id);
-    if (!r) throw new RuleError("not_found", "Order not found.", 404);
+    if (!r) throw new RuleError("not_found", "Order not found.", 404, undefined, "not_found_order_not_found2");
     r.etaMinutes = undefined;
     r.etaUpdatedAt = undefined;
     emitRes(tx, r);

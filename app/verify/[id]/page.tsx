@@ -5,7 +5,10 @@ import { verifyCertificate } from "@/lib/p2/certificate";
 import { isFlagOn } from "@/lib/p2/platform";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Verify certificate", robots: { index: false } };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.verify"), robots: { index: false } };
+}
 
 export default async function Verify({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

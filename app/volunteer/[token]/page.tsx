@@ -4,7 +4,10 @@ import { fmtDateTime, fmtTime } from "@/components/bits";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Volunteer pickup", robots: { index: false, follow: false } };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.volunteer"), robots: { index: false, follow: false } };
+}
 
 export default async function Volunteer({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

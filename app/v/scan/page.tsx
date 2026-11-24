@@ -5,7 +5,10 @@ import { vendorScope } from "@/lib/p2/scope";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Scan & hand over" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.scan") };
+}
 
 export default async function Scan() {
   const me = await requirePage("vendor");

@@ -14,7 +14,7 @@ export function setPriceSteps(tx: TxContext, me: Profile, l: Listing, steps: Ste
   if (steps === undefined) return;
   const { db, now } = tx;
   if (!cfg(db).flags.autoMarkdown) {
-    if (steps.length) throw new RuleError("feature_off", "Auto-markdown is switched off by the platform.", 403);
+    if (steps.length) throw new RuleError("feature_off", "Auto-markdown is switched off by the platform.", 403, undefined, "feature_off_auto_markdown_switched");
     return;
   }
   if (l.donationOnly && steps.length) throw new RuleError("steps_donation", "Donation-only listings have no price to mark down.");

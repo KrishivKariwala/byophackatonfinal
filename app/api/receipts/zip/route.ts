@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { RuleError } from "@/lib/rules";
+import { localizeError } from "@/lib/api";
 import { receiptsZip } from "@/lib/p2/receipts";
 import { getActor } from "@/lib/session";
 
@@ -12,8 +13,8 @@ export async function GET(req: Request) {
     const { data } = await receiptsZip(await getActor(), { from: u.get("from") || undefined, to: u.get("to") || undefined });
     return new NextResponse(Buffer.from(data), { headers: { "Content-Type": "application/zip", "Content-Disposition": `attachment; filename="donation-receipts-${u.get("from") || "start"}-to-${u.get("to") || "today"}.zip"`, "Cache-Control": "private, no-store" } });
   } catch (e) {
-    if (e instanceof RuleError) return NextResponse.json({ ok: false, code: e.code, error: e.message }, { status: e.status });
+    if (e instanceof RuleError) return NextResponse.json({ ok: false, code: e.code, error: await localizeError(e) }, { status: e.status });
     console.error(e);
-    return NextResponse.json({ ok: false, error: "Could not create the zip." }, { status: 500 });
+    return NextResponse.json({ ok: false, error: await localizeError(new RuleError("zip_failed", "Could not create the zip.")) }, { status: 500 });
   }
 }

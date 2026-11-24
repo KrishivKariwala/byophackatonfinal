@@ -24,7 +24,7 @@ export function validateSteps(i: {
 }): ValidStep[] {
   const cap = Math.min(MAX_STEP_DISCOUNT, i.maxDiscountPct ?? MAX_STEP_DISCOUNT);
   if (!Array.isArray(i.steps)) throw new RuleError("steps_invalid", "Price steps must be a list.");
-  if (i.steps.length > MAX_STEPS) throw new RuleError("steps_too_many", `At most ${MAX_STEPS} price steps.`);
+  if (i.steps.length > MAX_STEPS) throw new RuleError("steps_too_many", `At most ${MAX_STEPS} price steps.`, 400, { max: MAX_STEPS });
   const out: ValidStep[] = [];
   let prevTime = i.nowMs;
   let prevPrice = i.startingPrice;
@@ -33,15 +33,15 @@ export function validateSteps(i: {
     const label = `Step ${n + 1}`;
     const when = typeof s.effectiveAt === "number" ? s.effectiveAt : Date.parse(s.effectiveAt);
     const d = Number(s.discountPct);
-    if (!Number.isFinite(when)) throw new RuleError("step_time_invalid", `${label}: choose a valid time.`);
+    if (!Number.isFinite(when)) throw new RuleError("step_time_invalid", `${label}: choose a valid time.`, 400, { step: n + 1 });
     if (!Number.isInteger(d) || d < MIN_STEP_DISCOUNT || d > MAX_STEP_DISCOUNT)
-      throw new RuleError("step_discount_range", `${label}: the discount must be a whole number from ${MIN_STEP_DISCOUNT}% to ${MAX_STEP_DISCOUNT}%.`);
-    if (d > cap) throw new RuleError("step_discount_cap", `${label}: the platform caps discounts at ${cap}%.`);
-    if (when <= prevTime) throw new RuleError("step_time_order", n === 0 ? `${label}: the time must be in the future.` : `${label}: steps must be in time order, after step ${n}.`);
-    if (when > i.windowEndMs - MIN_STEP_LEAD_MS) throw new RuleError("step_time_late", `${label}: must be at least 5 minutes before the pickup window ends.`);
+      throw new RuleError("step_discount_range", `${label}: the discount must be a whole number from ${MIN_STEP_DISCOUNT}% to ${MAX_STEP_DISCOUNT}%.`, 400, { step: n + 1, min: MIN_STEP_DISCOUNT, max: MAX_STEP_DISCOUNT });
+    if (d > cap) throw new RuleError("step_discount_cap", `${label}: the platform caps discounts at ${cap}%.`, 400, { step: n + 1, cap });
+    if (when <= prevTime) throw new RuleError("step_time_order", n === 0 ? `${label}: the time must be in the future.` : `${label}: steps must be in time order, after step ${n}.`, 400, { step: n + 1, prev: n }, n === 0 ? "step_time_first" : undefined);
+    if (when > i.windowEndMs - MIN_STEP_LEAD_MS) throw new RuleError("step_time_late", `${label}: must be at least 5 minutes before the pickup window ends.`, 400, { step: n + 1 });
     const price = priceAt(i.original, d);
     if (price >= prevPrice || d <= prevDiscount)
-      throw new RuleError("step_price_up", `${label}: each step must lower the price (it is ₹${prevPrice} now). A price only ever goes down.`);
+      throw new RuleError("step_price_up", `${label}: each step must lower the price (it is ₹${prevPrice} now). A price only ever goes down.`, 400, { step: n + 1, price: prevPrice });
     out.push({ effectiveAtMs: when, discountPct: d, price });
     prevTime = when; prevPrice = price; prevDiscount = d;
   });

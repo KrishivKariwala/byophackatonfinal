@@ -3,7 +3,7 @@ import { read } from "../store";
 import { RuleError } from "../rules";
 import { newId } from "../crypto";
 import { write } from "../services";
-import { audit, iso, ngoOf, notifyOutlet, requireRole } from "../core";
+import { audit, iso, ngoOf, notifyOutletT, requireRole } from "../core";
 import { cfg } from "./settings";
 import { can, resolveOrg } from "./org";
 import type { DB, DistributionLog, Profile } from "../types";
@@ -24,10 +24,10 @@ export function fileDistributionLog(actor: Profile | null, batchId: string, i: L
   return write((tx): DistributionLog => {
     const me = requireRole(actor, "ngo");
     const { db, now } = tx;
-    if (!cfg(db).flags.distributionLog) throw new RuleError("feature_off", "Distribution logs are switched off.", 403);
+    if (!cfg(db).flags.distributionLog) throw new RuleError("feature_off", "Distribution logs are switched off.", 403, undefined, "feature_off_distribution_logs_are");
     const n = ngoOf(db, me);
     const b = db.donationBatches.find((x) => x.id === batchId);
-    if (!b || b.claimedByNgoId !== n.id) throw new RuleError("not_found", "Donation not found.", 404);
+    if (!b || b.claimedByNgoId !== n.id) throw new RuleError("not_found", "Donation not found.", 404, undefined, "not_found_donation_not_found");
     if (b.status !== "Collected") throw new RuleError("not_collected", "You can log distribution once the donation has been collected.", 409);
     if (db.distributionLogs.some((x) => x.batchId === b.id)) throw new RuleError("already_logged", "A distribution log was already filed for this donation.", 409);
     const servings = Number(i.servings), people = Number(i.beneficiaries);
@@ -38,15 +38,15 @@ export function fileDistributionLog(actor: Profile | null, batchId: string, i: L
     const notes = String(i.notes ?? "").trim();
     if (notes.length > 1000) throw new RuleError("notes_long", "Keep notes under 1000 characters.");
     const photos = (i.photoUrls ?? []).map(String);
-    if (photos.length > MAX_PHOTOS) throw new RuleError("photos_many", `At most ${MAX_PHOTOS} photos.`);
+    if (photos.length > MAX_PHOTOS) throw new RuleError("photos_many", `At most ${MAX_PHOTOS} photos.`, 400, { max: MAX_PHOTOS });
     for (const u of photos) {
-      if (!PHOTO.test(u)) throw new RuleError("photo_invalid", "Photos must be JPG, PNG or WebP files uploaded here.");
-      if (!u.startsWith(`/api/uploads/${me.id}-`)) throw new RuleError("photo_invalid", "You can only attach photos you uploaded.");
+      if (!PHOTO.test(u)) throw new RuleError("photo_invalid", "Photos must be JPG, PNG or WebP files uploaded here.", 400, undefined, "photo_invalid_photos_must_jpg");
+      if (!u.startsWith(`/api/uploads/${me.id}-`)) throw new RuleError("photo_invalid", "You can only attach photos you uploaded.", 400, undefined, "photo_invalid_only_attach_photos");
     }
     const log: DistributionLog = { id: newId("dl"), batchId: b.id, ngoId: n.id, vendorId: b.vendorId, servings, beneficiaries: people, centreName: centre, notes: notes || undefined, photoUrls: photos, createdAt: iso(now) };
     db.distributionLogs.push(log);
     const vendor = db.vendors.find((v) => v.id === b.vendorId)!;
-    notifyOutlet(tx, vendor, b.outletId, `${n.orgName} served ${servings} servings from ${b.ref}${people ? ` to ${people} people` : ""} at ${centre}.`, "generic", { batchId: b.id });
+    notifyOutletT(tx, vendor, b.outletId, people ? "servedFromPeople" : "servedFrom", { org: n.orgName, servings, ref: b.ref, people, centre }, "generic", { batchId: b.id });
     audit(tx, me.id, "distribution_logged", "donation_batch", b.id, `${servings} servings, ${people} people`);
     return log;
   });

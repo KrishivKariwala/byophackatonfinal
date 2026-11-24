@@ -73,7 +73,7 @@ export function updatePlatformSettings(actor: Profile | null, patch: SettingsPat
     const db = tx.db;
     if (!resolveSettings(db.settings).flags.platformSettings && !patch.flags?.platformSettings) {
       // the settings screen itself is flag-gated, but an admin can always switch it back on
-      throw new RuleError("feature_off", "The platform settings screen is switched off.", 403);
+      throw new RuleError("feature_off", "The platform settings screen is switched off.", 403, undefined, "feature_off_platform_settings_screen");
     }
     const next: Settings = { ...db.settings, flags: { ...db.settings.flags } };
     const changes: { key: string; from: string; to: string }[] = [];
@@ -84,10 +84,10 @@ export function updatePlatformSettings(actor: Profile | null, patch: SettingsPat
 
     for (const [key, raw] of Object.entries(patch.values ?? {})) {
       const spec = SETTING_SPECS.find((s) => s.key === key);
-      if (!spec) throw new RuleError("setting_unknown", `Unknown setting "${key}".`);
+      if (!spec) throw new RuleError("setting_unknown", `Unknown setting "${key}".`, 400, undefined, "");
       const n = Number(raw);
       if (!Number.isFinite(n) || !Number.isInteger(n) || n < spec.min || n > spec.max)
-        throw new RuleError("setting_range", `${spec.label} must be a whole number from ${spec.min} to ${spec.max} (${spec.unit}).`);
+        throw new RuleError("setting_range", `${spec.label} must be a whole number from ${spec.min} to ${spec.max} (${spec.unit}).`, 400, { label: spec.label, labelKey: `set.spec.${spec.key}.label`, min: spec.min, max: spec.max, unit: spec.unit, unitKey: `set.spec.${spec.key}.unit` }, "setting_range_spec");
       record(key, cur[spec.key], n);
       (next as unknown as Record<string, unknown>)[key] = n;
     }
@@ -100,12 +100,12 @@ export function updatePlatformSettings(actor: Profile | null, patch: SettingsPat
     }
     if (patch.moderationKeywords) {
       const kws = [...new Set(patch.moderationKeywords.map((k) => String(k).trim().toLowerCase()).filter(Boolean))].slice(0, 100);
-      if (kws.some((k) => k.length > 40)) throw new RuleError("setting_range", "A moderation keyword can be at most 40 characters.");
+      if (kws.some((k) => k.length > 40)) throw new RuleError("setting_range", "A moderation keyword can be at most 40 characters.", 400, undefined, "setting_range_moderation_keyword_most");
       record("moderationKeywords", cur.moderationKeywords, kws);
       next.moderationKeywords = kws;
     }
     for (const [f, on] of Object.entries(patch.flags ?? {})) {
-      if (!FLAG_NAMES.includes(f as FlagName) || typeof on !== "boolean") throw new RuleError("setting_unknown", `Unknown feature flag "${f}".`);
+      if (!FLAG_NAMES.includes(f as FlagName) || typeof on !== "boolean") throw new RuleError("setting_unknown", `Unknown feature flag "${f}".`, 400, undefined, "");
       record(`flag:${f}`, cur.flags[f as FlagName], on);
       next.flags![f as FlagName] = on;
     }

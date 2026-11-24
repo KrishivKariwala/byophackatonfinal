@@ -15,9 +15,21 @@ import { getT } from "@/lib/i18n/server";
 import { statusLabel } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Pickup pass" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.pickupPass") };
+}
 
 const STEPS = ["Reserved", "Ready", "Picked up"] as const;
+
+/** Reasons the system writes itself are shown in the reader's language; a vendor's own words and demo text stay as written. */
+function cancelReasonText(t: (k: string, v?: Record<string, string | number>) => string, reason?: string) {
+  if (!reason) return undefined;
+  const fixed: Record<string, string> = { "Refunded by an administrator": "cancelr.admin", "Cancelled by customer": "cancelr.customer", "Late cancellation by customer (no refund)": "cancelr.customerLate" };
+  if (fixed[reason]) return t(fixed[reason]);
+  const m = /^Vendor cancelled listing: ([\s\S]*)$/.exec(reason);
+  return m ? t("cancelr.vendor", { reason: m[1] }) : reason;
+}
 
 export default async function OrderPass({ params }: { params: Promise<{ id: string }> }) {
   const me = await requirePage("customer");
@@ -64,7 +76,7 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
           </>
         ) : (
           <p className="rounded-xl bg-cream/10 p-3 text-center text-sm">
-            {r.status === "Picked up" ? t("order.collected", { when: fmtDateTime(r.pickedUpAt!) }) : r.status === "No-show" ? t("order.noShow") : r.cancelReason ?? t("order.isStatus", { status: statusLabel(t, r.status).toLowerCase() })}
+            {r.status === "Picked up" ? t("order.collected", { when: fmtDateTime(r.pickedUpAt!) }) : r.status === "No-show" ? t("order.noShow") : cancelReasonText(t, r.cancelReason) ?? t("order.isStatus", { status: statusLabel(t, r.status).toLowerCase() })}
           </p>
         )}
       </div>

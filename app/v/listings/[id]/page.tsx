@@ -7,7 +7,10 @@ import { cfg } from "@/lib/p2/settings";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Edit listing" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.editListing") };
+}
 
 export default async function EditListing({ params }: { params: Promise<{ id: string }> }) {
   const me = await requirePage("vendor");

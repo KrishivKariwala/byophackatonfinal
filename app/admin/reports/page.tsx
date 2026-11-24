@@ -7,7 +7,17 @@ import { getT } from "@/lib/i18n/server";
 import { tOr } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin · Reports" };
+
+/** "dismiss: note text" -> the action in the reader's language, then the admin's own note unchanged. */
+function resolutionText(t: Parameters<typeof tOr>[0], resolution?: string): string {
+  if (!resolution) return "";
+  const m = /^(\w+)(: [\s\S]*)?$/.exec(resolution);
+  return m ? `${tOr(t, `adm.res.${m[1]}`, m[1])}${m[2] ?? ""}` : resolution;
+}
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.adminReports") };
+}
 
 export default async function Reports() {
   await requirePage("admin");
@@ -30,10 +40,10 @@ export default async function Reports() {
               {r.text && <p className="rounded-xl bg-canvas p-3 text-sm">{r.text}</p>}
               {r.photoUrl && (/* eslint-disable-next-line @next/next/no-img-element */
                 <a href={r.photoUrl} target="_blank" rel="noreferrer"><img src={r.photoUrl} alt={t("admin.reportPhoto")} className="max-h-56 rounded-xl border border-line object-contain" /></a>)}
-              {r.status === "Open" ? <ReportActions id={r.id} can={{ canHide: r.canHide, canSuspend: r.canSuspend, canRefund: r.canRefund }} /> : <p className="text-sm font-semibold text-muted">{t("admin.resolved", { resolution: r.resolution ?? "" })}</p>}
+              {r.status === "Open" ? <ReportActions id={r.id} can={{ canHide: r.canHide, canSuspend: r.canSuspend, canRefund: r.canRefund }} /> : <p className="text-sm font-semibold text-muted">{t("admin.resolved", { resolution: resolutionText(t, r.resolution) })}</p>}
               {r.log.length > 0 && (
                 <details className="text-xs text-muted"><summary className="cursor-pointer font-semibold">{t("admin.actionLog")}</summary>
-                  <ol className="mt-1 flex flex-col gap-0.5">{r.log.map((l, i) => <li key={i}>{fmtDateTime(l.at)} · {l.who} · {l.action}{l.detail ? ` (${l.detail})` : ""}</li>)}</ol></details>
+                  <ol className="mt-1 flex flex-col gap-0.5">{r.log.map((l, i) => <li key={i}>{fmtDateTime(l.at)} · {l.who} · {tOr(t, `adm.log.${l.action}`, l.action)}{l.detail ? ` (${l.detail})` : ""}</li>)}</ol></details>
               )}
             </li>
           ))}

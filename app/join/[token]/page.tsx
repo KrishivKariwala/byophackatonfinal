@@ -5,7 +5,10 @@ import { getT } from "@/lib/i18n/server";
 import { previewInvite } from "@/lib/p2/team";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Join a team" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.join") };
+}
 
 export default async function Join({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

@@ -4,7 +4,10 @@ import { payoutsFor } from "@/lib/vendor";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Vendor · Payouts" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.payouts") };
+}
 
 export default async function Payouts() {
   const me = await requirePage("vendor");

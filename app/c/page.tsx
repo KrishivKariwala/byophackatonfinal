@@ -1,11 +1,15 @@
 import { requirePage } from "@/lib/guard";
+import { getT } from "@/lib/i18n/server";
 import { discover } from "@/lib/services";
 import { NEIGHBOURHOODS } from "@/lib/geo";
 import { read } from "@/lib/store";
 import { Discover } from "./Discover";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Discover" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.discover") };
+}
 
 export default async function CustomerHome() {
   await requirePage("customer");

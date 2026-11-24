@@ -1,6 +1,6 @@
 import type { TxContext } from "../store";
 import type { DB, Listing } from "../types";
-import { audit, iso, notify, t } from "../core";
+import { audit, iso, notifyT, t } from "../core";
 import { distanceKm } from "../geo";
 import { RULES } from "../rules";
 import { cfg } from "./settings";
@@ -61,6 +61,6 @@ function notifyPriceDrop(tx: TxContext, l: Listing, was: number) {
     const lat = f.lat ?? me?.homeLat, lng = f.lng ?? me?.homeLng;
     if (lat !== undefined && lng !== undefined && distanceKm({ lat, lng }, outlet) > RULES.FOLLOW_ALERT_RADIUS_KM) continue;
     told.add(f.customerId);
-    notify(tx, f.customerId, `Price drop: ${l.title} at ${vendor.businessName} is now ₹${l.rescuePrice} (was ₹${was}, ${pct}% off).`, "price_drop", { listingId: l.id, vendorId: vendor.id });
+    notifyT(tx, f.customerId, "priceDrop", { title: l.title, vendor: vendor.businessName, price: l.rescuePrice, was, pct }, "price_drop", { listingId: l.id, vendorId: vendor.id });
   }
 }

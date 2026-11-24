@@ -3,7 +3,7 @@ import { read, now as clockNow } from "./store";
 import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { write, completedPickups } from "./services";
-import { audit, emitRes, iso, listingIn, move, notify, notifyOutlet, requireRole, setResStatus, t } from "./core";
+import { audit, emitRes, iso, listingIn, move, notifyT, notifyOutletT, requireRole, setResStatus, t } from "./core";
 import { cancellationOutcome } from "./cancel";
 import { cfg } from "./p2/settings";
 import { restoreCreditTx } from "./p2/credits";
@@ -19,7 +19,7 @@ export function registerPushToken(actor: Profile | null, i: { token: string; pla
     const me = requireRole(actor, "customer", "vendor", "ngo", "admin");
     if (!i.token || i.token.length > 300) throw new RuleError("token_invalid", "Invalid push token.");
     if (!["ios", "android", "web"].includes(i.platform)) throw new RuleError("platform_invalid", "Unknown platform.");
-    if (i.platform !== "web" && !/^Expo(nent)?PushToken\[[^\]]+\]$/.test(i.token)) throw new RuleError("token_invalid", "Not an Expo push token.");
+    if (i.platform !== "web" && !/^Expo(nent)?PushToken\[[^\]]+\]$/.test(i.token)) throw new RuleError("token_invalid", "Not an Expo push token.", 400, undefined, "token_invalid_not_expo_push");
     if (!i.deviceId || i.deviceId.length > 100) throw new RuleError("device_required", "Device id required.");
     const ex = tx.db.pushTokens.find((p) => p.userId === me.id && p.deviceId === i.deviceId);
     if (ex) ex.token = i.token;
@@ -40,7 +40,7 @@ export function followVendor(actor: Profile | null, vendorId: string, loc?: { la
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const v = tx.db.vendors.find((x) => x.id === vendorId && x.status === "Approved");
-    if (!v) throw new RuleError("not_found", "Vendor not found.", 404);
+    if (!v) throw new RuleError("not_found", "Vendor not found.", 404, undefined, "not_found_vendor_not_found");
     const lat = Number(loc?.lat), lng = Number(loc?.lng);
     const has = Number.isFinite(lat) && Number.isFinite(lng) && loc?.lat !== undefined;
     const ex = tx.db.follows.find((f) => f.customerId === me.id && f.vendorId === vendorId);
@@ -89,7 +89,7 @@ export function submitReview(actor: Profile | null, i: { reservationId: string; 
   return write((tx): Review => {
     const me = requireRole(actor, "customer");
     const r = tx.db.reservations.find((x) => x.id === i.reservationId && x.customerId === me.id);
-    if (!r) throw new RuleError("not_found", "Order not found.", 404);
+    if (!r) throw new RuleError("not_found", "Order not found.", 404, undefined, "not_found_order_not_found2");
     if (r.status !== "Picked up" || !r.pickedUpAt) throw new RuleError("not_picked_up", "You can rate an order after you've picked it up.", 409);
     if (tx.now > t(r.pickedUpAt) + RULES.REVIEW_WINDOW_HOURS * 3600_000) throw new RuleError("review_window_closed", "The 48-hour rating window has closed.", 409);
     if (tx.db.reviews.some((x) => x.reservationId === r.id)) throw new RuleError("already_reviewed", "You've already rated this order.", 409);
@@ -101,7 +101,7 @@ export function submitReview(actor: Profile | null, i: { reservationId: string; 
     tx.db.reviews.push(rv);
     recomputeVendorRating(tx.db, r.vendorId);
     const v = tx.db.vendors.find((x) => x.id === r.vendorId)!;
-    notify(tx, v.ownerId, `New ${rating}★ rating for ${r.ref}.`, "generic", { reservationId: r.id });
+    notifyT(tx, v.ownerId, "newRating", { rating, ref: r.ref }, "generic", { reservationId: r.id });
     return rv;
   });
 }
@@ -132,8 +132,8 @@ export function cancelReservation(actor: Profile | null, reservationId: string) 
     const me = requireRole(actor, "customer");
     const { db, now } = tx;
     const r = db.reservations.find((x) => x.id === reservationId && x.customerId === me.id);
-    if (!r) throw new RuleError("not_found", "Order not found.", 404);
-    if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("bad_transition", `This order is ${r.status.toLowerCase()} and can't be cancelled.`, 409);
+    if (!r) throw new RuleError("not_found", "Order not found.", 404, undefined, "not_found_order_not_found2");
+    if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("bad_transition", `This order is ${r.status.toLowerCase()} and can't be cancelled.`, 409, { status: r.status.toLowerCase(), statusKey: `status.${r.status}` }, "bad_transition_order_cancel");
     const l = listingIn(db, r.listingId);
     const p = db.payments.find((x) => x.reservationId === r.id);
     const paidOnline = p?.status === "Test Payment Successful";
@@ -149,11 +149,9 @@ export function cancelReservation(actor: Profile | null, reservationId: string) 
     const credit = out.free ? restoreCreditTx(tx, me.id, [r.id, r.holdId], "order cancelled") : 0; // a late cancellation forfeits credit like it forfeits cash
     const refundCash = refund && p ? p.amount : 0;
     const vendor = db.vendors.find((v) => v.id === r.vendorId)!;
-    notifyOutlet(tx, vendor, r.outletId, `${r.ref} was cancelled by the customer.`, "order_cancelled", { reservationId: r.id });
-    notify(tx, me.id, out.free
-      ? `${r.ref} cancelled.${refund ? ` Refund of ₹${refundCash} issued.` : ""}${credit ? ` ₹${credit} credit returned.` : ""}`
-      : `${r.ref} cancelled. It was within 30 minutes of pickup, so it isn't refunded.`, "order_cancelled", { reservationId: r.id });
-    if (refund) notify(tx, me.id, `Refund of ₹${refundCash} issued for ${r.ref}.`, "refund_issued", { reservationId: r.id, amount: refundCash });
+    notifyOutletT(tx, vendor, r.outletId, "cancelledByCustomer", { ref: r.ref }, "order_cancelled", { reservationId: r.id });
+    notifyT(tx, me.id, out.free ? `cancelledFree${refund ? "Refund" : ""}${credit ? "Credit" : ""}` : "cancelledLate", { ref: r.ref, refund: refundCash, credit }, "order_cancelled", { reservationId: r.id });
+    if (refund) notifyT(tx, me.id, "refundIssued", { amount: refundCash, ref: r.ref }, "refund_issued", { reservationId: r.id, amount: refundCash });
     audit(tx, me.id, "reservation_cancelled", "reservation", r.id, out.free ? "free" : "late, no refund");
     emitRes(tx, r);
     return { reservationId: r.id, free: out.free, refundId: refund?.id, refundAmount: refundCash, gatewayPaymentId: p?.gatewayPaymentId, gateway: p?.gateway };
@@ -184,16 +182,16 @@ export function createReport(actor: Profile | null, i: { targetType: ReportTarge
       i.targetType === "reservation" ? tx.db.reservations.some((r) => r.id === i.targetId && r.customerId === me.id)
       : i.targetType === "listing" ? tx.db.listings.some((l) => l.id === i.targetId)
       : tx.db.vendors.some((v) => v.id === i.targetId);
-    if (!exists) throw new RuleError("not_found", "We couldn't find what you're reporting.", 404);
+    if (!exists) throw new RuleError("not_found", "We couldn't find what you're reporting.", 404, undefined, "not_found_we_couldn_t");
     const text = (i.text ?? "").trim();
-    if (text.length > 2000) throw new RuleError("text_too_long", "Keep the details under 2000 characters.");
+    if (text.length > 2000) throw new RuleError("text_too_long", "Keep the details under 2000 characters.", 400, undefined, "text_too_long_keep_details_under");
     if (i.photoUrl && !/^\/api\/uploads\/[\w.-]+$/.test(i.photoUrl)) throw new RuleError("photo_invalid", "Invalid photo.");
     const dup = tx.db.reports.some((r) => r.reporterId === me.id && r.targetType === i.targetType && r.targetId === i.targetId && r.status === "Open");
     if (dup) throw new RuleError("already_reported", "You've already reported this; we're looking into it.", 409);
     const rep: Report = { id: newId("rp"), reporterId: me.id, targetType: i.targetType, targetId: i.targetId, reason: i.reason, text: text || undefined, photoUrl: i.photoUrl, status: "Open", createdAt: iso(tx.now) };
     tx.db.reports.push(rep);
     audit(tx, me.id, "report_created", "report", rep.id, `${i.targetType}:${i.targetId} ${i.reason}`);
-    for (const a of tx.db.profiles.filter((p) => p.role === "admin")) notify(tx, a.id, `New report (${i.reason.replace("_", " ")}) awaiting review.`, "report_update", { reportId: rep.id });
+    for (const a of tx.db.profiles.filter((p) => p.role === "admin")) notifyT(tx, a.id, "newReport", { reason: i.reason.replace("_", " "), reasonKey: `report.reason.${i.reason}` }, "report_update", { reportId: rep.id });
     return rep;
   });
 }

@@ -320,6 +320,9 @@ export interface Notification {
   type?: NotificationType;
   payload?: Record<string, unknown>;
   readAt?: string;
+  /** Catalog key (`notif.<key>`) and values the English `text` was built from, so each reader sees it in their own language. */
+  key?: string;
+  vars?: Record<string, string | number>;
 }
 
 export interface PushToken {

@@ -7,7 +7,10 @@ import { resolveOrg } from "@/lib/p2/org";
 import { read } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Team and outlets" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.team") };
+}
 
 export default async function Team() {
   const me = await requirePage("vendor");

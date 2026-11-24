@@ -6,7 +6,10 @@ import { FollowButton, Rating, VerifiedBadge } from "@/components/p1";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Following" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.following") };
+}
 
 export default async function Following() {
   const me = await requirePage("customer");

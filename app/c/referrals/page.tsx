@@ -8,7 +8,10 @@ import { isFlagOn } from "@/lib/p2/platform";
 import { read } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Credit and referrals" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.referrals") };
+}
 
 export default async function Referrals() {
   const me = await requirePage("customer");

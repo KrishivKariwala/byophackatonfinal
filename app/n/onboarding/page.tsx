@@ -5,7 +5,10 @@ import { OnboardingForm } from "@/components/OnboardingForm";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "NGO verification" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.ngoOnboarding") };
+}
 
 export default async function NgoOnboarding() {
   const me = await requirePage("ngo");

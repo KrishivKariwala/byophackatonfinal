@@ -1,0 +1,319 @@
+[
+  {
+    "file": "01-push-feat-p2-features-and-open-a-pull-request-into-main.md",
+    "title": "Push feat/p2-features and open a pull request into main",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: release"
+    ]
+  },
+  {
+    "file": "02-re-run-the-production-build-and-end-to-end-checks-after-the-.md",
+    "title": "Re-run the production build and end-to-end checks after the UX changes",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: quality"
+    ]
+  },
+  {
+    "file": "03-translate-the-remaining-english-ui-labels-in-hindi-and-kanna.md",
+    "title": "Translate the remaining English UI labels in Hindi and Kannada",
+    "labels": [
+      "priority: high",
+      "type: bug",
+      "area: i18n"
+    ]
+  },
+  {
+    "file": "04-localize-credit-ledger-notes-and-other-stored-english-text.md",
+    "title": "Localize credit-ledger notes and other stored English text",
+    "labels": [
+      "priority: medium",
+      "type: bug",
+      "area: i18n"
+    ]
+  },
+  {
+    "file": "05-native-speaker-review-of-the-hindi-and-kannada-translations.md",
+    "title": "Native-speaker review of the Hindi and Kannada translations",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: i18n"
+    ]
+  },
+  {
+    "file": "06-add-an-automated-check-for-leftover-english-on-every-page-in.md",
+    "title": "Add an automated check for leftover English on every page in Hindi and Kannada",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: i18n"
+    ]
+  },
+  {
+    "file": "07-localize-pdfs-impact-certificate-and-donation-receipts.md",
+    "title": "Localize PDFs (impact certificate and donation receipts)",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: i18n"
+    ]
+  },
+  {
+    "file": "08-declutter-the-vendor-dashboard-group-actions-into-dropdowns.md",
+    "title": "Declutter the vendor dashboard (group actions into dropdowns)",
+    "labels": [
+      "priority: high",
+      "type: enhancement",
+      "area: ux",
+      "area: vendor"
+    ]
+  },
+  {
+    "file": "09-declutter-customer-order-cards-and-the-vendor-orders-board.md",
+    "title": "Declutter customer order cards and the vendor orders board",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: ux"
+    ]
+  },
+  {
+    "file": "10-declutter-ngo-and-admin-screens.md",
+    "title": "Declutter NGO and admin screens",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: ux",
+      "area: ngo",
+      "area: admin"
+    ]
+  },
+  {
+    "file": "11-update-docs-for-the-new-header-landing-page-and-sign-out-beh.md",
+    "title": "Update docs for the new header, landing page and sign-out behaviour",
+    "labels": [
+      "priority: low",
+      "type: docs"
+    ]
+  },
+  {
+    "file": "12-run-and-finish-the-supabase-migrations-against-a-real-postgr.md",
+    "title": "Run and finish the Supabase migrations against a real Postgres",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: infra"
+    ]
+  },
+  {
+    "file": "13-write-the-missing-postgres-rpcs-for-p2.md",
+    "title": "Write the missing Postgres RPCs for P2",
+    "labels": [
+      "priority: high",
+      "type: enhancement",
+      "area: infra"
+    ]
+  },
+  {
+    "file": "14-replace-the-json-store-with-a-supabase-adapter-and-realtime.md",
+    "title": "Replace the JSON store with a Supabase adapter and Realtime",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: infra"
+    ]
+  },
+  {
+    "file": "15-real-phone-otp-sign-in.md",
+    "title": "Real phone OTP sign-in",
+    "labels": [
+      "priority: high",
+      "type: enhancement",
+      "area: auth"
+    ]
+  },
+  {
+    "file": "16-google-sign-in.md",
+    "title": "Google sign-in",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: auth"
+    ]
+  },
+  {
+    "file": "17-exercise-razorpay-test-mode-end-to-end.md",
+    "title": "Exercise Razorpay TEST mode end to end",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: payments"
+    ]
+  },
+  {
+    "file": "18-send-invites-and-notifications-by-sms-or-email-and-test-expo.md",
+    "title": "Send invites and notifications by SMS or email, and test Expo push",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: messaging"
+    ]
+  },
+  {
+    "file": "19-integrate-a-real-delivery-partner-dunzo-or-porter.md",
+    "title": "Integrate a real delivery partner (Dunzo or Porter)",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: ngo"
+    ]
+  },
+  {
+    "file": "20-use-real-map-tiles-in-the-discover-map.md",
+    "title": "Use real map tiles in the discover map",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: customer"
+    ]
+  },
+  {
+    "file": "21-move-uploads-to-private-object-storage.md",
+    "title": "Move uploads to private object storage",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: infra"
+    ]
+  },
+  {
+    "file": "22-install-the-official-brand-fonts-and-verify-the-licence.md",
+    "title": "Install the official brand fonts and verify the licence",
+    "labels": [
+      "priority: medium",
+      "type: chore",
+      "area: ux"
+    ]
+  },
+  {
+    "file": "23-accessibility-audit-axe-lighthouse-screen-reader-contrast.md",
+    "title": "Accessibility audit (axe, Lighthouse, screen reader, contrast)",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: quality"
+    ]
+  },
+  {
+    "file": "24-load-test-reservation-peak-and-scheduled-jobs.md",
+    "title": "Load test reservation peak and scheduled jobs",
+    "labels": [
+      "priority: medium",
+      "type: chore",
+      "area: quality"
+    ]
+  },
+  {
+    "file": "25-security-review.md",
+    "title": "Security review",
+    "labels": [
+      "priority: medium",
+      "type: chore",
+      "area: quality"
+    ]
+  },
+  {
+    "file": "26-regulatory-and-legal-review-before-any-real-launch.md",
+    "title": "Regulatory and legal review before any real launch",
+    "labels": [
+      "priority: high",
+      "type: chore",
+      "area: legal"
+    ]
+  },
+  {
+    "file": "27-verify-live-eta-on-a-real-phone-with-gps.md",
+    "title": "Verify live ETA on a real phone with GPS",
+    "labels": [
+      "priority: low",
+      "type: chore",
+      "area: customer"
+    ]
+  },
+  {
+    "file": "28-charity-preferred-ngo-first-refusal-capacity-signals-and-sta.md",
+    "title": "Charity: preferred-NGO first refusal, capacity signals and standing arrangements",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: ngo"
+    ]
+  },
+  {
+    "file": "29-recurring-listings-auto-publish-the-same-listing-on-a-schedu.md",
+    "title": "Recurring listings (auto-publish the same listing on a schedule)",
+    "labels": [
+      "priority: medium",
+      "type: enhancement",
+      "area: vendor"
+    ]
+  },
+  {
+    "file": "30-waitlist-for-sold-out-listings-and-weekly-rescue-subscriptio.md",
+    "title": "Waitlist for sold-out listings and weekly rescue subscriptions",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: customer"
+    ]
+  },
+  {
+    "file": "31-vendor-reliability-score-and-feed-ranking.md",
+    "title": "Vendor reliability score and feed ranking",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: admin"
+    ]
+  },
+  {
+    "file": "32-offline-vendor-scanning-queue.md",
+    "title": "Offline vendor scanning queue",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: vendor"
+    ]
+  },
+  {
+    "file": "33-stronger-no-show-and-resale-controls-deposits-and-device-fin.md",
+    "title": "Stronger no-show and resale controls: deposits and device fingerprinting",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: customer"
+    ]
+  },
+  {
+    "file": "34-native-mobile-apps-or-an-installable-pwa.md",
+    "title": "Native mobile apps or an installable PWA",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: infra"
+    ]
+  },
+  {
+    "file": "35-ngo-food-type-preferences-for-example-vegetarian-only.md",
+    "title": "NGO food-type preferences (for example vegetarian only)",
+    "labels": [
+      "priority: low",
+      "type: enhancement",
+      "area: ngo"
+    ]
+  }
+]

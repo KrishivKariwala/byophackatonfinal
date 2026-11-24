@@ -6,7 +6,10 @@ import { ApprovalActions } from "./ApprovalActions";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "City impact" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.adminHome") };
+}
 
 export default async function Admin() {
   await requirePage("admin");

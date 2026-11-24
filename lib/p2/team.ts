@@ -3,7 +3,7 @@ import { read, now as clockNow } from "../store";
 import { RuleError } from "../rules";
 import { newId, randomToken, sha256 } from "../crypto";
 import { write } from "../services";
-import { approvedCtx, audit, iso, notify, requireRole, t } from "../core";
+import { approvedCtx, audit, iso, notifyT, requireRole, t } from "../core";
 import { normalizePhone } from "../auth";
 import { vendorAnalytics, type Range } from "../analytics";
 import { cfg } from "./settings";
@@ -17,7 +17,7 @@ const MAX_OUTLETS = 25;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function requireMultiOutlet(db: DB) {
-  if (!cfg(db).flags.multiOutlet) throw new RuleError("feature_off", "Multiple outlets and staff accounts are switched off.", 403);
+  if (!cfg(db).flags.multiOutlet) throw new RuleError("feature_off", "Multiple outlets and staff accounts are switched off.", 403, undefined, "feature_off_multiple_outlets_staff");
 }
 
 // ---------------------------------------------------------------- outlets
@@ -26,10 +26,10 @@ export interface OutletInput { name?: string; address: string; neighbourhood: st
 function cleanOutlet(i: Partial<OutletInput>, partial: boolean): Partial<Outlet> {
   const out: Partial<Outlet> = {};
   const str = (k: "name" | "address" | "neighbourhood" | "hours", max: number, req: boolean) => {
-    if (i[k] === undefined) { if (req && !partial) throw new RuleError("field_required", `${k[0].toUpperCase()}${k.slice(1)} is required.`); return; }
+    if (i[k] === undefined) { if (req && !partial) throw new RuleError("field_required", `${k[0].toUpperCase()}${k.slice(1)} is required.`, 400, { label: `${k[0].toUpperCase()}${k.slice(1)}`, labelKey: `rerr.f.${k}` }); return; }
     const v = String(i[k]).trim();
-    if (req && !v) throw new RuleError("field_required", `${k[0].toUpperCase()}${k.slice(1)} is required.`);
-    if (v.length > max) throw new RuleError("field_long", `${k} is too long (max ${max}).`);
+    if (req && !v) throw new RuleError("field_required", `${k[0].toUpperCase()}${k.slice(1)} is required.`, 400, { label: `${k[0].toUpperCase()}${k.slice(1)}`, labelKey: `rerr.f.${k}` });
+    if (v.length > max) throw new RuleError("field_long", `${k} is too long (max ${max}).`, 400, { label: k, labelKey: `rerr.f.${k}`, max });
     out[k] = v;
   };
   str("name", 60, false); str("address", 200, true); str("neighbourhood", 60, true); str("hours", 80, false);
@@ -48,7 +48,7 @@ export function addOutlet(actor: Profile | null, i: OutletInput) {
     const ctx = approvedCtx(tx.db, me, "outlet.manage");
     const existing = tx.db.outlets.filter((o) => o.vendorId === ctx.vendor.id);
     if (existing.length >= 1) requireMultiOutlet(tx.db);
-    if (existing.length >= MAX_OUTLETS) throw new RuleError("outlet_limit", `An organization can have at most ${MAX_OUTLETS} outlets.`, 409);
+    if (existing.length >= MAX_OUTLETS) throw new RuleError("outlet_limit", `An organization can have at most ${MAX_OUTLETS} outlets.`, 409, { max: MAX_OUTLETS });
     const o: Outlet = { id: newId("o"), vendorId: ctx.vendor.id, payAtPickup: false, address: "", neighbourhood: "", lat: 0, lng: 0, ...cleanOutlet(i, false) };
     tx.db.outlets.push(o);
     audit(tx, me.id, "outlet_added", "outlet", o.id, o.name ?? o.address);
@@ -74,14 +74,14 @@ export function inviteMember(actor: Profile | null, i: { contact: string; role: 
     const me = requireRole(actor, "vendor");
     requireMultiOutlet(tx.db);
     const ctx = approvedCtx(tx.db, me, "staff.manage");
-    if (i.role !== "manager" && i.role !== "staff") throw new RuleError("role_invalid", "Invite someone as a manager or as staff.");
-    if (i.role === "manager" && ctx.role !== "owner") throw new RuleError("forbidden_role", "Only the owner can invite a manager.", 403);
+    if (i.role !== "manager" && i.role !== "staff") throw new RuleError("role_invalid", "Invite someone as a manager or as staff.", 400, undefined, "role_invalid_invite_someone_as");
+    if (i.role === "manager" && ctx.role !== "owner") throw new RuleError("forbidden_role", "Only the owner can invite a manager.", 403, undefined, "forbidden_role_only_owner_invite");
     const contact = String(i.contact ?? "").trim();
     const isPhone = normalizePhone(contact).length === 10 && /^[+\d\s()-]+$/.test(contact);
     if (!isPhone && !EMAIL.test(contact)) throw new RuleError("contact_invalid", "Enter a 10-digit mobile number or an email address.");
     const mine = outletsFor(tx.db, ctx);
     let outletId = i.outletId || undefined;
-    if (outletId && !mine.some((o) => o.id === outletId)) throw new RuleError("not_found", "That outlet isn't part of your account.", 404);
+    if (outletId && !mine.some((o) => o.id === outletId)) throw new RuleError("not_found", "That outlet isn't part of your account.", 404, undefined, "not_found_outlet_isn_t");
     if (i.role === "staff" && !outletId) {
       if (mine.length === 1) outletId = mine[0].id; // a one-outlet brand: no need to choose
       else throw new RuleError("outlet_required", "Choose which outlet this staff member works at.");
@@ -100,7 +100,7 @@ export function inviteMember(actor: Profile | null, i: { contact: string; role: 
     // If the person already has an account, tell them in-app too (the link works for new people as well).
     if (isPhone) {
       const known = tx.db.profiles.find((p) => p.phone && normalizePhone(p.phone) === key && p.role === "vendor");
-      if (known) notify(tx, known.id, `${ctx.vendor.businessName} invited you to join as ${i.role}. Open /join/${raw} to accept.`, "generic", { inviteId: inv.id });
+      if (known) notifyT(tx, known.id, "inviteReceived", { org: ctx.vendor.businessName, role: i.role, roleKey: `org.role.${i.role}`, token: raw }, "generic", { inviteId: inv.id });
     }
     return { inviteId: inv.id, token: raw, link: `/join/${raw}`, expiresAt: inv.expiresAt, role: inv.role, outletId };
   });
@@ -131,13 +131,13 @@ export function acceptInvite(actor: Profile | null, rawToken: string) {
     if (!inv.contact.includes("@") && (!live.phone || normalizePhone(live.phone) !== inv.contact))
       throw new RuleError("invite_wrong_number", "This invite was sent to a different mobile number. Sign in with that number.", 403);
     const v = tx.db.vendors.find((x) => x.id === inv.vendorId);
-    if (!v) throw new RuleError("not_found", "That organization no longer exists.", 404);
+    if (!v) throw new RuleError("not_found", "That organization no longer exists.", 404, undefined, "not_found_organization_no_longer");
     const m: Membership = { id: newId("m"), userId: me.id, vendorId: inv.vendorId, outletId: inv.outletId, role: inv.role, createdAt: iso(tx.now) };
     tx.db.memberships.push(m);
     inv.acceptedBy = me.id;
     inv.acceptedAt = iso(tx.now);
     audit(tx, me.id, "invite_accepted", "membership", m.id, `${inv.role} of ${v.businessName}`);
-    notify(tx, inv.createdBy, `${live.name.split(" ")[0]} joined ${v.businessName} as ${inv.role}.`);
+    notifyT(tx, inv.createdBy, "inviteAccepted", { name: live.name.split(" ")[0], org: v.businessName, role: inv.role, roleKey: `org.role.${inv.role}` });
     return { membership: m, business: v.businessName };
   });
 }
@@ -147,8 +147,8 @@ export function revokeInvite(actor: Profile | null, inviteId: string) {
     const me = requireRole(actor, "vendor");
     const ctx = vendorCtx(tx.db, me, "staff.manage");
     const inv = tx.db.invites.find((x) => x.id === inviteId && x.vendorId === ctx.vendor.id);
-    if (!inv || (ctx.outletId && inv.outletId !== ctx.outletId)) throw new RuleError("not_found", "Invite not found.", 404);
-    if (inv.acceptedAt) throw new RuleError("invite_used", "Already accepted; remove the member instead.", 409);
+    if (!inv || (ctx.outletId && inv.outletId !== ctx.outletId)) throw new RuleError("not_found", "Invite not found.", 404, undefined, "not_found_invite_not_found");
+    if (inv.acceptedAt) throw new RuleError("invite_used", "Already accepted; remove the member instead.", 409, undefined, "invite_used_already_accepted_remove");
     inv.revokedAt = iso(tx.now);
     audit(tx, me.id, "invite_revoked", "invite", inv.id);
     return { revoked: true };
@@ -158,7 +158,7 @@ export function revokeInvite(actor: Profile | null, inviteId: string) {
 // ---------------------------------------------------------------- members
 function targetMember(db: DB, ctx: ReturnType<typeof vendorCtx>, membershipId: string): Membership {
   const m = db.memberships.find((x) => x.id === membershipId && x.vendorId === ctx.vendor.id && !x.revokedAt);
-  if (!m || (ctx.outletId && m.outletId !== ctx.outletId)) throw new RuleError("not_found", "Team member not found.", 404);
+  if (!m || (ctx.outletId && m.outletId !== ctx.outletId)) throw new RuleError("not_found", "Team member not found.", 404, undefined, "not_found_team_member_not");
   return m;
 }
 
@@ -168,12 +168,12 @@ export function revokeMember(actor: Profile | null, membershipId: string) {
     const me = requireRole(actor, "vendor");
     const ctx = vendorCtx(tx.db, me, "staff.manage");
     const m = targetMember(tx.db, ctx, membershipId);
-    if (m.role === "owner") throw new RuleError("forbidden_role", "The owner can't be removed.", 403);
+    if (m.role === "owner") throw new RuleError("forbidden_role", "The owner can't be removed.", 403, undefined, "forbidden_role_owner_t_removed");
     if (m.userId === me.id) throw new RuleError("self_revoke", "You can't remove yourself.", 409);
-    if (ctx.role === "manager" && m.role !== "staff") throw new RuleError("forbidden_role", "Managers can only remove staff.", 403);
+    if (ctx.role === "manager" && m.role !== "staff") throw new RuleError("forbidden_role", "Managers can only remove staff.", 403, undefined, "forbidden_role_managers_only_remove");
     m.revokedAt = iso(tx.now);
     audit(tx, me.id, "member_revoked", "membership", m.id, `${m.role}`);
-    notify(tx, m.userId, `Your access to ${ctx.vendor.businessName} was removed.`);
+    notifyT(tx, m.userId, "accessRemoved", { org: ctx.vendor.businessName });
     return { revoked: true };
   });
 }
@@ -183,11 +183,11 @@ export function changeMemberRole(actor: Profile | null, membershipId: string, ro
     const me = requireRole(actor, "vendor");
     const ctx = vendorCtx(tx.db, me, "org.settings"); // owner only
     const m = targetMember(tx.db, ctx, membershipId);
-    if (m.role === "owner") throw new RuleError("forbidden_role", "The owner's role can't be changed.", 403);
-    if (role !== "manager" && role !== "staff") throw new RuleError("role_invalid", "Choose manager or staff.");
+    if (m.role === "owner") throw new RuleError("forbidden_role", "The owner's role can't be changed.", 403, undefined, "forbidden_role_owner_s_role");
+    if (role !== "manager" && role !== "staff") throw new RuleError("role_invalid", "Choose manager or staff.", 400, undefined, "role_invalid_choose_manager_staff");
     const oid = outletId || m.outletId;
     if (outletId && !tx.db.outlets.some((o) => o.id === outletId && o.vendorId === ctx.vendor.id)) throw new RuleError("not_found", "Outlet not found.", 404);
-    if (role === "staff" && !oid) throw new RuleError("outlet_required", "Staff work at one outlet: choose which.");
+    if (role === "staff" && !oid) throw new RuleError("outlet_required", "Staff work at one outlet: choose which.", 400, undefined, "outlet_required_staff_work_one");
     m.role = role;
     m.outletId = role === "staff" ? oid : outletId === "" ? undefined : oid;
     audit(tx, me.id, "member_role_changed", "membership", m.id, `${role}${m.outletId ? ` @ ${m.outletId}` : ""}`);

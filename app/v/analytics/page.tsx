@@ -14,7 +14,10 @@ import { orgOverview } from "@/lib/p2/team";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Vendor · Analytics" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.analytics") };
+}
 
 export default async function Analytics({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const me = await requirePage("vendor");

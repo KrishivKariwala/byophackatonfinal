@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
+import { useT } from "./I18n";
 import { useGSAP } from "@gsap/react";
 import { ArrowRight, HeartHandshake, MapPin, Store } from "lucide-react";
 import { Logo } from "./Logo";
@@ -43,13 +44,19 @@ type SliceId = "customer" | "vendor" | "ngo";
 type Slice = {
   id: SliceId; a0: number; a1: number; color: string; ink: string; lines: [string, string]; word: string; sub: string; Icon: typeof MapPin; aria: string;
 };
+type SliceBase = Omit<Slice, "lines" | "word" | "sub" | "aria">;
 // Each slice is ONE flat colour (brand tomato, peach, burgundy): the same shade from the hub to the edge.
-const SLICES: Slice[] = [
-  { id: "customer", a0: -150, a1: -30, color: "#CB0001", ink: "#FEF2C0", lines: ["FIND FOOD", "NEAR ME"], word: "EAT", sub: "Grab discounted surplus from kitchens near you tonight.", Icon: MapPin, aria: "Find food near me. Sign in as a customer" },
-  { id: "vendor", a0: -30, a1: 90, color: "#FDD599", ink: "#790000", lines: ["LIST SURPLUS", "AS A VENDOR"], word: "LIST", sub: "Turn today's extra into rescued meals in under a minute.", Icon: Store, aria: "List surplus as a vendor. Sign in as a vendor" },
-  { id: "ngo", a0: 90, a1: 210, color: "#790000", ink: "#FDD599", lines: ["COLLECT AS", "AN NGO"], word: "FEED", sub: "Claim free leftovers and get them to people who need them.", Icon: HeartHandshake, aria: "Collect as an NGO. Sign in as an NGO" },
+const SLICE_BASE: SliceBase[] = [
+  { id: "customer", a0: -150, a1: -30, color: "#CB0001", ink: "#FEF2C0", Icon: MapPin },
+  { id: "vendor", a0: -30, a1: 90, color: "#FDD599", ink: "#790000", Icon: Store },
+  { id: "ngo", a0: 90, a1: 210, color: "#790000", ink: "#FDD599", Icon: HeartHandshake },
 ];
-const mid = (s: Slice) => (s.a0 + s.a1) / 2;
+/** The slice artwork with its words in the visitor's language (keys land.s.<id>.*). */
+function useSlices(): Slice[] {
+  const { t } = useT();
+  return SLICE_BASE.map((b) => ({ ...b, lines: [t(`land.s.${b.id}.l1`), t(`land.s.${b.id}.l2`)] as [string, string], word: t(`land.s.${b.id}.word`), sub: t(`land.s.${b.id}.sub`), aria: t(`land.s.${b.id}.aria`) }));
+}
+const mid = (s: SliceBase) => (s.a0 + s.a1) / 2;
 const REDUCED = "(prefers-reduced-motion: reduce)";
 
 function Decor({ kind }: { kind: "tomato" | "leaf" | "crumbs" }) {
@@ -92,6 +99,8 @@ function PlateDefs({ p }: { p: string }) {
 
 /** One slice as drawn artwork (used for the base pie, the hover "pop" overlay and the intro plate). */
 function SliceArt({ s }: { s: Slice }) {
+  const { locale } = useT();
+  const fs = locale === "en" ? 21 : 16; // Devanagari and Kannada run wider than the Latin display face
   const pt = polar(mid(s), 146);
   return (
     <>
@@ -99,8 +108,8 @@ function SliceArt({ s }: { s: Slice }) {
       <path d={wedge(s.a0, s.a1)} fill={s.color} stroke={s.color} strokeWidth="1" strokeLinejoin="round" />
       <g style={{ fill: s.ink, color: s.ink }}>
         <s.Icon x={pt.x - 18} y={pt.y - 60} width={36} height={36} strokeWidth={2.25} />
-        <text x={pt.x} y={pt.y - 2} textAnchor="middle" className="display" fontSize="21" fill={s.ink}>{s.lines[0]}</text>
-        <text x={pt.x} y={pt.y + 24} textAnchor="middle" className="display" fontSize="21" fill={s.ink}>{s.lines[1]}</text>
+        <text x={pt.x} y={pt.y - 2} textAnchor="middle" className="display" fontSize={fs} fill={s.ink}>{s.lines[0]}</text>
+        <text x={pt.x} y={pt.y + 24} textAnchor="middle" className="display" fontSize={fs} fill={s.ink}>{s.lines[1]}</text>
       </g>
     </>
   );
@@ -126,23 +135,25 @@ function PlateBase({ p, c }: { p: string; c: string }) {
 
 /** Non-interactive copy of the plate used by the opening animation (static hub). */
 function IntroPlate() {
+  const { t } = useT();
+  const slices = useSlices();
   return (
     <svg viewBox="0 0 600 600" aria-hidden="true" className="block h-full w-full overflow-visible drop-shadow-[0_26px_26px_rgba(42,10,10,0.35)]">
       <PlateDefs p="i-" />
       <PlateBase p="i-" c="ip" />
-      {SLICES.map((s) => (<g key={s.id}><SliceArt s={s} /></g>))}
+      {slices.map((s) => (<g key={s.id}><SliceArt s={s} /></g>))}
       <circle cx={CX} cy={CY} r={R_HUB + 6} fill="#2A0A0A" opacity=".18" filter="url(#i-blur6)" />
       <circle cx={CX} cy={CY} r={R_HUB} fill="url(#i-rimGrad)" stroke="#CB0001" strokeWidth="5" />
       <circle cx={CX} cy={CY} r={R_HUB - 12} fill="none" stroke="#CB0001" strokeOpacity=".3" strokeWidth="2" strokeDasharray="2 6" />
-      <text x={CX} y={CY - 1} textAnchor="middle" className="display" fontSize="26" fill="#CB0001">PICK</text>
-      <text x={CX} y={CY + 19} textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="1.4" fill="#790000">YOUR SIDE</text>
+      <text x={CX} y={CY - 1} textAnchor="middle" className="display" fontSize="26" fill="#CB0001">{t("land.hubPick")}</text>
+      <text x={CX} y={CY + 19} textAnchor="middle" fontSize="10" fontWeight="700" letterSpacing="1.4" fill="#790000">{t("land.hubSide")}</text>
     </svg>
   );
 }
 
-export function PlateHero({ actor }: { actor: { name: string; href: string; role: string } | null }) {
+export function PlateHero() {
   /** A slice opens that side's own sign-in; if you're already signed in on that side it goes straight to your dashboard. */
-  const sliceHref = (s: Slice) => (actor && actor.role === s.id ? actor.href : `/signin?role=${s.id}`);
+  const sliceHref = (s: Slice) => `/signin?role=${s.id}`;
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const caption = useRef<HTMLParagraphElement>(null);
@@ -154,6 +165,8 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
   const [showIntro, setShowIntro] = useState(true); // SSR renders the overlay so there is no flash of the page before the intro
   const [active, setActive] = useState<SliceId | null>(null); // drives hub word + caption instantly
   const [pop, setPop] = useState<SliceId | null>(null); // drives the overlay (removed after its exit tween)
+  const { t, locale } = useT();
+  const SLICES = useSlices();
   const activeSlice = SLICES.find((s) => s.id === active) ?? null;
   const popSlice = SLICES.find((s) => s.id === pop) ?? null;
 
@@ -186,14 +199,14 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
           gsap.set(".plate-wrap", { opacity: 0 });
           gsap.set(".hero-fade", { opacity: 0, y: 14 });
           gsap.set(".decor", { scale: 0 });
-          const split = SplitText.create(".hero-word", { type: "chars", charsClass: "ch" });
-          gsap.set(split.chars, { yPercent: 125 });
+          const split = SplitText.create(".hero-word", { type: locale === "en" ? "chars" : "words", charsClass: "ch", wordsClass: "wd" });
+          gsap.set((locale === "en" ? split.chars : split.words), { yPercent: 125 });
 
           const finish = () => {
             try { sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
             html.setAttribute("data-sap-intro", "done");
             html.style.overflow = prevOverflow;
-            gsap.set(split.chars, { clearProps: "color" });
+            gsap.set((locale === "en" ? split.chars : split.words), { clearProps: "color" });
             gsap.set(".plate-wrap", { clearProps: "opacity" });
             introTl.current = null;
             setShowIntro(false);
@@ -234,10 +247,10 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
             .add(() => { gsap.set(".plate-wrap", { opacity: 1 }); gsap.set(".intro-root", { display: "none" }); }, "open+=1.12")
             .to(".decor", { scale: 1, rotate: 0, duration: 0.7, stagger: 0.1, ease: "back.out(2.4)" }, "open+=1.0")
             // headline: letters rise fast, one by one
-            .to(split.chars, { yPercent: 0, duration: 0.5, stagger: { each: 0.016 }, ease: "power4.out" }, "open+=.45")
+            .to((locale === "en" ? split.chars : split.words), { yPercent: 0, duration: 0.5, stagger: { each: 0.016 }, ease: "power4.out" }, "open+=.45")
             .to(".hero-fade", { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power3.out" }, "open+=.75")
             // gold wave: each letter flashes gold and settles back, travelling once through the headline
-            .to(split.chars, { keyframes: [{ color: GOLD, duration: 0.12, ease: "power1.out" }, { color: "#CB0001", duration: 0.3, ease: "power1.in" }], stagger: { each: 0.026 } }, "open+=1.2");
+            .to((locale === "en" ? split.chars : split.words), { keyframes: [{ color: GOLD, duration: 0.12, ease: "power1.out" }, { color: "#CB0001", duration: 0.3, ease: "power1.in" }], stagger: { each: 0.026 } }, "open+=1.2");
 
           const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") gsap.to(tl, { timeScale: 12, duration: 0.25, overwrite: true }); };
           window.addEventListener("keydown", onKey);
@@ -248,22 +261,22 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
           // and ends at rest; 1.5 turns lands it upright) while the headline letters rise into place, THEN the gold wave
           // runs through the letters. About 2 s in total.
           const WHIRL = 1.15;
-          const split = SplitText.create(".hero-word", { type: "chars", charsClass: "ch" });
-          gsap.set(split.chars, { yPercent: 125 });
+          const split = SplitText.create(".hero-word", { type: locale === "en" ? "chars" : "words", charsClass: "ch", wordsClass: "wd" });
+          gsap.set((locale === "en" ? split.chars : split.words), { yPercent: 125 });
           gsap.set(".hero-fade", { opacity: 0, y: 20 });
           gsap.set(".plate-wrap", { opacity: 0, rotation: -540, scale: 0.82 });
           gsap.set(".plate-hub", { scale: 0, svgOrigin: "300 300" });
           gsap.set(".decor", { scale: 0 });
           html.removeAttribute("data-sap-quick"); // the start states above now hold, so the CSS pre-hide (no flash) can go
-          const tl = gsap.timeline({ onComplete: () => { gsap.set(split.chars, { clearProps: "color" }); } });
+          const tl = gsap.timeline({ onComplete: () => { gsap.set((locale === "en" ? split.chars : split.words), { clearProps: "color" }); } });
           tl.to(".hero-fade", { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" }, 0.1)
-            .to(split.chars, { yPercent: 0, duration: 0.45, stagger: { each: 0.014 }, ease: "power4.out" }, 0)
+            .to((locale === "en" ? split.chars : split.words), { yPercent: 0, duration: 0.45, stagger: { each: 0.014 }, ease: "power4.out" }, 0)
             .to(".plate-wrap", { opacity: 1, rotation: 0, scale: 1, duration: WHIRL, ease: "power3.out" }, 0)
             .to(".plate-hub", { scale: 1, svgOrigin: "300 300", duration: 0.6, ease: "elastic.out(1, 0.6)" }, WHIRL - 0.35)
             .to(".decor", { scale: 1, duration: 0.5, stagger: 0.07, ease: "back.out(2.4)" }, WHIRL - 0.4)
             // the gold wave starts only once the wheel has come to rest
             .add("settled", WHIRL)
-            .to(split.chars, { keyframes: [{ color: GOLD, duration: 0.1, ease: "power1.out" }, { color: "#CB0001", duration: 0.28, ease: "power1.in" }], stagger: { each: 0.018 } }, "settled");
+            .to((locale === "en" ? split.chars : split.words), { keyframes: [{ color: GOLD, duration: 0.1, ease: "power1.out" }, { color: "#CB0001", duration: 0.28, ease: "power1.in" }], stagger: { each: 0.018 } }, "settled");
         }
 
         // idle motion: rim dashes turn slowly, decor floats
@@ -340,8 +353,8 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
       .to(`.plate-slice:not(.slice-${s.id})`, { opacity: 0, duration: 0.3 }, "<");
   });
 
-  const hubTop = activeSlice ? activeSlice.word : "PICK";
-  const hubBottom = activeSlice ? "→ SIGN IN" : "YOUR SIDE";
+  const hubTop = activeSlice ? activeSlice.word : t("land.hubPick");
+  const hubBottom = activeSlice ? t("land.hubSignIn") : t("land.hubSide");
 
   return (
     <div ref={root} className="mx-auto grid w-full max-w-7xl items-center gap-8 px-4 py-8 sm:px-6 lg:min-h-[calc(100svh-190px)] lg:grid-cols-[1fr_1.1fr] lg:gap-6 lg:py-6">
@@ -355,14 +368,14 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
             <div className="intro-spin h-full w-full will-change-transform"><IntroPlate /></div>
           </div>
           <div className="intro-meter absolute inset-x-0 bottom-[9svh] text-center text-cream">
-            <p className="sr-only" role="status">Loading Save a Plate</p>
+            <p className="sr-only" role="status">{t("land.loading")}</p>
             <div className="intro-pct display text-5xl leading-none sm:text-6xl" aria-hidden="true">0%</div>
             <div className="intro-bar mx-auto mt-3 h-1.5 w-[min(60vw,420px)] overflow-hidden rounded-full bg-cream/25" aria-hidden="true"><i className="block h-full origin-left scale-x-0 bg-peach" /></div>
-            <p className="eyebrow mt-3 opacity-85" aria-hidden="true">Plating up</p>
+            <p className="eyebrow mt-3 opacity-85" aria-hidden="true">{t("land.plating")}</p>
           </div>
-          <button type="button" onClick={skipIntro} aria-label="Skip welcome animation"
+          <button type="button" onClick={skipIntro} aria-label={t("land.skipAria")}
             className="intro-skip absolute bottom-5 right-5 inline-flex min-h-[44px] items-center gap-1.5 rounded-full border-2 border-cream/60 px-5 text-sm font-semibold text-cream transition hover:bg-cream hover:text-burgundy">
-            Skip<ArrowRight size={16} aria-hidden="true" />
+            {t("land.skip")}<ArrowRight size={16} aria-hidden="true" />
           </button>
         </div>
       )}
@@ -370,20 +383,17 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
       {/* ---------------------------------------------------------------- left: copy */}
       <div className="flex flex-col items-start gap-5 text-left">
         <div className="hero-fade overflow-hidden rounded-3xl"><Logo width={150} priority /></div>
-        <p className="hero-fade eyebrow text-burgundy">Bengaluru pilot · surplus food marketplace</p>
-        <h1 className="display text-5xl leading-[0.95] text-tomato sm:text-6xl xl:text-7xl" aria-label="Tonight's surplus, someone's dinner.">
-          {["TONIGHT'S", "SURPLUS,", "SOMEONE'S", "DINNER."].map((w) => (
-            <span key={w} className="mr-3 inline-block overflow-hidden align-bottom" aria-hidden="true"><span className="hero-word inline-block">{w}</span></span>
+        <p className="hero-fade eyebrow text-burgundy">{t("land.eyebrow")}</p>
+        <h1 className="display text-5xl leading-[0.95] text-tomato sm:text-6xl xl:text-7xl" aria-label={t("land.headlineAria")}>
+          {t("land.headline").split(" ").map((w, i) => (
+            <span key={`${i}-${w}`} className="mr-3 inline-block overflow-hidden align-bottom" aria-hidden="true"><span className="hero-word inline-block">{w}</span></span>
           ))}
         </h1>
         <p className="hero-fade max-w-md text-sm font-semibold tracking-wide text-burgundy">
-          RESCUING GOOD FOOD, REDUCING WASTE, AND MAKING EVERY MEAL COUNT.
+          {t("land.tagline")}
         </p>
-        {actor ? (
-          <div className="hero-fade"><Link href={actor.href} className="btn-primary !px-8 !py-4 text-base">Continue as {actor.name}<ArrowRight size={18} aria-hidden="true" /></Link></div>
-        ) : null}
         <div className="hero-fade flex flex-col gap-2">
-          <p className="eyebrow text-burgundy">{actor ? "Or switch sides" : "Pick your side of the plate"}</p>
+          <p className="eyebrow text-burgundy">{t("land.pickSide")}</p>
           <ul className="flex flex-wrap gap-2">
             {SLICES.map((s) => (
               <li key={s.id}>
@@ -406,7 +416,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
 
         <div className="w-full" style={{ perspective: 1100 }}>
           <div className="plate-wrap w-full will-change-transform" style={{ transformStyle: "preserve-3d" }}>
-            <svg ref={plateSvg} viewBox="0 0 600 600" role="group" aria-label="Pick your side of the plate" className="mx-auto max-h-[calc(100svh-250px)] min-h-[280px] w-full drop-shadow-[0_26px_26px_rgba(121,0,0,0.30)]">
+            <svg ref={plateSvg} viewBox="0 0 600 600" role="group" aria-label={t("land.plateAria")} className="mx-auto max-h-[calc(100svh-250px)] min-h-[280px] w-full drop-shadow-[0_26px_26px_rgba(121,0,0,0.30)]">
               <PlateDefs p="" />
               <PlateBase p="" c="plate" />
 
@@ -444,7 +454,7 @@ export function PlateHero({ actor }: { actor: { name: string; href: string; role
           </div>
         </div>
         <p ref={caption} aria-live="polite" className="min-h-[2.5rem] max-w-sm text-center text-sm font-semibold text-burgundy">
-          {activeSlice ? activeSlice.sub : "Hover or tap a slice to choose how you want to save a plate."}
+          {activeSlice ? activeSlice.sub : t("land.hint")}
         </p>
       </div>
     </div>

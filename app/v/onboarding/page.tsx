@@ -6,7 +6,10 @@ import { resolveOrg } from "@/lib/p2/org";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Vendor onboarding" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.vendorOnboarding") };
+}
 
 export default async function VendorOnboarding() {
   const me = await requirePage("vendor");

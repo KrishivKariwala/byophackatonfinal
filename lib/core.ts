@@ -3,7 +3,8 @@ import type { TxContext } from "./store";
 import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { distanceKm } from "./geo";
-import { sendNotification } from "./notify";
+import { sendNotification, sendNotificationT } from "./notify";
+import type { Vars } from "./i18n/locales";
 import { vendorCtx, outletRecipients, type Perm, type VendorCtx } from "./p2/org";
 import { co2eFor, kgFor } from "./impact-config";
 import type {
@@ -17,7 +18,7 @@ export const t = (s: string) => Date.parse(s);
 
 export function requireRole(actor: Profile | null, ...roles: Role[]): Profile {
   if (!actor) throw new RuleError("unauthenticated", "Please sign in.", 401);
-  if (!roles.includes(actor.role)) throw new RuleError("forbidden", "Your account cannot do this.", 403);
+  if (!roles.includes(actor.role)) throw new RuleError("forbidden", "Your account cannot do this.", 403, undefined, "forbidden_account_cannot_do");
   return actor;
 }
 /** The organization (vendor record) the actor works for: as its owner, or (P2) as a manager / staff member. */
@@ -32,10 +33,10 @@ export function approvedCtx(db: DB, actor: Profile, perm?: Perm): VendorCtx {
 }
 function approvedCheck(db: DB, actor: Profile, v: Vendor) {
   if (v.status !== "Approved")
-    throw new RuleError("approval_required", `Your vendor application is ${v.status}. Only approved vendors can do this.`, 403);
+    throw new RuleError("approval_required", `Your vendor application is ${v.status}. Only approved vendors can do this.`, 403, { status: v.status, statusKey: `status.${v.status}` }, "approval_required_vendor");
   const live = db.profiles.find((p) => p.id === actor.id) ?? actor; // never trust a stale actor snapshot
   if (live.suspendedUntil && t(live.suspendedUntil) > Date.now() + (db.clockOffsetMs || 0))
-    throw new RuleError("account_suspended", live.suspendReason || "Your account is suspended.", 403);
+    throw new RuleError("account_suspended", live.suspendReason || "Your account is suspended.", 403, undefined, live.suspendReason ? "" : undefined);
 }
 export function approvedVendorOf(db: DB, actor: Profile, perm?: Perm): Vendor {
   return approvedCtx(db, actor, perm).vendor;
@@ -52,7 +53,7 @@ export function outletOf(db: DB, outletId: string): Outlet {
 }
 export function listingIn(db: DB, id: string): Listing {
   const l = db.listings.find((x) => x.id === id);
-  if (!l) throw new RuleError("not_found", "Listing not found.", 404);
+  if (!l) throw new RuleError("not_found", "Listing not found.", 404, undefined, "not_found_listing_not_found");
   return l;
 }
 
@@ -63,6 +64,16 @@ export function audit(tx: TxContext, actorId: string, action: string, entity: st
 /** Tell the people who run one outlet (owner, managers, and staff pinned to it). With one outlet and one owner this is exactly the P1 behaviour. */
 export function notifyOutlet(tx: TxContext, vendor: Vendor, outletId: string | undefined, text: string, type: NotificationType = "generic", payload: Record<string, unknown> = {}) {
   for (const uid of outletRecipients(tx.db, vendor.id, outletId)) sendNotification(tx, uid, type, text, payload);
+}
+
+/** Same as notifyOutlet, from a catalog key `notif.<key>` (English text stored, key + vars kept for translation at read time). */
+export function notifyOutletT(tx: TxContext, vendor: Vendor, outletId: string | undefined, key: string, vars: Vars = {}, type: NotificationType = "generic", payload: Record<string, unknown> = {}) {
+  for (const uid of outletRecipients(tx.db, vendor.id, outletId)) sendNotificationT(tx, uid, type, key, vars, payload);
+}
+
+/** Notify one user from a catalog key `notif.<key>`. */
+export function notifyT(tx: TxContext, userId: string, key: string, vars: Vars = {}, type: NotificationType = "generic", payload: Record<string, unknown> = {}) {
+  sendNotificationT(tx, userId, type, key, vars, payload);
 }
 
 /** Plain-text notification (kept for P0 call sites). New code should call sendNotification with a type. */
@@ -157,7 +168,7 @@ export function openBatch(tx: TxContext, l: Listing, qty: number, collectBy: num
   const vendor = db.vendors.find((v) => v.id === l.vendorId);
   const outlet = outletOf(db, l.outletId);
   if (notifyNgos) for (const n of ngosNear(db, outlet))
-    sendNotification(tx, n.ownerId, "new_donation", `${qty} × ${l.title} free at ${vendor?.businessName}. Collect by ${iso(collectBy)}.`, { batchId: b.id });
+    sendNotificationT(tx, n.ownerId, "new_donation", "newDonation", { qty, title: l.title, vendor: String(vendor?.businessName), by: iso(collectBy) }, { batchId: b.id });
   tx.emit({ type: "donation", batchId: b.id, status: b.status });
   return b;
 }

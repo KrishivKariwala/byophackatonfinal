@@ -3,7 +3,7 @@ import { read, transaction, now as clockNow, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { newId, hmac, safeEqual } from "../crypto";
 import { write } from "../services";
-import { audit, iso, ngoOf, notify, notifyOutlet, outletOf, requireRole } from "../core";
+import { audit, iso, ngoOf, notifyT, notifyOutletT, outletOf, requireRole } from "../core";
 import { getDeliveryProvider } from "../delivery";
 import { DeliveryError, canAdvance, isActive, type DeliveryJob, type DeliveryProvider } from "../delivery/provider";
 import { cfg } from "./settings";
@@ -37,11 +37,11 @@ export async function requestDelivery(actor: Profile | null, batchId: string, pr
   const created = await write((tx) => {
     const me = requireRole(actor, "ngo");
     const { db, now } = tx;
-    if (!cfg(db).flags.delivery) throw new RuleError("feature_off", "Delivery hand-off is switched off.", 403);
+    if (!cfg(db).flags.delivery) throw new RuleError("feature_off", "Delivery hand-off is switched off.", 403, undefined, "feature_off_delivery_hand_off");
     const n = ngoOf(db, me);
     const b = db.donationBatches.find((x) => x.id === batchId);
-    if (!b || b.claimedByNgoId !== n.id) throw new RuleError("not_found", "No claimed batch found.", 404);
-    if (b.status !== "Claimed") throw new RuleError("bad_transition", `This donation is ${b.status.toLowerCase()}; delivery can be requested while it is claimed.`, 409);
+    if (!b || b.claimedByNgoId !== n.id) throw new RuleError("not_found", "No claimed batch found.", 404, undefined, "not_found_no_claimed_batch");
+    if (b.status !== "Claimed") throw new RuleError("bad_transition", `This donation is ${b.status.toLowerCase()}; delivery can be requested while it is claimed.`, 409, { status: b.status.toLowerCase(), statusKey: `status.${b.status}` }, "bad_transition_donation_delivery");
     if (Date.parse(b.collectBy) <= now) throw new RuleError("expired", "The collection deadline has passed.", 409);
     if (active(db, b.id)) throw new RuleError("delivery_active", "A delivery is already in progress for this donation.", 409);
     const job = jobFor(db, b.id);
@@ -67,10 +67,10 @@ export async function requestDelivery(actor: Profile | null, batchId: string, pr
     d.updatedAt = iso(tx.now);
     if (ack) {
       Object.assign(d, { externalId: ack.externalId, fee: ack.fee, status: ack.status, riderName: ack.riderName });
-      notify(tx, created.ownerId, `Delivery requested for ${created.job.reference} (${provider.name}, about ₹${ack.fee}). We'll update you as the rider moves.`, "delivery_update", { deliveryId: d.id });
+      notifyT(tx, created.ownerId, "deliveryRequested", { ref: created.job.reference, provider: provider.name, fee: ack.fee }, "delivery_update", { deliveryId: d.id });
     } else {
       Object.assign(d, { status: "Failed" as DeliveryStatus, error });
-      notify(tx, created.ownerId, `We couldn't book a rider for ${created.job.reference}: ${error} You still hold the claim: try again or collect it yourself before the deadline.`, "delivery_update", { deliveryId: d.id });
+      notifyT(tx, created.ownerId, "deliveryNoRider", { ref: created.job.reference, error: String(error) }, "delivery_update", { deliveryId: d.id });
       audit(tx, "system", "delivery_failed", "delivery", d.id, error ?? "");
     }
     return viewOf(tx.db, d);
@@ -83,9 +83,9 @@ export function cancelDelivery(actor: Profile | null, deliveryId: string, provid
       const me = requireRole(actor, "ngo");
       const n = ngoOf(tx.db, me);
       const row = tx.db.deliveryRequests.find((x) => x.id === deliveryId && x.ngoId === n.id);
-      if (!row) throw new RuleError("not_found", "Delivery not found.", 404);
+      if (!row) throw new RuleError("not_found", "Delivery not found.", 404, undefined, "not_found_delivery_not_found");
       if (!isActive(row.status)) throw new RuleError("bad_transition", "This delivery is already finished.", 409);
-      if (row.status === "Picked up") throw new RuleError("bad_transition", "The rider already has the food; it can't be cancelled now.", 409);
+      if (row.status === "Picked up") throw new RuleError("bad_transition", "The rider already has the food; it can't be cancelled now.", 409, undefined, "bad_transition_rider_already_has");
       row.status = "Cancelled"; row.updatedAt = iso(tx.now);
       audit(tx, me.id, "delivery_cancelled", "delivery", row.id);
       return { ...row };
@@ -107,14 +107,14 @@ export function applyDeliveryStatus(tx: TxContext, d: DeliveryRequest, status: D
   const vendor = tx.db.vendors.find((v) => v.id === d.vendorId);
   const ref = b?.ref ?? "donation";
   const rider = d.riderName ? ` (${d.riderName})` : "";
-  const text: Record<DeliveryStatus, string> = {
-    Requested: "", "Rider assigned": `A rider${rider} is on the way to collect ${ref}.`, "Picked up": `The rider${rider} has picked up ${ref}.`,
-    Delivered: `${ref} was delivered.`, "No rider found": `No rider accepted ${ref}. You still hold the claim: try again or collect it yourself before the deadline.`,
-    Failed: `The delivery for ${ref} failed. You still hold the claim.`, Cancelled: "",
+  const key: Record<DeliveryStatus, string> = {
+    Requested: "", "Rider assigned": "deliveryAssigned", "Picked up": "deliveryPickedUp", Delivered: "deliveryDelivered",
+    "No rider found": "deliveryNoRiderFound", Failed: "deliveryFailed", Cancelled: "",
   };
-  if (text[status]) {
-    if (ngo) notify(tx, ngo.ownerId, text[status], "delivery_update", { deliveryId: d.id, status });
-    if (vendor && b && (status === "Rider assigned" || status === "Picked up")) notifyOutlet(tx, vendor, b.outletId, `${text[status]} Check the collection code before handing over.`, "delivery_update", { deliveryId: d.id, status });
+  const vars = { rider, ref };
+  if (key[status]) {
+    if (ngo) notifyT(tx, ngo.ownerId, key[status], vars, "delivery_update", { deliveryId: d.id, status });
+    if (vendor && b && (status === "Rider assigned" || status === "Picked up")) notifyOutletT(tx, vendor, b.outletId, `${key[status]}Vendor`, vars, "delivery_update", { deliveryId: d.id, status });
   }
   audit(tx, "system", "delivery_status", "delivery", d.id, status);
   return true;
@@ -148,7 +148,7 @@ export function verifyDeliverySignature(rawBody: string, signature: string, secr
 export function handleDeliveryWebhook(evt: { externalId?: string; status?: string; riderName?: string }) {
   return write((tx) => {
     if (!evt.externalId || typeof evt.externalId !== "string") throw new RuleError("bad_event", "Missing delivery id.");
-    if (!WEBHOOK_STATUSES.includes(evt.status as DeliveryStatus)) throw new RuleError("bad_event", "Unknown delivery status.");
+    if (!WEBHOOK_STATUSES.includes(evt.status as DeliveryStatus)) throw new RuleError("bad_event", "Unknown delivery status.", 400, undefined, "bad_event_unknown_delivery_status");
     const d = tx.db.deliveryRequests.find((x) => x.externalId === evt.externalId);
     if (!d) return { applied: false, reason: "unknown delivery" };
     return { applied: applyDeliveryStatus(tx, d, evt.status as DeliveryStatus, evt.riderName?.slice(0, 60)), reason: undefined };

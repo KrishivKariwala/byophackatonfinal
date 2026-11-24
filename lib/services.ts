@@ -1,7 +1,7 @@
 import "server-only";
 import { transaction, read, now as clockNow, type TxContext } from "./store";
 import {
-  iso, t, requireRole, approvedCtx, ngoOf, outletOf, listingIn, audit, notify, notifyOutlet, move, emitRes, setResStatus,
+  iso, t, requireRole, approvedCtx, ngoOf, outletOf, listingIn, audit, notifyT, notifyOutletT, move, emitRes, setResStatus,
   logNewReservation, createDonationBatchTx, recordImpact, openBatch,
 } from "./core";
 import { notifyFollowers } from "./follows";
@@ -137,26 +137,26 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
     const qty = Number(input.qty);
     if (!Number.isInteger(qty) || qty < 1) throw new RuleError("qty_invalid", "Choose at least 1 unit.");
     if (live.suspendedUntil && t(live.suspendedUntil) > now)
-      throw new RuleError("suspended", live.suspendReason || `Reservations are paused until ${live.suspendedUntil.slice(0, 10)}.`, 403);
-    if (qty > MAX_ANY_ORDER) throw new RuleError("qty_cap", `Maximum ${RULES.MAX_UNITS_PER_ORDER} units per order.`);
+      throw new RuleError("suspended", live.suspendReason || `Reservations are paused until ${live.suspendedUntil.slice(0, 10)}.`, 403, { date: live.suspendedUntil.slice(0, 10) }, live.suspendReason ? "" : undefined);
+    if (qty > MAX_ANY_ORDER) throw new RuleError("qty_cap", `Maximum ${RULES.MAX_UNITS_PER_ORDER} units per order.`, 400, { max: RULES.MAX_UNITS_PER_ORDER }, "qty_cap");
     if (input.method !== "online" && input.method !== "pay_at_pickup") throw new RuleError("method_invalid", "Choose a payment method.");
     const l = listingIn(db, input.listingId);
     const vendor = db.vendors.find((v) => v.id === l.vendorId);
     const unitCap = Math.max(RULES.MAX_UNITS_PER_ORDER, vendor?.maxUnitsPerOrder ?? 0);
-    if (qty > unitCap) throw new RuleError("qty_cap", `Maximum ${unitCap} units per order.`);
-    if (l.donationOnly || l.hiddenByAdmin || vendor?.hiddenByAdmin || !priorityOver(db, l, now)) throw new RuleError("not_available", "This listing is not available.", 409);
+    if (qty > unitCap) throw new RuleError("qty_cap", `Maximum ${unitCap} units per order.`, 400, { max: unitCap }, "qty_cap");
+    if (l.donationOnly || l.hiddenByAdmin || vendor?.hiddenByAdmin || !priorityOver(db, l, now)) throw new RuleError("not_available", "This listing is not available.", 409, undefined, "not_available_listing_not_available");
     if (vendor?.status !== "Approved") throw new RuleError("vendor_unavailable", "This vendor is not accepting orders.", 409);
-    if (now >= t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended for this listing.", 409);
-    if (l.status === "Sold Out") throw new RuleError("insufficient_stock", "Sold out.", 409);
-    if (l.status !== "Live") throw new RuleError("not_available", `This listing is ${l.status.toLowerCase()}.`, 409);
+    if (now >= t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended for this listing.", 409, undefined, "window_closed_pickup_window_has");
+    if (l.status === "Sold Out") throw new RuleError("insufficient_stock", "Sold out.", 409, undefined, "insufficient_stock_sold_out");
+    if (l.status !== "Live") throw new RuleError("not_available", `This listing is ${l.status.toLowerCase()}.`, 409, { status: l.status.toLowerCase(), statusKey: `status.${l.status}` }, "not_available_status");
     const outlet = outletOf(db, l.outletId);
     if (input.method === "pay_at_pickup" && !outlet.payAtPickup)
       throw new RuleError("pay_at_pickup_off", "This vendor only accepts online payment.");
     if (input.method === "pay_at_pickup" && completedPickups(db, me.id) < RULES.PAY_AT_PICKUP_MIN_PICKUPS)
-      throw new RuleError("pay_at_pickup_locked", `Pay at pickup unlocks after ${RULES.PAY_AT_PICKUP_MIN_PICKUPS} completed pickups. Pay online for now.`, 403);
+      throw new RuleError("pay_at_pickup_locked", `Pay at pickup unlocks after ${RULES.PAY_AT_PICKUP_MIN_PICKUPS} completed pickups. Pay online for now.`, 403, { count: RULES.PAY_AT_PICKUP_MIN_PICKUPS });
     if (activeCount(db, me.id) >= cfg(db).maxActiveReservations)
-      throw new RuleError("active_cap", `You can have at most ${cfg(db).maxActiveReservations} active reservations.`, 409);
-    if (l.qtyAvailable < qty) throw new RuleError("insufficient_stock", l.qtyAvailable === 0 ? "Sold out." : `Only ${l.qtyAvailable} left.`, 409);
+      throw new RuleError("active_cap", `You can have at most ${cfg(db).maxActiveReservations} active reservations.`, 409, { max: cfg(db).maxActiveReservations });
+    if (l.qtyAvailable < qty) throw new RuleError("insufficient_stock", l.qtyAvailable === 0 ? "Sold out." : `Only ${l.qtyAvailable} left.`, 409, { left: l.qtyAvailable }, l.qtyAvailable === 0 ? "insufficient_stock_sold_out" : "insufficient_stock_left");
 
     // P2 referral credit: up to 50% of the order, taken now (and returned if the hold lapses or the order is cancelled for free).
     const total = qty * l.rescuePrice;
@@ -184,8 +184,8 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
       gateway: "cash_at_pickup", createdAt: iso(now), updatedAt: iso(now),
     });
     emitRes(tx, r);
-    notifyOutlet(tx, vendor, r.outletId, `New order ${r.ref}: ${qty} × ${l.title} (pay at pickup).`, "new_order", { reservationId: r.id });
-    notify(tx, me.id, `Order ${r.ref} confirmed: ${qty} × ${l.title}. Pay at pickup.`, "order_confirmed", { reservationId: r.id });
+    notifyOutletT(tx, vendor, r.outletId, "newOrderPayAtPickup", { ref: r.ref, qty, title: l.title }, "new_order", { reservationId: r.id });
+    notifyT(tx, me.id, "orderConfirmedPayAtPickup", { ref: r.ref, qty, title: l.title }, "order_confirmed", { reservationId: r.id });
     return { kind: "reservation", reservationId: r.id } as const;
   });
 }
@@ -193,7 +193,7 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
 export function attachGatewayOrder(holdId: string, gatewayOrderId: string, gateway: Payment["gateway"]) {
   return write((tx) => {
     const h = tx.db.holds.find((x) => x.id === holdId);
-    if (!h) throw new RuleError("not_found", "Checkout not found.", 404);
+    if (!h) throw new RuleError("not_found", "Checkout not found.", 404, undefined, "not_found_checkout_not_found");
     h.gatewayOrderId = gatewayOrderId;
     const p = tx.db.payments.find((x) => x.holdId === holdId);
     if (p) { p.gatewayOrderId = gatewayOrderId; p.gateway = gateway; }
@@ -218,8 +218,8 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
     }
     db.processedWebhooks.push(input.eventId);
     const h = db.holds.find((x) => x.id === input.holdId);
-    if (!h) throw new RuleError("not_found", "Checkout not found.", 404);
-    if (input.actorId && h.customerId !== input.actorId) throw new RuleError("forbidden", "Not your checkout.", 403);
+    if (!h) throw new RuleError("not_found", "Checkout not found.", 404, undefined, "not_found_checkout_not_found");
+    if (input.actorId && h.customerId !== input.actorId) throw new RuleError("forbidden", "Not your checkout.", 403, undefined, "forbidden_not_checkout");
     const p = db.payments.find((x) => x.holdId === h.id)!;
     if (h.status === "Converted") {
       const r = db.reservations.find((x) => x.holdId === h.id)!;
@@ -233,7 +233,7 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
       const refund = { id: newId("rf"), paymentId: p.id, amount: p.amount, reason: "Payment arrived after checkout hold expired", status: "Refund Pending" as const, createdAt: iso(now) };
       db.refunds.push(refund);
       audit(tx, "system", "late_payment_refund", "payment", p.id, input.gatewayPaymentId);
-      notify(tx, h.customerId, `Your payment arrived after the 5-minute hold expired. A full test-mode refund of ₹${p.amount} has been initiated.`, "refund_issued", { amount: p.amount });
+      notifyT(tx, h.customerId, "latePaymentRefund", { amount: p.amount }, "refund_issued", { amount: p.amount });
       return { outcome: "late_refund", refundId: refund.id } as const;
     }
     const l = listingIn(db, h.listingId);
@@ -246,8 +246,8 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
     p.updatedAt = iso(now);
     emitRes(tx, r);
     const vendor = db.vendors.find((v) => v.id === l.vendorId)!;
-    notifyOutlet(tx, vendor, r.outletId, `New order ${r.ref}: ${r.qty} × ${l.title} (paid, test mode).`, "new_order", { reservationId: r.id });
-    notify(tx, h.customerId, `Order ${r.ref} confirmed: ${r.qty} × ${l.title}. Collect between ${l.windowStart} and ${l.windowEnd}.`, "order_confirmed", { reservationId: r.id });
+    notifyOutletT(tx, vendor, r.outletId, "newOrderPaid", { ref: r.ref, qty: r.qty, title: l.title }, "new_order", { reservationId: r.id });
+    notifyT(tx, h.customerId, "orderConfirmed", { ref: r.ref, qty: r.qty, title: l.title, start: l.windowStart, end: l.windowEnd }, "order_confirmed", { reservationId: r.id });
     return { outcome: "confirmed", reservationId: r.id } as const;
   });
 }
@@ -256,7 +256,7 @@ export function failOnlinePayment(actor: Profile | null, holdId: string) {
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const h = tx.db.holds.find((x) => x.id === holdId && x.customerId === me.id);
-    if (!h) throw new RuleError("not_found", "Checkout not found.", 404);
+    if (!h) throw new RuleError("not_found", "Checkout not found.", 404, undefined, "not_found_checkout_not_found");
     if (h.status !== "Active") return { status: h.status };
     h.status = "Released";
     move(tx, listingIn(tx.db, h.listingId), h.qty, "hold_released", h.id);
@@ -289,7 +289,7 @@ function validateListingFields(i: ListingInput, now: number, createdAt: number, 
   if (!i.donationOnly) validatePrices(Number(i.originalPrice), Number(i.rescuePrice), maxDiscountPct);
   if (i.riskTag && !["raw", "seafood", "dairy_dessert"].includes(i.riskTag)) throw new RuleError("risk_invalid", "Unknown food risk tag.");
   const q = Number(i.qty);
-  if (!Number.isInteger(q) || q < 1 || q > RULES.MAX_LISTING_QTY) throw new RuleError("qty_invalid", `Quantity must be 1–${RULES.MAX_LISTING_QTY}.`);
+  if (!Number.isInteger(q) || q < 1 || q > RULES.MAX_LISTING_QTY) throw new RuleError("qty_invalid", `Quantity must be 1–${RULES.MAX_LISTING_QTY}.`, 400, { max: RULES.MAX_LISTING_QTY }, "qty_invalid_listing");
   if (i.safetyDeclaration !== true) throw new RuleError("declaration_required", "Confirm the food-safety declaration to publish.");
   const prep = t(i.preparedAt);
   if (!Number.isFinite(prep) || prep > now + 60_000) throw new RuleError("prepared_invalid", "Preparation time must be now or earlier.");
@@ -311,7 +311,7 @@ export function createListing(actor: Profile | null, i: ListingInput) {
     const v = ctx.vendor;
     const mine = outletsFor(tx.db, ctx);
     const outlet = i.outletId ? mine.find((o) => o.id === i.outletId) : mine[0];
-    if (i.outletId && !outlet) throw new RuleError("not_found", "That outlet isn't part of your account.", 404);
+    if (i.outletId && !outlet) throw new RuleError("not_found", "That outlet isn't part of your account.", 404, undefined, "not_found_outlet_isn_t");
     if (!outlet) throw new RuleError("no_outlet", "Add your outlet address first.", 409);
     validateListingFields(i, tx.now, tx.now, cfg(tx.db).maxDiscountPct);
     const l: Listing = {
@@ -351,9 +351,9 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
     const ctx = approvedCtx(tx.db, me, "listing.write");
     const v = ctx.vendor;
     const l = listingIn(tx.db, id);
-    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403, undefined, "forbidden_not_listing");
     assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
-    if (!["Live", "Paused", "Sold Out"].includes(l.status)) throw new RuleError("not_editable", `A ${l.status.toLowerCase()} listing cannot be edited.`, 409);
+    if (!["Live", "Paused", "Sold Out"].includes(l.status)) throw new RuleError("not_editable", `A ${l.status.toLowerCase()} listing cannot be edited.`, 409, { status: l.status.toLowerCase(), statusKey: `status.${l.status}` });
     const allocated = l.qtyTotal - l.qtyAvailable;
     const merged: ListingInput = {
       title: patch.title ?? l.title, description: patch.description ?? l.description, category: patch.category ?? l.category,
@@ -365,7 +365,7 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
       donateRest: patch.donateRest ?? l.donateRest, safetyDeclaration: patch.safetyDeclaration ?? true,
       riskTag: patch.riskTag ?? l.riskTag, donationOnly: l.donationOnly,
     };
-    if (patch.safetyDeclaration !== true) throw new RuleError("declaration_required", "Re-confirm the food-safety declaration to save changes.");
+    if (patch.safetyDeclaration !== true) throw new RuleError("declaration_required", "Re-confirm the food-safety declaration to save changes.", 400, undefined, "declaration_required_re_confirm_food");
     // Window rules: if the window changes, the start must still be in the future and within 12 h of creation.
     // Forms submit minute precision; treat sub-minute differences as unchanged.
     const sameMin = (x: string, y: string) => Math.abs(t(x) - t(y)) < 60_000;
@@ -376,7 +376,7 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
     validateListingFields({ ...merged, windowStart: windowChanged ? merged.windowStart : iso(now + 120_000), windowEnd: windowChanged ? merged.windowEnd : iso(now + 180_000) }, now, now, cfg(tx.db).maxDiscountPct);
     if (!windowChanged && merged.safeUntil && t(merged.safeUntil) < t(l.windowEnd)) throw new RuleError("safe_until_invalid", "Safe-to-eat deadline must be after the pickup end.");
     const newTotal = Number(merged.qty);
-    if (newTotal < allocated) throw new RuleError("qty_below_allocated", `${allocated} units are already reserved or held; quantity cannot go below that.`, 409);
+    if (newTotal < allocated) throw new RuleError("qty_below_allocated", `${allocated} units are already reserved or held; quantity cannot go below that.`, 409, { count: allocated });
     const before = JSON.stringify({ p: [l.originalPrice, l.rescuePrice], q: l.qtyTotal, d: l.diet, a: l.allergens, w: [l.windowStart, l.windowEnd] });
     Object.assign(l, {
       title: merged.title.trim(), description: merged.description || "", category: merged.category, imageUrl: merged.imageUrl,
@@ -401,13 +401,13 @@ export function setPaused(actor: Profile | null, id: string, paused: boolean) {
     const ctx = approvedCtx(tx.db, me, "listing.write");
     const v = ctx.vendor;
     const l = listingIn(tx.db, id);
-    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403, undefined, "forbidden_not_listing");
     assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
     if (paused) {
-      if (l.status !== "Live" && l.status !== "Sold Out") throw new RuleError("bad_transition", `Cannot pause a ${l.status.toLowerCase()} listing.`, 409);
+      if (l.status !== "Live" && l.status !== "Sold Out") throw new RuleError("bad_transition", `Cannot pause a ${l.status.toLowerCase()} listing.`, 409, { status: l.status.toLowerCase(), statusKey: `status.${l.status}` }, "bad_transition_pause");
       l.status = "Paused";
     } else {
-      if (l.status !== "Paused") throw new RuleError("bad_transition", "Listing is not paused.", 409);
+      if (l.status !== "Paused") throw new RuleError("bad_transition", "Listing is not paused.", 409, undefined, "bad_transition_listing_not_paused");
       if (l.hiddenByAdmin) throw new RuleError("hidden_by_admin", "This listing was hidden by an administrator and can't be resumed.", 403);
       if (tx.now >= t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended.", 409);
       l.status = l.qtyAvailable > 0 ? "Live" : "Sold Out";
@@ -426,10 +426,10 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
     const v = ctx.vendor;
     const { db, now } = tx;
     const l = listingIn(db, id);
-    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403, undefined, "forbidden_not_listing");
     assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
-    if (!["Live", "Paused", "Sold Out", "Draft"].includes(l.status)) throw new RuleError("bad_transition", `A ${l.status.toLowerCase()} listing cannot be cancelled.`, 409);
-    if (!reason || reason.trim().length < 3) throw new RuleError("reason_required", "Give a short cancellation reason.");
+    if (!["Live", "Paused", "Sold Out", "Draft"].includes(l.status)) throw new RuleError("bad_transition", `A ${l.status.toLowerCase()} listing cannot be cancelled.`, 409, { status: l.status.toLowerCase(), statusKey: `status.${l.status}` }, "bad_transition_cancel_listing");
+    if (!reason || reason.trim().length < 3) throw new RuleError("reason_required", "Give a short cancellation reason.", 400, undefined, "reason_required_give_short_cancellation");
     l.status = "Cancelled";
     l.cancelReason = reason.trim();
     let refunds = 0;
@@ -439,7 +439,7 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
       const p = db.payments.find((x) => x.holdId === h.id);
       if (p && p.status === "Pending") { p.status = "Failed"; p.updatedAt = iso(now); }
       restoreCreditTx(tx, h.customerId, [h.id], "vendor cancelled the listing");
-      notify(tx, h.customerId, `Your checkout for ${l.title} was cancelled by the vendor.`);
+      notifyT(tx, h.customerId, "checkoutCancelledByVendor", { title: l.title });
     }
     // Cancel outstanding orders; refund captured online payments; never fake a refund for unpaid pay-at-pickup.
     for (const r of db.reservations.filter((x) => x.listingId === l.id && (x.status === "Reserved" || x.status === "Ready"))) {
@@ -457,8 +457,8 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
         db.refunds.push({ id: newId("rf"), paymentId: p.id, amount: p.amount, reason: r.cancelReason, status: settled ? "Refunded" : "Refund Pending", createdAt: iso(now) });
         refunds++;
       }
-      notify(tx, r.customerId, `${r.ref} was cancelled by the vendor (${l.cancelReason}).${p?.method === "online" ? " A full test-mode refund was issued." : ""}`, "order_cancelled", { reservationId: r.id });
-      if (p?.method === "online" && refunds > 0) notify(tx, r.customerId, `Refund of ₹${p.amount} issued for ${r.ref}.`, "refund_issued", { reservationId: r.id, amount: p.amount });
+      notifyT(tx, r.customerId, p?.method === "online" ? "orderCancelledByVendorRefund" : "orderCancelledByVendor", { ref: r.ref, reason: String(l.cancelReason) }, "order_cancelled", { reservationId: r.id });
+      if (p?.method === "online" && refunds > 0) notifyT(tx, r.customerId, "refundIssued", { amount: p.amount, ref: r.ref }, "refund_issued", { reservationId: r.id, amount: p.amount });
       emitRes(tx, r);
     }
     const remaining = l.qtyAvailable;
@@ -477,11 +477,11 @@ export function markReady(actor: Profile | null, reservationId: string) {
     const ctx = approvedCtx(tx.db, me, "order.fulfil");
     const v = ctx.vendor;
     const r = tx.db.reservations.find((x) => x.id === reservationId);
-    if (!r || r.vendorId !== v.id || !outletAllowed(ctx, r.outletId)) throw new RuleError("not_found", "Order not found for this outlet.", 404);
-    if (r.status !== "Reserved") throw new RuleError("bad_transition", `Order is ${r.status}; only Reserved orders can be marked Ready.`, 409);
+    if (!r || r.vendorId !== v.id || !outletAllowed(ctx, r.outletId)) throw new RuleError("not_found", "Order not found for this outlet.", 404, undefined, "not_found_order_not_found_outlet");
+    if (r.status !== "Reserved") throw new RuleError("bad_transition", `Order is ${r.status}; only Reserved orders can be marked Ready.`, 409, { status: r.status, statusKey: `status.${r.status}` }, "bad_transition_mark_ready");
     setResStatus(tx, r, "Ready", me.id, "vendor marked ready");
     r.readyAt = iso(tx.now);
-    notify(tx, r.customerId, `${r.ref} is ready for pickup.`, "order_ready", { reservationId: r.id });
+    notifyT(tx, r.customerId, "orderReady", { ref: r.ref }, "order_ready", { reservationId: r.id });
     emitRes(tx, r);
     return r;
   });
@@ -508,10 +508,10 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
       r = matches.find((x) => !x.codeUsedAt && (x.status === "Reserved" || x.status === "Ready")) ?? matches[0];
     } else throw new RuleError("code_required", "Scan the QR or enter the 4-digit code.");
     if (!r) throw new RuleError("code_not_found", "No order with this code at your outlet.", 404);
-    if (r.codeUsedAt || r.status === "Picked up") throw new RuleError("code_used", `${r.ref} was already collected; codes work once.`, 409);
-    if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("order_inactive", `${r.ref} is ${r.status.toLowerCase()}.`, 409);
+    if (r.codeUsedAt || r.status === "Picked up") throw new RuleError("code_used", `${r.ref} was already collected; codes work once.`, 409, { ref: r.ref });
+    if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("order_inactive", `${r.ref} is ${r.status.toLowerCase()}.`, 409, { ref: r.ref, status: r.status.toLowerCase(), statusKey: `status.${r.status}` });
     const l = listingIn(db, r.listingId);
-    if (now < t(l.windowStart)) throw new RuleError("too_early", `Pickup window opens at ${l.windowStart}.`, 409);
+    if (now < t(l.windowStart)) throw new RuleError("too_early", `Pickup window opens at ${l.windowStart}.`, 409, { time: l.windowStart }, "too_early_opens");
     if (now > t(l.windowEnd)) throw new RuleError("too_late", "The pickup window has ended.", 409);
     setResStatus(tx, r, "Picked up", me.id, input.token ? "qr" : "code");
     r.pickedUpAt = iso(now);
@@ -527,7 +527,7 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
     const outlet = outletOf(db, r.outletId);
     recordImpact(tx, { source: "customer_pickup", refId: r.id, units: r.qty, vendorId: v.id, outlet, listingId: l.id, type: "sold", customerId: r.customerId, rupeesSaved: (l.originalPrice - r.unitPrice) * r.qty });
     audit(tx, me.id, "handover", "reservation", r.id, input.token ? "qr" : "code");
-    notify(tx, r.customerId, `${r.ref} picked up. Thanks for saving a plate! You can rate your order for 48 hours.`, "review_prompt", { reservationId: r.id });
+    notifyT(tx, r.customerId, "pickedUp", { ref: r.ref }, "review_prompt", { reservationId: r.id });
     emitRes(tx, r);
     tx.emit({ type: "impact" });
     return { ok: true, ref: r.ref, qty: r.qty, title: l.title, collectAmount: collect, method: r.method };
@@ -540,8 +540,8 @@ export function donationHandover(actor: Profile | null, batchId: string, code: s
     const ctx = approvedCtx(tx.db, me, "donation.fulfil");
     const v = ctx.vendor;
     const b = tx.db.donationBatches.find((x) => x.id === batchId);
-    if (!b || b.vendorId !== v.id || !outletAllowed(ctx, b.outletId)) throw new RuleError("not_found", "Donation batch not found for this outlet.", 404);
-    if (b.status !== "Claimed") throw new RuleError("bad_transition", `Batch is ${b.status}.`, 409);
+    if (!b || b.vendorId !== v.id || !outletAllowed(ctx, b.outletId)) throw new RuleError("not_found", "Donation batch not found for this outlet.", 404, undefined, "not_found_donation_batch_not");
+    if (b.status !== "Claimed") throw new RuleError("bad_transition", `Batch is ${b.status}.`, 409, { status: b.status, statusKey: `status.${b.status}` }, "bad_transition_batch_status");
     if (!b.collectionCodeHash || b.collectionCodeHash !== sha256(`${v.id}:don:${String(code).trim()}`))
       throw new RuleError("code_mismatch", "Collection code does not match this batch.", 403);
     b.status = "Collected";
@@ -550,7 +550,7 @@ export function donationHandover(actor: Profile | null, batchId: string, code: s
     const outlet = outletOf(tx.db, b.outletId);
     recordImpact(tx, { source: "ngo_collection", refId: b.id, units: b.qty, vendorId: v.id, outlet, listingId: b.listingId, type: "donated" });
     const ngo = tx.db.ngos.find((n) => n.id === b.claimedByNgoId);
-    if (ngo) notify(tx, ngo.ownerId, `${b.ref} collected: ${b.qty} × ${b.title}. Donation recorded.`);
+    if (ngo) notifyT(tx, ngo.ownerId, "donationCollected", { ref: b.ref, qty: b.qty, title: b.title });
     audit(tx, me.id, "donation_handover", "donation_batch", b.id);
     tx.emit({ type: "donation", batchId: b.id, status: b.status });
     tx.emit({ type: "impact" });
@@ -564,12 +564,12 @@ export function claimBatch(actor: Profile | null, batchId: string) {
   return write((tx) => {
     const me = requireRole(actor, "ngo");
     const n = ngoOf(tx.db, me);
-    if (n.status !== "Approved") throw new RuleError("approval_required", `Your NGO verification is ${n.status}. Only approved NGOs can claim.`, 403);
+    if (n.status !== "Approved") throw new RuleError("approval_required", `Your NGO verification is ${n.status}. Only approved NGOs can claim.`, 403, { status: n.status, statusKey: `status.${n.status}` });
     const b = tx.db.donationBatches.find((x) => x.id === batchId);
-    if (!b) throw new RuleError("not_found", "Batch not found.", 404);
+    if (!b) throw new RuleError("not_found", "Batch not found.", 404, undefined, "not_found_batch_not_found");
     // Conditional transition inside the lock: the first valid claim wins, the rest fail.
-    if (b.status !== "Open") throw new RuleError("already_claimed", b.status === "Claimed" ? "Another NGO already claimed this batch." : `Batch is ${b.status}.`, 409);
-    if (t(b.collectBy) <= tx.now) throw new RuleError("expired", "Collection deadline has passed.", 409);
+    if (b.status !== "Open") throw new RuleError("already_claimed", b.status === "Claimed" ? "Another NGO already claimed this batch." : `Batch is ${b.status}.`, 409, { status: b.status, statusKey: `status.${b.status}` }, b.status === "Claimed" ? undefined : "bad_transition_batch_status");
+    if (t(b.collectBy) <= tx.now) throw new RuleError("expired", "Collection deadline has passed.", 409, undefined, "expired_collection_deadline_has");
     return lockClaimTx(tx, me, n, b);
   });
 }
@@ -583,7 +583,7 @@ export function lockClaimTx(tx: TxContext, me: Profile, n: Ngo, b: DonationBatch
   b.collectionCode = code;
   b.collectionCodeHash = sha256(`${b.vendorId}:don:${code}`);
   const vendor = tx.db.vendors.find((v) => v.id === b.vendorId)!;
-  notifyOutlet(tx, vendor, b.outletId, `${n.orgName} claimed ${b.ref} (${b.qty} × ${b.title}).`);
+  notifyOutletT(tx, vendor, b.outletId, "batchClaimed", { org: n.orgName, ref: b.ref, qty: b.qty, title: b.title });
   audit(tx, me.id, "donation_claimed", "donation_batch", b.id, n.id);
   tx.emit({ type: "donation", batchId: b.id, status: b.status });
   return b;
@@ -594,7 +594,7 @@ export function releaseClaim(actor: Profile | null, batchId: string) {
     const me = requireRole(actor, "ngo");
     const n = ngoOf(tx.db, me);
     const b = tx.db.donationBatches.find((x) => x.id === batchId);
-    if (!b || b.claimedByNgoId !== n.id || b.status !== "Claimed") throw new RuleError("not_found", "No active claim to release.", 404);
+    if (!b || b.claimedByNgoId !== n.id || b.status !== "Claimed") throw new RuleError("not_found", "No active claim to release.", 404, undefined, "not_found_no_active_claim");
     b.claimedByNgoId = undefined;
     b.claimedAt = undefined;
     b.collectionCode = undefined;
@@ -611,9 +611,9 @@ export function releaseClaim(actor: Profile | null, batchId: string) {
 
 export function createAccount(input: { name: string; phone?: string; email?: string; role: Role }) {
   return write((tx) => {
-    if (input.role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403);
+    if (input.role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403, undefined, "forbidden_admin_access_provisioned");
     if (!["customer", "vendor", "ngo"].includes(input.role)) throw new RuleError("role_invalid", "Choose Customer, Vendor or NGO.");
-    if (!input.name || input.name.trim().length < 2) throw new RuleError("name_required", "Enter your name.");
+    if (!input.name || input.name.trim().length < 2) throw new RuleError("name_required", "Enter your name.", 400, undefined, "name_required_enter_name");
     const p: Profile = { id: newId("u"), name: input.name.trim(), phone: input.phone, email: input.email, role: input.role, createdAt: iso(tx.now), demo: true };
     tx.db.profiles.push(p);
     return p;
@@ -628,9 +628,9 @@ export function submitVendorApplication(actor: Profile | null, i: {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
     for (const [k, label] of [["businessName", "Business name"], ["contactName", "Contact name"], ["phone", "Phone"], ["address", "Address"], ["fssaiNumber", "FSSAI number"], ["operatingHours", "Operating hours"], ["payoutUpi", "Payout UPI"]] as const)
-      if (!String(i[k] ?? "").trim()) throw new RuleError("field_required", `${label} is required.`);
+      if (!String(i[k] ?? "").trim()) throw new RuleError("field_required", `${label} is required.`, 400, { label, labelKey: `rerr.f.${k}` });
     if (!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(i.payoutUpi.trim())) throw new RuleError("upi_invalid", "Enter a valid UPI ID, e.g. name@bank.");
-    if (!Number.isFinite(Number(i.lat)) || !Number.isFinite(Number(i.lng))) throw new RuleError("pin_required", "Drop a map pin.");
+    if (!Number.isFinite(Number(i.lat)) || !Number.isFinite(Number(i.lng))) throw new RuleError("pin_required", "Drop a map pin.", 400, undefined, "pin_required_drop_map_pin");
     let v = tx.db.vendors.find((x) => x.ownerId === me.id);
     if (v && v.status === "Approved") throw new RuleError("already_approved", "Already approved.", 409);
     const base = {
@@ -657,7 +657,7 @@ export function submitNgoApplication(actor: Profile | null, i: Omit<Ngo, "id" | 
   return write((tx) => {
     const me = requireRole(actor, "ngo");
     for (const [k, label] of [["orgName", "Organisation name"], ["contactPerson", "Contact person"], ["phone", "Phone"], ["address", "Address"], ["handlingArrangements", "Food handling arrangements"]] as const)
-      if (!String(i[k] ?? "").trim()) throw new RuleError("field_required", `${label} is required.`);
+      if (!String(i[k] ?? "").trim()) throw new RuleError("field_required", `${label} is required.`, 400, { label, labelKey: `rerr.f.${k}` });
     if (!i.registrationDocs?.length) throw new RuleError("docs_required", "Upload your registration document.");
     if (!(Number(i.capacityMeals) > 0)) throw new RuleError("capacity_required", "Enter collection capacity.");
     let n = tx.db.ngos.find((x) => x.ownerId === me.id);
@@ -680,12 +680,12 @@ export function submitNgoApplication(actor: Profile | null, i: Omit<Ngo, "id" | 
 export function setApproval(actor: Profile | null, kind: "vendor" | "ngo", id: string, status: "Approved" | "Rejected", reason?: string) {
   return write((tx) => {
     const me = requireRole(actor, "admin");
-    if (status === "Rejected" && (!reason || reason.trim().length < 3)) throw new RuleError("reason_required", "Give a rejection reason.");
+    if (status === "Rejected" && (!reason || reason.trim().length < 3)) throw new RuleError("reason_required", "Give a rejection reason.", 400, undefined, "reason_required_give_rejection_reason");
     const rec = kind === "vendor" ? tx.db.vendors.find((x) => x.id === id) : tx.db.ngos.find((x) => x.id === id);
-    if (!rec) throw new RuleError("not_found", "Application not found.", 404);
+    if (!rec) throw new RuleError("not_found", "Application not found.", 404, undefined, "not_found_application_not_found");
     rec.status = status;
     rec.rejectionReason = status === "Rejected" ? reason!.trim() : undefined;
-    notify(tx, rec.ownerId, `Your ${kind === "vendor" ? "vendor" : "NGO"} application was ${status.toLowerCase()}${status === "Rejected" ? `: ${reason!.trim()}` : ""} (demo approval, not a regulatory approval).`, "approval_decision", { kind, id, status });
+    notifyT(tx, rec.ownerId, status === "Rejected" ? "approvalRejected" : "approvalDecision", { kind: kind === "vendor" ? "vendor" : "NGO", ...(kind === "vendor" ? { kindKey: "signin.role.vendor" } : {}), status: status.toLowerCase(), statusKey: `status.${status}`, reason: status === "Rejected" ? reason!.trim() : "" }, "approval_decision", { kind, id, status });
     audit(tx, me.id, `${kind}_${status.toLowerCase()}`, kind, id, reason);
     tx.emit({ type: "impact" });
     return rec;
@@ -696,7 +696,7 @@ export function setApproval(actor: Profile | null, kind: "vendor" | "ngo", id: s
 export function fastForward(actor: Profile | null, minutes: number) {
   return transaction((tx) => {
     requireRole(actor, "customer", "vendor", "ngo", "admin");
-    if (process.env.DATA_MODE && process.env.DATA_MODE !== "demo") throw new RuleError("forbidden", "Only available in demo mode.", 403);
+    if (process.env.DATA_MODE && process.env.DATA_MODE !== "demo") throw new RuleError("forbidden", "Only available in demo mode.", 403, undefined, "forbidden_only_available_demo");
     const mins = Math.max(-1440, Math.min(1440, Math.round(minutes)));
     tx.db.clockOffsetMs = mins === 0 ? 0 : (tx.db.clockOffsetMs || 0) + mins * 60_000;
     tx.now = Date.now() + tx.db.clockOffsetMs;

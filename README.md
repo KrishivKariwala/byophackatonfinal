@@ -24,7 +24,7 @@ The demo store (`data/demo-db.json`) is created and seeded on first request, wit
 
 **Skip:** every side's sign-in has a **Skip, use demo {side}** button that signs you in as an approved demo account (customer: Priya, vendor: Ravi, NGO: Joseph) and goes straight to that side's home. It is demo-only (disabled when `DATA_MODE` is not `demo`) and every use is written to the audit log. Brand-new vendors and NGOs still start **Pending** until an admin approves them.
 
-If you are already signed in on that side, clicking its slice goes straight to your dashboard.
+Opening the landing page (or refreshing any page) always signs you out, so the app starts with no demo account every time.
 
 **All demo accounts:** open **/signin** (or "More demo accounts") and click a persona. No password.
 

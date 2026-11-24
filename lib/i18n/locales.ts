@@ -46,7 +46,15 @@ export function translate(locale: Locale, dict: Messages, en: Messages, key: str
     if (pk in dict || pk in en) k = pk;
   }
   const raw = dict[k] ?? en[k] ?? key;
-  return vars ? raw.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m)) : raw;
+  if (!vars) return raw;
+  return raw.replace(/\{(\w+)\}/g, (m, name: string) => {
+    if (!(name in vars)) return m;
+    // Server-written values (a status, a reason) carry a companion `<name>Key` naming a catalog entry, so other languages show their own word.
+    const ref = vars[`${name}Key`];
+    if (locale !== "en" && typeof ref === "string" && (dict[ref] ?? en[ref]))
+      return (dict[ref] ?? en[ref]).replace(/\{(\w+)\}/g, (mm, other: string) => (other !== name && other in vars ? String(vars[other]) : mm));
+    return String(vars[name]);
+  });
 }
 
 export function formatters(locale: Locale) {

@@ -5,7 +5,10 @@ import { fmtDateTime } from "@/components/bits";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin · Flagged" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.adminFlagged") };
+}
 
 export default async function Flagged() {
   await requirePage("admin");
@@ -19,7 +22,7 @@ export default async function Flagged() {
         {f.vendors.length === 0 ? <p className="card p-5 text-sm text-muted">{t("admin.noVendorsFlagged")}</p> : (
           <ul className="flex flex-col gap-3">{f.vendors.map((v) => (
             <li key={v.id} className="card flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
-              <div><b>{v.name}</b><ul className="text-xs text-tomato">{v.reasons.map((r) => <li key={r}>{r}</li>)}</ul></div>
+              <div><b>{v.name}</b><ul className="text-xs text-tomato">{v.reasonItems.map((r) => <li key={r.key}>{t(r.key, r.vars)}</li>)}</ul></div>
               <Rating avg={v.ratingAvg} count={v.ratingCount} />
             </li>))}</ul>
         )}

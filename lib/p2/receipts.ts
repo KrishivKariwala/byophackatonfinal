@@ -60,14 +60,14 @@ export function runReceiptJob(tx: TxContext) {
 // ---------------------------------------------------------------- reads (owner/manager of the donor, or the receiving charity)
 function scope(db: DB, actor: Profile | null): { vendorId?: string; ngoId?: string } {
   const me = requireRole(actor, "vendor", "ngo");
-  if (!cfg(db).flags.donationReceipts) throw new RuleError("feature_off", "Donation receipts are switched off.", 403);
+  if (!cfg(db).flags.donationReceipts) throw new RuleError("feature_off", "Donation receipts are switched off.", 403, undefined, "feature_off_donation_receipts_are");
   if (me.role === "ngo") {
     const n = db.ngos.find((x) => x.ownerId === me.id);
     if (!n) throw new RuleError("no_ngo", "Complete NGO verification first.", 403);
     return { ngoId: n.id };
   }
   const org = resolveOrg(db, me);
-  if (!org) throw new RuleError("no_vendor", "Complete vendor onboarding first.", 403);
+  if (!org) throw new RuleError("no_vendor", "Complete vendor onboarding first.", 403, undefined, "no_vendor_complete_vendor_onboarding");
   if (!can(org.role, "receipts.view")) throw new RuleError("forbidden_role", "Receipts are visible to the owner and managers.", 403);
   return { vendorId: org.vendor.id };
 }
@@ -78,7 +78,7 @@ export function listReceipts(actor: Profile | null, range?: { from?: string; to?
   const from = range?.from ? Date.parse(`${range.from}T00:00:00+05:30`) : -Infinity;
   const to = range?.to ? Date.parse(`${range.to}T23:59:59.999+05:30`) : Infinity;
   if (range?.from && !Number.isFinite(from)) throw new RuleError("date_invalid", "Choose a valid start date.");
-  if (range?.to && !Number.isFinite(to)) throw new RuleError("date_invalid", "Choose a valid end date.");
+  if (range?.to && !Number.isFinite(to)) throw new RuleError("date_invalid", "Choose a valid end date.", 400, undefined, "date_invalid_choose_valid_end");
   return db.receipts
     .filter((r) => (s.vendorId ? r.vendorId === s.vendorId : r.ngoId === s.ngoId) && t(r.createdAt) >= from && t(r.createdAt) <= to)
     .sort((a, b) => (a.number < b.number ? 1 : -1))
@@ -93,7 +93,7 @@ export function receiptForActor(actor: Profile | null, id: string) {
   const db = read();
   const s = scope(db, actor);
   const r = db.receipts.find((x) => x.id === id && (s.vendorId ? x.vendorId === s.vendorId : x.ngoId === s.ngoId));
-  if (!r) throw new RuleError("not_found", "Receipt not found.", 404);
+  if (!r) throw new RuleError("not_found", "Receipt not found.", 404, undefined, "not_found_receipt_not_found");
   return { receipt: r, db };
 }
 

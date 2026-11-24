@@ -10,7 +10,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const { id } = await ctx.params;
     const b = await body<{ reservationId: string }>(req);
     const r = read().reservations.find((x) => x.id === b.reservationId);
-    if (!r || r.listingId !== id) throw new RuleError("not_found", "Order not found on this listing.", 404);
+    if (!r || r.listingId !== id) throw new RuleError("not_found", "Order not found on this listing.", 404, undefined, "not_found_order_not_found");
     return markReady(await getActor(), r.id);
   });
 }

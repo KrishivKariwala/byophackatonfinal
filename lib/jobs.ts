@@ -1,7 +1,8 @@
 import "server-only";
 import type { TxContext } from "./store";
 import { RULES } from "./rules";
-import { createNoShowBatchTx, iso, listingIn, ngosNear, notify, notifyOutlet, outletOf, recordImpact, setResStatus, audit, emitRes, t } from "./core";
+import { notificationText } from "./notify";
+import { createNoShowBatchTx, iso, listingIn, ngosNear, notifyT, notifyOutletT, outletOf, recordImpact, setResStatus, audit, emitRes, t } from "./core";
 import type { DB } from "./types";
 import { p2JobsPending, runP2Jobs } from "./p2/jobs";
 
@@ -52,7 +53,7 @@ export function runScheduledJobs(tx: TxContext) {
     const left = t(l.windowEnd) - now;
     if (left > 0 && left <= RULES.REMINDER_MINUTES_LEFT * MIN) {
       r.reminderSentAt = iso(now);
-      notify(tx, r.customerId, `${Math.max(1, Math.ceil(left / MIN))} minutes left to collect ${r.ref} (${l.title}).`, "pickup_reminder", { reservationId: r.id });
+      notifyT(tx, r.customerId, "pickupReminder", { min: Math.max(1, Math.ceil(left / MIN)), ref: r.ref, title: l.title }, "pickup_reminder", { reservationId: r.id });
     }
   }
 
@@ -67,9 +68,9 @@ export function runScheduledJobs(tx: TxContext) {
     r.noShowAt = iso(now);
     perListing.set(l.id, (perListing.get(l.id) ?? 0) + r.qty);
     affected.add(r.customerId);
-    notify(tx, r.customerId, `${r.ref} was marked a no-show because it wasn't collected. Three no-shows in 30 days pause new reservations for 7 days.`, "no_show", { reservationId: r.id });
+    notifyT(tx, r.customerId, "noShow", { ref: r.ref }, "no_show", { reservationId: r.id });
     const vendor = db.vendors.find((v) => v.id === r.vendorId);
-    if (vendor) notifyOutlet(tx, vendor, r.outletId, `${r.ref} was not collected (no-show).`, "no_show", { reservationId: r.id });
+    if (vendor) notifyOutletT(tx, vendor, r.outletId, "noShowVendor", { ref: r.ref }, "no_show", { reservationId: r.id });
     emitRes(tx, r);
   }
   for (const [lid, qty] of perListing) createNoShowBatchTx(tx, listingIn(db, lid), qty);
@@ -83,7 +84,7 @@ export function runScheduledJobs(tx: TxContext) {
     const vendor = db.vendors.find((v) => v.id === b.vendorId);
     const targets = ngosNear(db, outletOf(db, b.outletId), RULES.ESCALATION_RADIUS_KM);
     for (const n of targets)
-      notify(tx, n.ownerId, `Still unclaimed: ${b.qty} × ${b.title} at ${vendor?.businessName}. Collect by ${b.collectBy}.`, "donation_escalation", { batchId: b.id });
+      notifyT(tx, n.ownerId, "donationEscalation", { qty: b.qty, title: b.title, vendor: String(vendor?.businessName), by: b.collectBy }, "donation_escalation", { batchId: b.id });
     audit(tx, "system", "donation_escalated", "donation_batch", b.id, `${targets.length} charities notified`);
   }
 
@@ -100,9 +101,10 @@ export function applyNoShowSuspension(tx: TxContext, customerId: string) {
   const n = noShowCount(db, customerId, since);
   if (n >= RULES.NO_SHOW_SUSPEND_COUNT && !(p.suspendedUntil && t(p.suspendedUntil) > now)) {
     p.suspendedUntil = iso(now + RULES.SUSPEND_DAYS * 24 * 60 * MIN);
-    p.suspendReason = `Reservations paused until ${p.suspendedUntil.slice(0, 10)} after ${n} no-shows in ${RULES.NO_SHOW_SUSPEND_WINDOW_DAYS} days.`;
+    const suspendVars = { date: p.suspendedUntil.slice(0, 10), count: n, days: RULES.NO_SHOW_SUSPEND_WINDOW_DAYS };
+    p.suspendReason = notificationText("suspendedNoShows", suspendVars);
     audit(tx, "system", "customer_suspended", "profile", p.id, p.suspendReason);
-    notify(tx, p.id, p.suspendReason, "suspension", { until: p.suspendedUntil });
+    notifyT(tx, p.id, "suspendedNoShows", suspendVars, "suspension", { until: p.suspendedUntil });
   }
 }
 

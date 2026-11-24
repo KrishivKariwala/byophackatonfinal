@@ -3,7 +3,7 @@ import { read, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { newId } from "../crypto";
 import { write } from "../services";
-import { audit, iso, notify, requireRole, t } from "../core";
+import { audit, iso, notifyT, requireRole, t } from "../core";
 import { normalizePhone } from "../auth";
 import { cfg } from "./settings";
 import type { CreditEntry, DB, Profile, Referral, Reservation } from "../types";
@@ -63,6 +63,15 @@ export function spendCreditTx(tx: TxContext, userId: string, amount: number, ref
 }
 
 /** Gives back what `refIds` (a hold and/or reservation) spent, as a fresh 90-day lot. Idempotent: a second call restores nothing. */
+/** The reasons restoreCreditTx is called with, mapped to catalog entries so the notification reads in the customer's language. */
+const CREDIT_NOTE_KEYS: Record<string, string> = {
+  "refunded by an administrator": "notif.creditNote.refundedByAdmin",
+  "checkout hold expired": "notif.creditNote.holdExpired",
+  "checkout was not completed": "notif.creditNote.notCompleted",
+  "vendor cancelled the listing": "notif.creditNote.vendorCancelled",
+  "order cancelled": "notif.creditNote.orderCancelled",
+};
+
 export function restoreCreditTx(tx: TxContext, userId: string, refIds: (string | undefined)[], note: string): number {
   const refs = refIds.filter(Boolean) as string[];
   const spent = tx.db.creditLedger.filter((e) => e.userId === userId && e.type === "spent" && e.refId && refs.includes(e.refId)).reduce((s, e) => s + e.amount, 0);
@@ -70,7 +79,7 @@ export function restoreCreditTx(tx: TxContext, userId: string, refIds: (string |
   const owed = spent - back;
   if (owed <= 0) return 0;
   earnCreditTx(tx, userId, owed, `restored: ${note}`, refs[0]);
-  notify(tx, userId, `₹${owed} credit was returned to your balance (${note}).`, "credit_earned", { amount: owed });
+  notifyT(tx, userId, "creditReturned", { amount: owed, note, ...(CREDIT_NOTE_KEYS[note] ? { noteKey: CREDIT_NOTE_KEYS[note] } : {}) }, "credit_earned", { amount: owed });
   return owed;
 }
 
@@ -146,12 +155,12 @@ export function redeemReferralTx(tx: TxContext, me: Profile, input: { code: stri
   if (rc.userId === me.id) throw new RuleError("self_referral", "You can't use your own referral code.", 409);
   const live = db.profiles.find((p) => p.id === me.id) ?? me;
   const referrer = db.profiles.find((p) => p.id === rc.userId);
-  if (!referrer) throw new RuleError("code_unknown", "That referral code doesn't exist.", 404);
+  if (!referrer) throw new RuleError("code_unknown", "That referral code doesn't exist.", 404, undefined, "code_unknown_referral_code_doesn");
   if (db.referrals.some((r) => r.refereeId === me.id)) throw new RuleError("already_referred", "You've already used a referral code.", 409);
   if (db.reservations.some((r) => r.customerId === me.id) || db.holds.some((h) => h.customerId === me.id))
     throw new RuleError("not_new", "Referral codes are for new customers, before their first order.", 409);
   const phoneKey = normalizePhone(live.phone ?? "") || me.id;
-  if (referrer.phone && normalizePhone(referrer.phone) === phoneKey) throw new RuleError("self_referral", "You can't use a code from your own phone number.", 409);
+  if (referrer.phone && normalizePhone(referrer.phone) === phoneKey) throw new RuleError("self_referral", "You can't use a code from your own phone number.", 409, undefined, "self_referral_t_use_code");
   const device = input.deviceId?.slice(0, 64);
   if (device && rc.deviceId && rc.deviceId === device) throw new RuleError("same_device", "A code can't be used on the same device it was shared from.", 409);
   if (db.referrals.some((r) => r.status !== "rejected" && r.phoneKey === phoneKey)) throw new RuleError("phone_used", "This phone number has already redeemed a referral.", 409);
@@ -179,14 +188,14 @@ export function rewardReferralTx(tx: TxContext, r: Reservation) {
   ref.rewardedAt = iso(now);
   if (amount > 0) {
     earnCreditTx(tx, ref.refereeId, amount, "referral welcome credit", ref.id);
-    notify(tx, ref.refereeId, `You earned ₹${amount} credit for your first rescue. Use it on your next order.`, "credit_earned", { amount, referralId: ref.id });
+    notifyT(tx, ref.refereeId, "creditFirstRescue", { amount }, "credit_earned", { amount, referralId: ref.id });
     if (rewardedThisMonth < MAX_REWARDED_PER_MONTH) {
       earnCreditTx(tx, ref.referrerId, amount, "referral reward", ref.id);
       const name = (db.profiles.find((p) => p.id === ref.refereeId)?.name ?? "Your friend").split(" ")[0];
-      notify(tx, ref.referrerId, `${name} collected their first order. ₹${amount} credit is in your balance.`, "credit_earned", { amount, referralId: ref.id });
+      notifyT(tx, ref.referrerId, "creditReferrerReward", { name, amount }, "credit_earned", { amount, referralId: ref.id });
     } else {
       ref.rejectReason = "referrer_monthly_cap"; // the friend is still rewarded; this referrer has hit the monthly limit
-      notify(tx, ref.referrerId, `${(db.profiles.find((p) => p.id === ref.refereeId)?.name ?? "Your friend").split(" ")[0]} collected their first order, but you've reached the limit of ${MAX_REWARDED_PER_MONTH} rewarded referrals this month.`, "generic", { referralId: ref.id });
+      notifyT(tx, ref.referrerId, "referralCapReached", { name: (db.profiles.find((p) => p.id === ref.refereeId)?.name ?? "Your friend").split(" ")[0], max: MAX_REWARDED_PER_MONTH }, "generic", { referralId: ref.id });
     }
   }
   audit(tx, "system", "referral_rewarded", "referral", ref.id, `₹${amount} each${ref.rejectReason ? `; ${ref.rejectReason}` : ""}`);

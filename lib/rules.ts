@@ -28,13 +28,23 @@ export const RULES = {
   RESERVE_RATE_LIMIT: { max: 8, windowMs: 60_000 }, // per customer, per minute
 } as const;
 
+/**
+ * A business-rule failure. `message` is always the English text (logs, tests, API clients).
+ * The visitor sees it in their own language via the catalog key `rerr.<i18nKey ?? code>`, filled with `vars`
+ * (see `localizeError` in lib/api.ts). Pass `i18nKey` when one code is thrown with different wording at different sites;
+ * pass "" when the message is user-written text that must not be translated.
+ */
 export class RuleError extends Error {
   status: number;
   code: string;
-  constructor(code: string, message: string, status = 400) {
+  vars?: Record<string, string | number>;
+  i18nKey?: string;
+  constructor(code: string, message: string, status = 400, vars?: Record<string, string | number>, i18nKey?: string) {
     super(message);
     this.code = code;
     this.status = status;
+    this.vars = vars;
+    this.i18nKey = i18nKey;
   }
 }
 
@@ -52,14 +62,16 @@ export function validatePrices(original: number, rescue: number, maxDiscountPct 
   if (!Number.isFinite(original) || !Number.isInteger(original) || original <= 0)
     throw new RuleError("price_invalid", "Original price must be a positive whole number of rupees.");
   if (!Number.isFinite(rescue) || !Number.isInteger(rescue) || rescue <= 0)
-    throw new RuleError("price_invalid", "Rescue price must be a positive whole number of rupees.");
+    throw new RuleError("price_invalid", "Rescue price must be a positive whole number of rupees.", 400, undefined, "price_invalid_rescue");
   const floor = Math.ceil((original * (100 - maxDiscountPct)) / 100);
   if (maxDiscountPct < 100 && rescue < Math.max(1, floor))
-    throw new RuleError("discount_too_large", `The platform caps discounts at ${maxDiscountPct}% off (minimum ₹${Math.max(1, floor)} for ₹${original}).`);
+    throw new RuleError("discount_too_large", `The platform caps discounts at ${maxDiscountPct}% off (minimum ₹${Math.max(1, floor)} for ₹${original}).`, 400, { pct: maxDiscountPct, min: Math.max(1, floor), original });
   if (rescue > original * RULES.MIN_DISCOUNT_FACTOR)
     throw new RuleError(
       "discount_too_small",
       `Rescue price must be at least 30% below the original (max ₹${Math.floor(original * RULES.MIN_DISCOUNT_FACTOR)} for ₹${original}).`,
+      400,
+      { max: Math.floor(original * RULES.MIN_DISCOUNT_FACTOR), original },
     );
 }
 

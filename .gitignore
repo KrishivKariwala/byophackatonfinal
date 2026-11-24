@@ -14,3 +14,6 @@ data/uploads
 # local agent-skill links (created by `npx skills add`)
 data/skills/
 .agents/
+skills/
+skills-lock.json
+creative-skills/

@@ -8,7 +8,10 @@ import { getT } from "@/lib/i18n/server";
 import { statusLabel } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Quick list" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.quickList") };
+}
 
 export default async function NewListing({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const me = await requirePage("vendor");

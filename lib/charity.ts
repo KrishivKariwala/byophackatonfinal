@@ -3,7 +3,7 @@ import { read, now as clockNow } from "./store";
 import { RuleError } from "./rules";
 import { randomToken } from "./crypto";
 import { write } from "./services";
-import { audit, iso, ngoOf, notifyOutlet, outletOf, requireRole, t } from "./core";
+import { audit, iso, ngoOf, notifyOutletT, outletOf, requireRole, t } from "./core";
 import { directionsUrl } from "./geo";
 import type { Profile } from "./types";
 
@@ -16,8 +16,8 @@ export function scheduleDonation(actor: Profile | null, batchId: string, i: { sl
     const me = requireRole(actor, "ngo");
     const n = ngoOf(tx.db, me);
     const b = tx.db.donationBatches.find((x) => x.id === batchId);
-    if (!b || b.claimedByNgoId !== n.id) throw new RuleError("not_found", "No claimed batch found.", 404);
-    if (b.status !== "Claimed") throw new RuleError("bad_transition", `Batch is ${b.status.toLowerCase()}; only claimed batches can be scheduled.`, 409);
+    if (!b || b.claimedByNgoId !== n.id) throw new RuleError("not_found", "No claimed batch found.", 404, undefined, "not_found_no_claimed_batch");
+    if (b.status !== "Claimed") throw new RuleError("bad_transition", `Batch is ${b.status.toLowerCase()}; only claimed batches can be scheduled.`, 409, { status: b.status.toLowerCase(), statusKey: `status.${b.status}` }, "bad_transition_batch_schedule");
     const slot = t(i.slot);
     if (!Number.isFinite(slot)) throw new RuleError("slot_invalid", "Choose a pickup time.");
     if (slot < tx.now - 60_000) throw new RuleError("slot_past", "Pick a time that hasn't passed.");
@@ -31,7 +31,7 @@ export function scheduleDonation(actor: Profile | null, batchId: string, i: { sl
     b.volunteerPhone = phone;
     b.volunteerToken ??= randomToken();
     const vendor = tx.db.vendors.find((v) => v.id === b.vendorId)!;
-    notifyOutlet(tx, vendor, b.outletId, `${n.orgName} is sending ${name} for ${b.ref} at ${iso(slot)}.`, "generic", { batchId: b.id });
+    notifyOutletT(tx, vendor, b.outletId, "volunteerSending", { org: n.orgName, name, ref: b.ref, time: iso(slot) }, "generic", { batchId: b.id });
     audit(tx, me.id, "donation_scheduled", "donation_batch", b.id, `${name} @ ${iso(slot)}`);
     return { batchId: b.id, token: b.volunteerToken, slot: b.pickupSlot, url: `/volunteer/${b.volunteerToken}` };
   });

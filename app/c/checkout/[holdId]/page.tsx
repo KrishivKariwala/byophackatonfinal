@@ -8,7 +8,10 @@ import { getT } from "@/lib/i18n/server";
 import { statusLabel } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Checkout" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.checkout") };
+}
 
 export default async function Checkout({ params }: { params: Promise<{ holdId: string }> }) {
   const me = await requirePage("customer");

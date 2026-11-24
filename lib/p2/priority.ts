@@ -2,7 +2,7 @@ import "server-only";
 import type { TxContext } from "../store";
 import { RuleError, RULES } from "../rules";
 import { write, lockClaimTx } from "../services";
-import { audit, iso, listingIn, move, ngoOf, notify, openBatch, ngosNear, outletOf, requireRole, t } from "../core";
+import { audit, iso, listingIn, move, ngoOf, notifyT, openBatch, ngosNear, outletOf, requireRole, t } from "../core";
 import { distanceKm } from "../geo";
 import { notifyFollowers } from "../follows";
 import { cfg } from "./settings";
@@ -26,9 +26,9 @@ export function priorityOver(db: DB, l: Listing, nowMs: number): boolean {
 export function setupPriority(tx: TxContext, l: Listing, outlet: Outlet, vendor: Vendor, minutes: number) {
   const { db, now } = tx;
   const c = cfg(db);
-  if (!c.flags.priorityWindow) throw new RuleError("feature_off", "The charity priority window is switched off.", 403);
+  if (!c.flags.priorityWindow) throw new RuleError("feature_off", "The charity priority window is switched off.", 403, undefined, "feature_off_charity_priority_window");
   if (l.donationOnly) throw new RuleError("priority_donation", "Donation-only listings are already for charities.");
-  if (!c.priorityOptions.includes(Number(minutes))) throw new RuleError("priority_invalid", `Choose ${c.priorityOptions.join(", ")} minutes.`);
+  if (!c.priorityOptions.includes(Number(minutes))) throw new RuleError("priority_invalid", `Choose ${c.priorityOptions.join(", ")} minutes.`, 400, { options: c.priorityOptions.join(", ") });
   const visibleAt = now + Number(minutes) * 60_000;
   if (visibleAt >= t(l.windowEnd) - 10 * 60_000)
     throw new RuleError("priority_too_long", "The priority window must end at least 10 minutes before pickup closes, or customers would never get a chance.");
@@ -36,7 +36,7 @@ export function setupPriority(tx: TxContext, l: Listing, outlet: Outlet, vendor:
   l.publicVisibleAt = iso(visibleAt);
   const near = ngosNear(db, outlet);
   for (const n of near)
-    notify(tx, n.ownerId, `Priority offer: ${l.qtyTotal} × ${l.title} at ${vendor.businessName}, free for charities for the next ${minutes} min. Claim it in your feed.`, "priority_listing", { listingId: l.id, until: l.publicVisibleAt });
+    notifyT(tx, n.ownerId, "priorityOffer", { qty: l.qtyTotal, title: l.title, vendor: vendor.businessName, minutes }, "priority_listing", { listingId: l.id, until: l.publicVisibleAt });
   audit(tx, "system", "priority_window_started", "listing", l.id, `${minutes} min, ${near.length} charities notified`);
 }
 
@@ -56,9 +56,9 @@ export function claimPriorityListing(actor: Profile | null, listingId: string) {
   return write((tx) => {
     const me = requireRole(actor, "ngo");
     const { db, now } = tx;
-    if (!cfg(db).flags.priorityWindow) throw new RuleError("feature_off", "The charity priority window is switched off.", 403);
+    if (!cfg(db).flags.priorityWindow) throw new RuleError("feature_off", "The charity priority window is switched off.", 403, undefined, "feature_off_charity_priority_window");
     const n = ngoOf(db, me);
-    if (n.status !== "Approved") throw new RuleError("approval_required", `Your NGO verification is ${n.status}. Only approved NGOs can claim.`, 403);
+    if (n.status !== "Approved") throw new RuleError("approval_required", `Your NGO verification is ${n.status}. Only approved NGOs can claim.`, 403, { status: n.status, statusKey: `status.${n.status}` });
     const l = listingIn(db, listingId);
     if (!l.publicVisibleAt || now >= t(l.publicVisibleAt)) throw new RuleError("priority_closed", "The priority window for this listing has ended.", 409);
     if (l.status !== "Live" || l.qtyAvailable <= 0 || now >= t(l.windowEnd)) throw new RuleError("not_available", "This listing is no longer available.", 409);
@@ -66,7 +66,7 @@ export function claimPriorityListing(actor: Profile | null, listingId: string) {
     if (distanceKm(n, outlet) > n.serviceAreaKm) throw new RuleError("out_of_area", "This vendor is outside your service area.", 403);
     const safeUntil = l.safeUntil ? t(l.safeUntil) : Infinity;
     const collectBy = Math.min(t(l.windowEnd) + RULES.DONATION_COLLECT_HOURS_DEFAULT * 3600_000, safeUntil);
-    if (collectBy <= now) throw new RuleError("not_available", "This food is past its safe-to-eat time.", 409);
+    if (collectBy <= now) throw new RuleError("not_available", "This food is past its safe-to-eat time.", 409, undefined, "not_available_food_past_its");
     const qty = l.qtyAvailable;
     move(tx, l, -qty, "priority_claim"); // the stock leaves the listing in the same transaction: customers can't also buy it
     l.donationProcessedAt = iso(now); // so window end does not create a second batch

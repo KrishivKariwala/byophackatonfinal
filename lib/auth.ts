@@ -39,15 +39,15 @@ export function homeFor(db: DB, p: Profile): string {
  */
 export function loginOrSignup(i: { name?: string; phone: string; role: string }) {
   return write((tx): { profile: Profile; existing: boolean; home: string } => {
-    if (i.role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403);
+    if (i.role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403, undefined, "forbidden_admin_access_provisioned");
     if (!SELF_ROLES.includes(i.role as SelfRole)) throw new RuleError("role_invalid", "Choose Customer, Vendor or NGO.");
     const role = i.role as SelfRole;
     const key = normalizePhone(i.phone);
-    if (key.length < 10) throw new RuleError("phone_invalid", "Enter a valid 10-digit mobile number.");
+    if (key.length < 10) throw new RuleError("phone_invalid", "Enter a valid 10-digit mobile number.", 400, undefined, "phone_invalid_enter_valid_10");
     const found = tx.db.profiles.find((p) => p.phone && normalizePhone(p.phone) === key);
     if (found) {
       if (found.role !== role)
-        throw new RuleError("role_mismatch", `This number is registered as a ${found.role === "ngo" ? "NGO" : found.role}. Pick that side, or use a different number.`, 409);
+        throw new RuleError("role_mismatch", `This number is registered as a ${found.role === "ngo" ? "NGO" : found.role}. Pick that side, or use a different number.`, 409, found.role === "ngo" ? { role: "NGO" } : { role: found.role, roleKey: `signin.role.${found.role}` });
       return { profile: found, existing: true, home: homeFor(tx.db, found) };
     }
     const name = (i.name ?? "").trim();
@@ -62,10 +62,10 @@ export function loginOrSignup(i: { name?: string; phone: string; role: string })
 /** Demo-only: sign in as the approved demo account for a side, so the whole flow works immediately. Always logged. */
 export function skipLogin(role: string) {
   return write((tx): { profile: Profile; home: string } => {
-    if (role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403);
+    if (role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403, undefined, "forbidden_admin_access_provisioned");
     if (!SELF_ROLES.includes(role as SelfRole)) throw new RuleError("role_invalid", "Choose Customer, Vendor or NGO.");
     const p = tx.db.profiles.find((x) => x.id === SKIP_PERSONA[role as SelfRole] && x.demo);
-    if (!p) throw new RuleError("not_found", "The demo account for this side is missing. Run npm run seed.", 404);
+    if (!p) throw new RuleError("not_found", "The demo account for this side is missing. Run npm run seed.", 404, undefined, "not_found_demo_account_side");
     audit(tx, p.id, "demo_skip_login", "profile", p.id, `skip button on the ${role} sign-in`);
     return { profile: p, home: homeFor(tx.db, p) };
   });

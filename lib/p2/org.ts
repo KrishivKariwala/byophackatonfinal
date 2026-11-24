@@ -49,7 +49,10 @@ export function vendorCtx(db: DB, actor: Profile, perm?: Perm): VendorCtx {
   const ctx = resolveOrg(db, actor);
   if (!ctx) throw new RuleError("no_vendor", "Complete vendor onboarding first, or ask your manager for an invite.", 403);
   if (perm && !can(ctx.role, perm))
-    throw new RuleError("forbidden_role", `Your ${ctx.role} role can't do this. Ask the owner${perm === "payouts.view" || perm === "org.settings" || perm === "outlet.manage" ? "" : " or a manager"}.`, 403);
+    {
+    const ownerOnly = perm === "payouts.view" || perm === "org.settings" || perm === "outlet.manage";
+    throw new RuleError("forbidden_role", `Your ${ctx.role} role can't do this. Ask the owner${ownerOnly ? "" : " or a manager"}.`, 403, { role: ctx.role, roleKey: `org.role.${ctx.role}` }, ownerOnly ? "forbidden_role_ask_owner" : "forbidden_role_ask_manager");
+  }
   return ctx;
 }
 
@@ -61,7 +64,7 @@ export function outletsFor(db: DB, ctx: VendorCtx): Outlet[] {
 export const outletAllowed = (ctx: VendorCtx, outletId: string): boolean => !ctx.outletId || ctx.outletId === outletId;
 /** Throws a 404 (never "forbidden", so another outlet's data is not even confirmed to exist). */
 export function assertOutlet(ctx: VendorCtx, outletId: string, what = "Not found for your outlet.") {
-  if (!outletAllowed(ctx, outletId)) throw new RuleError("not_found", what, 404);
+  if (!outletAllowed(ctx, outletId)) throw new RuleError("not_found", what, 404, undefined, what === "Not found for your outlet." ? "not_found_outlet_scope" : what === "Listing not found for your outlet." ? "not_found_listing_outlet" : "");
 }
 
 /** Everyone who should hear about something at one outlet: the owner, all-outlet managers, and members pinned to that outlet. */

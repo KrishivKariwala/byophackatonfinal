@@ -3,7 +3,8 @@ import { read } from "../store";
 import { RuleError } from "../rules";
 import { newId, sha256 } from "../crypto";
 import { write } from "../services";
-import { audit, iso, notify, requireRole, t } from "../core";
+import { audit, iso, notifyT, requireRole, t } from "../core";
+import { notificationText } from "../notify";
 import { recomputeVendorRating } from "../p1";
 import { cfg } from "./settings";
 import type { DB, Listing, ModerationAction, ModerationActionType, ModerationTarget, Profile, Review, Vendor } from "../types";
@@ -83,31 +84,32 @@ export function moderate(actor: Profile | null, type: ModerationTarget, id: stri
   return write((tx): ModerationAction => {
     const me = requireRole(actor, "admin");
     const { db, now } = tx;
-    if (!cfg(db).flags.moderation) throw new RuleError("feature_off", "Moderation is switched off.", 403);
-    if (!["listing", "review", "vendor"].includes(type)) throw new RuleError("target_invalid", "Unknown item type.");
+    if (!cfg(db).flags.moderation) throw new RuleError("feature_off", "Moderation is switched off.", 403, undefined, "feature_off_moderation_switched_off");
+    if (!["listing", "review", "vendor"].includes(type)) throw new RuleError("target_invalid", "Unknown item type.", 400, undefined, "target_invalid_unknown_item_type");
     if (!ACTIONS.includes(input.action)) throw new RuleError("action_invalid", "Unknown action.");
     const reason = String(input.reason ?? "").trim();
     if (reason.length < 3) throw new RuleError("reason_required", "Give a reason. It is recorded and shown to the person affected.");
     if (reason.length > 500) throw new RuleError("reason_long", "Keep the reason under 500 characters.");
     const { listing, review, vendor } = targetOf(db, type, id);
-    if (!(listing || review || vendor)) throw new RuleError("not_found", "Item not found.", 404);
+    if (!(listing || review || vendor)) throw new RuleError("not_found", "Item not found.", 404, undefined, "not_found_item_not_found");
     const owner = type === "review" ? db.profiles.find((p) => p.id === review!.customerId) : vendor ? db.profiles.find((p) => p.id === vendor.ownerId) : undefined;
     const what = type === "listing" ? `your listing "${listing!.title}"` : type === "review" ? "your review" : "your business";
+    const whatVars = { what, whatKey: `notif.what.${type}`, title: listing?.title ?? "" };
     let detail = reason;
-    const tell = (text: string) => { if (owner) notify(tx, owner.id, text, "moderation", { type, id }); };
+    const tell = (key: string, vars: Record<string, string | number>) => { if (owner) notifyT(tx, owner.id, key, { ...whatVars, ...vars }, "moderation", { type, id }); };
 
     switch (input.action) {
       case "hide":
         if (listing) { listing.hiddenByAdmin = true; if (listing.status === "Live" || listing.status === "Sold Out") listing.status = "Paused"; listing.moderationNote = reason; listing.updatedAt = iso(now); tx.emit({ type: "listing", listingId: listing.id, qtyAvailable: listing.qtyAvailable, status: listing.status }); }
         else if (review) { review.hidden = true; recomputeVendorRating(db, review.vendorId); }
         else if (vendor) vendor.hiddenByAdmin = true;
-        tell(`Save a Plate hid ${what}: ${reason}`);
+        tell("modHid", { reason });
         break;
       case "restore":
         if (listing) { listing.hiddenByAdmin = false; listing.moderationNote = undefined; listing.updatedAt = iso(now); tx.emit({ type: "listing", listingId: listing.id, qtyAvailable: listing.qtyAvailable, status: listing.status }); /* it stays Paused: the vendor resumes it */ }
         else if (review) { review.hidden = false; recomputeVendorRating(db, review.vendorId); }
         else if (vendor) vendor.hiddenByAdmin = false;
-        tell(`Save a Plate restored ${what}.${listing && listing.status === "Paused" ? " You can resume the listing from your dashboard." : ""} ${reason}`.trim());
+        tell(listing && listing.status === "Paused" ? "modRestoreResume" : "modRestore", { reason });
         break;
       case "edit": {
         const e = input.edit ?? {};
@@ -122,21 +124,22 @@ export function moderate(actor: Profile | null, type: ModerationTarget, id: stri
           detail = `${reason} [edited; before: ${(review.text ?? "").slice(0, 200)}]`;
           review.text = e.text.trim().slice(0, 1000) || undefined;
         } else throw new RuleError("edit_unsupported", "A business profile can't be edited from here; warn or suspend instead.");
-        tell(`Save a Plate edited ${what}: ${reason}`);
+        tell("modEdit", { reason });
         break;
       }
       case "warn":
-        tell(`Warning from Save a Plate about ${what}: ${reason}`);
+        tell("modWarn", { reason });
         break;
       case "suspend": {
-        if (!owner) throw new RuleError("no_target", "There is no account to suspend.");
+        if (!owner) throw new RuleError("no_target", "There is no account to suspend.", 400, undefined, "no_target_there_no_account");
         const days = Math.round(Number(input.suspendDays ?? 7));
         if (!Number.isFinite(days) || days < 1 || days > 365) throw new RuleError("days_invalid", "Choose between 1 and 365 days.");
         const p = db.profiles.find((x) => x.id === owner.id)!;
         p.suspendedUntil = iso(now + days * 86400_000);
-        p.suspendReason = `Suspended by an administrator until ${p.suspendedUntil.slice(0, 10)}: ${reason}`;
+        const suspendVars = { date: p.suspendedUntil.slice(0, 10), reason };
+        p.suspendReason = notificationText("suspendedModeration", suspendVars);
         if (vendor && type !== "review") vendor.hiddenByAdmin = true; // a suspended vendor disappears from discovery immediately
-        notify(tx, p.id, p.suspendReason, "suspension", { until: p.suspendedUntil });
+        notifyT(tx, p.id, "suspendedModeration", suspendVars, "suspension", { until: p.suspendedUntil });
         detail = `${reason} [${days} days]`;
         break;
       }

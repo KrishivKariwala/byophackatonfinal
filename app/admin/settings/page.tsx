@@ -8,7 +8,10 @@ import { read } from "@/lib/store";
 import { tOr } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin · Platform settings" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.adminSettings") };
+}
 
 export default async function PlatformSettings() {
   await requirePage("admin");

@@ -8,7 +8,10 @@ import { SignInClient } from "./SignInClient";
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Sign in" };
+export async function generateMetadata() {
+  const { t } = await getT();
+  return { title: t("title.signin") };
+}
 
 export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string; next?: string; ref?: string }> }) {
   const sp = await searchParams;

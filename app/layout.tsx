@@ -6,13 +6,13 @@ import { Header } from "@/components/Header";
 import { LiveProvider } from "@/components/LiveProvider";
 import { Footer } from "@/components/Footer";
 import { I18nProvider } from "@/components/I18n";
-import { getLocale } from "@/lib/i18n/server";
+import { getLocale, getT } from "@/lib/i18n/server";
 import { messagesFor } from "@/lib/i18n/catalog";
 
-export const metadata: Metadata = {
-  title: { default: "SAVE A PLATE — rescue surplus food in Bengaluru", template: "%s · SAVE A PLATE" },
-  description: "Rescuing good food, reducing waste, and making every meal count.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return { title: { default: t("title.default"), template: "%s · SAVE A PLATE" }, description: t("title.description") };
+}
 export const viewport: Viewport = { themeColor: "#CB0001", width: "device-width", initialScale: 1 };
 
 // Official fonts (The Seasons, Chunko Bold) are linked only when their licensed files are present,

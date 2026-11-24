@@ -72,7 +72,7 @@ export function seedP2(db: DB, T: number): void {
   l4.windowStart = iso(T + m(15)); l4.windowEnd = iso(T + m(120));
   const ob = db.outlets.find((o) => o.id === l4.outletId)!;
   for (const n of db.ngos.filter((x) => x.status === "Approved" && Math.hypot(x.lat - ob.lat, x.lng - ob.lng) * 111 <= x.serviceAreaKm))
-    db.notifications.push({ id: `nt_seed_prio_${n.id}`, userId: n.ownerId, type: "priority_listing", text: `Priority offer: ${l4.qtyTotal} × ${l4.title}, free for charities for the next 20 min. Claim it in your feed.`, at: iso(T - m(8)), read: false, payload: { listingId: l4.id } });
+    db.notifications.push({ id: `nt_seed_prio_${n.id}`, userId: n.ownerId, type: "priority_listing", text: `Priority offer: ${l4.qtyTotal} × ${l4.title}, free for charities for the next 20 min. Claim it in your feed.`, at: iso(T - m(8)), read: false, key: "seedPriorityOffer", vars: { qty: l4.qtyTotal, title: l4.title, minutes: 20 }, payload: { listingId: l4.id } });
 
   // ---------------------------------------------------------------- charities: registration, 80G
   db.ngos.forEach((n, i) => { n.registrationNumber = `DEMO-REG-${2100 + i}`; });

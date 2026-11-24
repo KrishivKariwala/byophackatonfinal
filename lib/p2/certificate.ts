@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { read, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { write } from "../services";
-import { audit, iso, notify, requireRole, t } from "../core";
+import { audit, iso, notifyT, requireRole, t } from "../core";
 import { co2eFor, kgFor, IMPACT } from "../impact-config";
 import { A4, BRAND, drawLogo, footer, newDoc, qr, rows, rule, save, text } from "../pdf";
 import { cfg } from "./settings";
@@ -80,7 +80,7 @@ export function runCertificateJob(tx: TxContext) {
     const had = db.certificates.some((c) => c.vendorId === v.id && c.month === month && !c.partial);
     const c = issueCertificateTx(tx, v, month);
     if (c && !c.partial && !had) {
-      notify(tx, v.ownerId, `Your impact certificate for ${month} is ready: ${c.mealsSold + c.mealsDonated} meals rescued. Download it from Analytics.`, "certificate_ready", { certificateId: c.id, month });
+      notifyT(tx, v.ownerId, "certificateReady", { month, meals: c.mealsSold + c.mealsDonated }, "certificate_ready", { certificateId: c.id, month });
       audit(tx, "system", "certificate_issued", "certificate", c.id, `${v.id} ${month}`);
     }
   }
@@ -90,7 +90,7 @@ export function runCertificateJob(tx: TxContext) {
 export function generateCertificate(actor: Profile | null, month: string) {
   return write((tx) => {
     const me = requireRole(actor, "vendor");
-    if (!cfg(tx.db).flags.impactCertificate) throw new RuleError("feature_off", "Impact certificates are switched off.", 403);
+    if (!cfg(tx.db).flags.impactCertificate) throw new RuleError("feature_off", "Impact certificates are switched off.", 403, undefined, "feature_off_impact_certificates_are");
     const ctx = vendorCtx(tx.db, me, "certificate.view");
     if (!MONTH_RE.test(month)) throw new RuleError("month_invalid", "Choose a month like 2026-03.");
     if (month > monthOf(tx.now)) throw new RuleError("month_future", "That month hasn't started yet.");
@@ -122,7 +122,7 @@ export function certificateForVendor(actor: Profile | null, id: string): { cert:
   const db = read();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "certificate.view");
   const cert = db.certificates.find((c) => c.id === id && c.vendorId === ctx.vendor.id);
-  if (!cert) throw new RuleError("not_found", "Certificate not found.", 404);
+  if (!cert) throw new RuleError("not_found", "Certificate not found.", 404, undefined, "not_found_certificate_not_found");
   return { cert, vendor: ctx.vendor };
 }
 

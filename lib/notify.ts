@@ -1,6 +1,8 @@
 import type { TxContext } from "./store";
 import type { DB, NotificationType } from "./types";
 import { newId } from "./crypto";
+import { CATALOG } from "./i18n/catalog";
+import { translate, type Vars } from "./i18n/locales";
 
 /**
  * The single entry point every feature uses to notify a user.
@@ -15,13 +17,24 @@ export function sendNotification(
   type: NotificationType,
   text: string,
   payload: Record<string, unknown> = {},
+  i18n?: { key: string; vars?: Vars },
 ) {
   const at = new Date(tx.now).toISOString();
-  tx.db.notifications.push({ id: newId("nt"), userId, type, text, payload, at, read: false });
+  tx.db.notifications.push({ id: newId("nt"), userId, type, text, payload, at, read: false, ...(i18n ? { key: i18n.key, vars: i18n.vars } : {}) });
   const tokens = tx.db.pushTokens.filter((p) => p.userId === userId).map((p) => p.token);
   const phone = tx.db.profiles.find((p) => p.id === userId)?.phone;
   if (tokens.length && process.env.EXPO_PUSH_ENABLED === "true") tx.afterCommit(() => deliverPush(tokens, text, { type, ...payload }));
   if (phone && process.env.SMS_ENABLED === "true") tx.afterCommit(() => deliverSms(phone, text));
+}
+
+/** The English wording of notification `notif.<key>` (push/SMS and the stored `text` stay English; readers get their own language from key + vars). */
+export function notificationText(key: string, vars?: Vars): string {
+  return translate("en", CATALOG.en, CATALOG.en, `notif.${key}`, vars);
+}
+
+/** Like sendNotification, but from a catalog key: stores `key` + `vars` next to the English text. */
+export function sendNotificationT(tx: TxContext, userId: string, type: NotificationType, key: string, vars: Vars = {}, payload: Record<string, unknown> = {}) {
+  sendNotification(tx, userId, type, notificationText(key, vars), payload, { key, vars });
 }
 
 async function deliverPush(tokens: string[], body: string, data: Record<string, unknown>) {

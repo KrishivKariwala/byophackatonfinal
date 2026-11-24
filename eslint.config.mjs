@@ -5,7 +5,7 @@ import { FlatCompat } from "@eslint/eslintrc";
 const compat = new FlatCompat({ baseDirectory: dirname(fileURLToPath(import.meta.url)) });
 
 const config = [
-  { ignores: [".next/**", "node_modules/**", "supabase/**", "next-env.d.ts"] },
+  { ignores: [".next/**", "node_modules/**", "supabase/**", "next-env.d.ts", "data/**", "skills/**", "creative-skills/**", ".*/**"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   { rules: { "@typescript-eslint/no-explicit-any": "off" } },
 ];

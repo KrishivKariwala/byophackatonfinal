@@ -20,7 +20,7 @@ export function saveTemplateFromListing(actor: Profile | null, listingId: string
     const ctx = approvedCtx(tx.db, me, "listing.write");
     const v = ctx.vendor;
     const l = listingIn(tx.db, listingId);
-    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403);
+    if (l.vendorId !== v.id) throw new RuleError("forbidden", "Not your listing.", 403, undefined, "forbidden_not_listing");
     assertOutlet(ctx, l.outletId, "Listing not found for your outlet.");
     const dup = tx.db.templates.find((x) => x.vendorId === v.id && x.title === l.title && x.originalPrice === l.originalPrice);
     if (dup) throw new RuleError("template_exists", "A template like this already exists.", 409);
@@ -41,7 +41,7 @@ export function deleteTemplate(actor: Profile | null, id: string) {
     const me = requireRole(actor, "vendor");
     const v = vendorOf(tx.db, me, "listing.write");
     const i = tx.db.templates.findIndex((x) => x.id === id && x.vendorId === v.id);
-    if (i < 0) throw new RuleError("not_found", "Template not found.", 404);
+    if (i < 0) throw new RuleError("not_found", "Template not found.", 404, undefined, "not_found_template_not_found");
     tx.db.templates.splice(i, 1);
     return { deleted: true };
   });
@@ -53,7 +53,7 @@ export async function repostTemplate(actor: Profile | null, id: string, opts: { 
   const me = requireRole(actor, "vendor");
   const v = vendorOf(db, me, "listing.write");
   const tpl = db.templates.find((x) => x.id === id && x.vendorId === v.id);
-  if (!tpl) throw new RuleError("not_found", "Template not found.", 404);
+  if (!tpl) throw new RuleError("not_found", "Template not found.", 404, undefined, "not_found_template_not_found");
   if (opts.declaration !== true) throw new RuleError("declaration_required", "Confirm the food-safety declaration to publish.");
   const n = clockNow(db);
   const lead = Math.max(5, Math.min(120, opts.startInMinutes ?? 30)) * 60_000;
@@ -75,7 +75,7 @@ export function updateVendorSettings(actor: Profile | null, i: { payAtPickup?: b
     const v = ctx.vendor;
     const mine = outletsFor(tx.db, ctx);
     const o = i.outletId ? mine.find((x) => x.id === i.outletId) : mine[0];
-    if (i.outletId && !o) throw new RuleError("not_found", "That outlet isn't part of your account.", 404);
+    if (i.outletId && !o) throw new RuleError("not_found", "That outlet isn't part of your account.", 404, undefined, "not_found_outlet_isn_t");
     if (!o) throw new RuleError("no_outlet", "Add your outlet address first.", 409);
     if (i.maxUnitsPerOrder !== undefined) vendorCtx(tx.db, me, "org.settings"); // the order cap is brand-wide: owner only
     if (i.payAtPickup !== undefined) o.payAtPickup = !!i.payAtPickup;
@@ -83,7 +83,7 @@ export function updateVendorSettings(actor: Profile | null, i: { payAtPickup?: b
       if (i.maxUnitsPerOrder === null) v.maxUnitsPerOrder = undefined;
       else {
         const n = Number(i.maxUnitsPerOrder);
-        if (!Number.isInteger(n) || n < RULES.MAX_UNITS_PER_ORDER || n > 50) throw new RuleError("cap_invalid", `Choose a whole number from ${RULES.MAX_UNITS_PER_ORDER} to 50.`);
+        if (!Number.isInteger(n) || n < RULES.MAX_UNITS_PER_ORDER || n > 50) throw new RuleError("cap_invalid", `Choose a whole number from ${RULES.MAX_UNITS_PER_ORDER} to 50.`, 400, { min: RULES.MAX_UNITS_PER_ORDER });
         v.maxUnitsPerOrder = n;
       }
     }
@@ -104,12 +104,12 @@ export function priceSuggestion(actor: Profile | null, q: { listingId?: string; 
   let hoursLeft = Number(q.hoursLeft);
   if (q.listingId) {
     const l = db.listings.find((x) => x.id === q.listingId && x.vendorId === v.id && (!ctx.outletId || x.outletId === ctx.outletId));
-    if (!l) throw new RuleError("not_found", "Listing not found.", 404);
+    if (!l) throw new RuleError("not_found", "Listing not found.", 404, undefined, "not_found_listing_not_found");
     original = l.originalPrice;
     category = l.category;
     if (!Number.isFinite(hoursLeft)) hoursLeft = (t(l.windowEnd) - n) / 3600_000;
   }
-  if (!Number.isFinite(original) || original <= 0) throw new RuleError("price_invalid", "Enter the original price first.");
+  if (!Number.isFinite(original) || original <= 0) throw new RuleError("price_invalid", "Enter the original price first.", 400, undefined, "price_invalid_enter_original_price");
   if (!Number.isFinite(hoursLeft)) throw new RuleError("hours_required", "Set the pickup end time first.");
   const s = category && CATEGORIES.includes(category as never) ? sellThroughRate(db.listings, db.reservations, v.id, category, n) : null;
   const out = suggestPrice({ original, hoursLeft, sellThrough: s });
@@ -120,12 +120,12 @@ export function priceSuggestion(actor: Profile | null, q: { listingId?: string; 
 export function scheduleSuggestion(actor: Profile | null, q: { original: number; rescue: number; windowStart: string; windowEnd: string; category?: string; listingId?: string }) {
   const db = read();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "listing.write");
-  if (!cfg(db).flags.autoMarkdown) throw new RuleError("feature_off", "Auto-markdown is switched off by the platform.", 403);
+  if (!cfg(db).flags.autoMarkdown) throw new RuleError("feature_off", "Auto-markdown is switched off by the platform.", 403, undefined, "feature_off_auto_markdown_switched");
   const n = clockNow(db);
   const original = Number(q.original), rescue = Number(q.rescue);
-  if (!Number.isFinite(original) || original <= 0 || !Number.isFinite(rescue) || rescue <= 0) throw new RuleError("price_invalid", "Enter both prices first.");
+  if (!Number.isFinite(original) || original <= 0 || !Number.isFinite(rescue) || rescue <= 0) throw new RuleError("price_invalid", "Enter both prices first.", 400, undefined, "price_invalid_enter_both_prices");
   const ws = t(q.windowStart), we = t(q.windowEnd);
-  if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= n) throw new RuleError("hours_required", "Set the pickup times first.");
+  if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= n) throw new RuleError("hours_required", "Set the pickup times first.", 400, undefined, "hours_required_set_pickup_times");
   const s = q.category && CATEGORIES.includes(q.category as never) ? sellThroughRate(db.listings, db.reservations, ctx.vendor.id, q.category, n) : null;
   const steps = suggestSchedule({ original, startingPrice: rescue, nowMs: n, windowStartMs: ws, windowEndMs: we, sellThrough: s, maxDiscountPct: cfg(db).maxDiscountPct });
   return { steps: steps.map((x) => ({ effectiveAt: iso(x.effectiveAtMs), discountPct: x.discountPct, price: x.price })), historyUsed: s !== null };
