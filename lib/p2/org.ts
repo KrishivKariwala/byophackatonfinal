@@ -12,12 +12,12 @@ import { cfg } from "./settings";
 
 export type Perm =
   | "listing.view" | "listing.write" | "order.view" | "order.fulfil" | "donation.fulfil"
-  | "analytics.view" | "payouts.view" | "outlet.settings" | "outlet.manage" | "staff.manage" | "org.settings" | "certificate.view" | "distribution.view";
+  | "analytics.view" | "payouts.view" | "outlet.settings" | "outlet.manage" | "staff.manage" | "org.settings" | "certificate.view" | "distribution.view" | "receipts.view";
 
 const ORDER_FLOOR: Perm[] = ["listing.view", "order.view", "order.fulfil", "donation.fulfil"];
 export const PERMS: Record<OrgRole, readonly Perm[]> = {
-  owner: ["listing.view", "listing.write", "order.view", "order.fulfil", "donation.fulfil", "analytics.view", "payouts.view", "outlet.settings", "outlet.manage", "staff.manage", "org.settings", "certificate.view", "distribution.view"],
-  manager: [...ORDER_FLOOR, "listing.write", "analytics.view", "outlet.settings", "staff.manage", "certificate.view", "distribution.view"],
+  owner: ["listing.view", "listing.write", "order.view", "order.fulfil", "donation.fulfil", "analytics.view", "payouts.view", "outlet.settings", "outlet.manage", "staff.manage", "org.settings", "certificate.view", "distribution.view", "receipts.view"],
+  manager: [...ORDER_FLOOR, "listing.write", "analytics.view", "outlet.settings", "staff.manage", "certificate.view", "distribution.view", "receipts.view"],
   staff: ORDER_FLOOR,
 };
 export const can = (role: OrgRole, perm: Perm): boolean => PERMS[role].includes(perm);

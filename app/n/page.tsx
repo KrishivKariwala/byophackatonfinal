@@ -5,6 +5,10 @@ import { distanceKm, directionsUrl } from "@/lib/geo";
 import { DietTag, StatusPill, fmtDateTime, fmtTime, Photo } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { ScheduleForm, VerifiedBadge } from "@/components/p1";
+import { DistributionForm } from "@/components/p2-charity";
+import { priorityOffersFor } from "@/lib/p2/priority";
+import { cfg } from "@/lib/p2/settings";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Donation feed" };
@@ -16,6 +20,9 @@ export default async function NgoFeed() {
   const ngo = db.ngos.find((x) => x.ownerId === me.id);
   if (!ngo) return <div className="mx-auto max-w-xl px-4 py-12"><Link href="/n/onboarding" className="btn-primary">Start NGO verification</Link></div>;
   const approved = ngo.status === "Approved";
+  const { t, fmt } = await getT();
+  const flags = cfg(db).flags;
+  const offers = priorityOffersFor(db, ngo, n);
   const enrich = (b: (typeof db.donationBatches)[number]) => {
     const o = db.outlets.find((x) => x.id === b.outletId)!;
     const l = db.listings.find((x) => x.id === b.listingId);
@@ -36,6 +43,25 @@ export default async function NgoFeed() {
         <div role="status" className="rounded-2xl border-2 border-tomato bg-cream p-4 text-sm text-burgundy">
           <b>Verification {ngo.status}.</b> You can view the feed, but only approved NGOs can claim. <Link className="font-semibold underline" href="/n/onboarding">View verification</Link>
         </div>
+      )}
+      {flags.priorityWindow && (
+        <section aria-labelledby="prio-h" className="rounded-3xl border-2 border-peach bg-cream/60 p-4">
+          <h2 id="prio-h" className="editorial text-3xl">{t("prio.title")} ({offers.length})</h2>
+          <p className="mb-3 text-sm text-muted">{t("prio.help")}</p>
+          {offers.length === 0 ? <p className="text-sm text-muted">{t("prio.none")}</p> : (
+            <ul className="grid gap-3 md:grid-cols-2">
+              {offers.map(({ l, outlet, vendor, km }) => (
+                <li key={l.id} className="card flex flex-col gap-1.5 p-4 text-sm">
+                  <div className="flex items-start justify-between gap-2"><b className="text-lg">{l.qtyAvailable} × {l.title}</b><DietTag diet={l.diet} /></div>
+                  <span className="text-muted">{vendor.businessName} · {outlet.neighbourhood} · {km.toFixed(1)} km</span>
+                  <span>Allergens (vendor-supplied): {l.allergens.length ? l.allergens.join(", ") : "none declared"}</span>
+                  <span className="font-bold text-tomato">{t("prio.until", { time: fmt.time(l.publicVisibleAt!) })}</span>
+                  <ActionButton path={`/api/ngo/priority/${l.id}`} label={t("prio.claim", { n: l.qtyAvailable })} className="btn-primary mt-2" successText={t("prio.claimed")} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       )}
       <section aria-labelledby="open-h">
         <h2 id="open-h" className="editorial mb-3 text-3xl">Available now ({open.length})</h2>
@@ -71,6 +97,7 @@ export default async function NgoFeed() {
                 <div className="flex items-center justify-between"><b>{b.ref}</b><StatusPill status={b.status} /></div>
                 <span>{b.qty} × {b.title}</span>
                 <span className="flex flex-wrap items-center gap-1.5 text-muted">{b.vendor.businessName}{b.vendor.status === "Approved" && <VerifiedBadge />}</span>
+                {b.fromPriorityListing && <span className="chip w-fit bg-peach text-burgundy">{t("prio.title")}</span>}
                 {b.status === "Claimed" && (
                   <>
                     <span className="mt-1 text-xs">Show this collection code to the vendor:</span>
@@ -82,6 +109,12 @@ export default async function NgoFeed() {
                   </>
                 )}
                 {b.status === "Collected" && <span className="text-xs font-semibold text-veg">Collected {fmtDateTime(b.collectedAt!)}</span>}
+                {b.status === "Collected" && flags.distributionLog && (() => {
+                  const log = db.distributionLogs.find((x) => x.batchId === b.id);
+                  return log
+                    ? <span role="status" className="rounded-lg bg-cream p-2 text-xs font-semibold text-burgundy">{t("dist.logged")}: {t("dist.summary", { servings: log.servings, people: log.beneficiaries, centre: log.centreName })}</span>
+                    : <DistributionForm batchId={b.id} defaultServings={b.qty} />;
+                })()}
               </li>
             ))}
           </ul>

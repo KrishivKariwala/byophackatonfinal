@@ -14,9 +14,10 @@ export type FormInit = {
   donationOnly?: boolean; riskTag?: RiskTag | "";
   /** P2: steps that have not run yet (edit mode) */
   priceSteps?: { effectiveAt: string; discountPct: number }[];
+  priorityMinutes?: number | "";
 };
 
-export type FormFeatures = { autoMarkdown: boolean; maxDiscountPct: number };
+export type FormFeatures = { autoMarkdown: boolean; maxDiscountPct: number; priorityOptions?: number[] };
 
 type Suggestion = { discount: number; price: number; hoursLeft: number; historyUsed: boolean };
 
@@ -106,6 +107,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
       windowStart: fromLocal(times.start), windowEnd: fromLocal(times.end), preparedAt: fromLocal(times.prepared), safeUntil: times.safe ? fromLocal(times.safe) : undefined,
       safetyDeclaration: declared,
       ...(mode === "create" && outlets.length > 1 ? { outletId } : {}),
+      ...(mode === "create" && (features.priorityOptions?.length ?? 0) > 0 && !f.donationOnly && f.priorityMinutes ? { priorityMinutes: Number(f.priorityMinutes) } : {}),
       ...(features.autoMarkdown && !f.donationOnly ? { priceSteps: steps.filter((s) => s.at && s.pct).map((s) => ({ effectiveAt: fromLocal(s.at), discountPct: Number(s.pct) })) } : {}),
     };
     try {
@@ -241,6 +243,15 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
             <input type="checkbox" className="mt-0.5 h-5 w-5 accent-tomato" checked={f.donateRest} onChange={(e) => set("donateRest", e.target.checked)} />
             <span>Donate the rest at window end<span className="block text-xs font-normal">Unreserved units become one free batch for verified NGOs, if still safe.</span></span>
           </label>
+          {mode === "create" && (features.priorityOptions?.length ?? 0) > 0 && !f.donationOnly && (
+            <label className="label">{tr("prio.field")}
+              <select className="input" value={f.priorityMinutes ?? ""} onChange={(e) => set("priorityMinutes", e.target.value ? Number(e.target.value) : "")}>
+                <option value="">{tr("prio.none.option")}</option>
+                {features.priorityOptions!.map((m) => <option key={m} value={m}>{tr("prio.minutes", { n: m })}</option>)}
+              </select>
+              <span className="text-[11px] font-normal text-muted">{tr("prio.help.vendor")}</span>
+            </label>
+          )}
           <label className="flex items-start gap-3 text-sm">
             <input type="checkbox" required className="mt-0.5 h-5 w-5 accent-tomato" checked={declared} onChange={(e) => setDeclared(e.target.checked)} />
             <span><b>Food-safety declaration *</b> — I confirm this food was prepared and stored hygienically, the details above are accurate, and it is fit to eat within the stated time.</span>

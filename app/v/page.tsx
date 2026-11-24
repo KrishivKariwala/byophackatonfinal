@@ -163,6 +163,7 @@ export default async function VendorHome() {
                   {b.origin === "no_show" && <span className="text-[11px] text-muted">From no-show orders</span>}
                   {b.status === "Claimed" && approved && <DonationVerify batchId={b.id} />}
                   {b.status === "Collected" && <span role="status" className="text-xs font-semibold text-veg">Handover verified {fmtTime(b.collectedAt!)} · Donation recorded</span>}
+                  {(() => { const log = db.distributionLogs.find((x) => x.batchId === b.id); return log ? <span className="rounded-lg bg-cream p-2 text-xs text-burgundy"><b>{t("dist.vendorTitle")}:</b> {t("dist.summary", { servings: log.servings, people: log.beneficiaries, centre: log.centreName })}{log.photoUrls.length > 0 && scope.can("distribution.view") ? <span className="mt-1 flex flex-wrap gap-2">{log.photoUrls.map((u) => (<a key={u} href={u} target="_blank" rel="noreferrer" className="underline">photo</a>))}</span> : null}</span> : null; })()}
                   {b.status === "Open" && <span className="text-xs text-muted">Waiting for an approved NGO to claim.</span>}
                 </div>
               );

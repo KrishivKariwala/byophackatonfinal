@@ -13,6 +13,15 @@ create type credit_entry_type as enum ('earned','spent','expired');
 create type delivery_status as enum ('Requested','Rider assigned','Picked up','Delivered','No rider found','Failed','Cancelled');
 create type moderation_target as enum ('listing','review','vendor');
 create type moderation_action_type as enum ('hide','restore','edit','warn','suspend','dismiss');
+-- additive enum values (Postgres cannot drop enum values; the down migration leaves them in place, they are harmless)
+alter type donation_origin add value if not exists 'priority';
+alter type notification_type add value if not exists 'price_drop';
+alter type notification_type add value if not exists 'priority_listing';
+alter type notification_type add value if not exists 'credit_earned';
+alter type notification_type add value if not exists 'customer_eta';
+alter type notification_type add value if not exists 'certificate_ready';
+alter type notification_type add value if not exists 'delivery_update';
+alter type notification_type add value if not exists 'moderation';
 
 -- ---------------------------------------------------------------- additive columns on existing tables
 alter table outlets add column name text, add column hours text;
@@ -20,7 +29,8 @@ alter table ngos add column registration_number text, add column eighty_g_number
 alter table listings add column priority_minutes int check (priority_minutes is null or priority_minutes in (15,30,45)),
   add column public_visible_at timestamptz,                  -- null = public immediately
   add column initial_rescue_price int,
-  add column moderation_note text;
+  add column moderation_note text,
+  add column public_notified_at timestamptz;
 alter table listing_templates add column priority_minutes int;
 alter table checkout_holds add column credit_applied int not null default 0 check (credit_applied >= 0);
 alter table reservations add column credit_applied int not null default 0 check (credit_applied >= 0),

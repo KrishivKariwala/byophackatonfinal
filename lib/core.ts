@@ -145,7 +145,7 @@ export function createNoShowBatchTx(tx: TxContext, l: Listing, qty: number) {
   openBatch(tx, l, qty, collectBy, "No-show units offered to charity", "no_show");
 }
 
-export function openBatch(tx: TxContext, l: Listing, qty: number, collectBy: number, instruction: string, origin: DonationBatch["origin"]) {
+export function openBatch(tx: TxContext, l: Listing, qty: number, collectBy: number, instruction: string, origin: DonationBatch["origin"], notifyNgos = true) {
   const { db, now } = tx;
   const b: DonationBatch = {
     id: newId("d"), ref: `DON-${tx.nextSeq()}`, listingId: l.id, vendorId: l.vendorId, outletId: l.outletId, qty,
@@ -156,7 +156,7 @@ export function openBatch(tx: TxContext, l: Listing, qty: number, collectBy: num
   audit(tx, "system", "donation_batch_created", "donation_batch", b.id, `${qty} units from ${l.id} (${origin})`);
   const vendor = db.vendors.find((v) => v.id === l.vendorId);
   const outlet = outletOf(db, l.outletId);
-  for (const n of ngosNear(db, outlet))
+  if (notifyNgos) for (const n of ngosNear(db, outlet))
     sendNotification(tx, n.ownerId, "new_donation", `${qty} × ${l.title} free at ${vendor?.businessName}. Collect by ${iso(collectBy)}.`, { batchId: b.id });
   tx.emit({ type: "donation", batchId: b.id, status: b.status });
   return b;

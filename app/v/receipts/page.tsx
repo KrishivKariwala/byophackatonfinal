@@ -1,0 +1,27 @@
+import { notFound } from "next/navigation";
+import { requirePage } from "@/lib/guard";
+import { ReceiptsPanel } from "@/components/p2-charity";
+import { getT } from "@/lib/i18n/server";
+import { listReceipts } from "@/lib/p2/receipts";
+import { isFlagOn } from "@/lib/p2/platform";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Donation receipts" };
+
+export default async function Receipts({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const me = await requirePage("vendor");
+  if (!isFlagOn("donationReceipts")) notFound();
+  const { t } = await getT();
+  const sp = await searchParams;
+  const ok = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
+  const from = ok(sp.from), to = ok(sp.to);
+  let rows: ReturnType<typeof listReceipts> = [];
+  let denied: string | null = null;
+  try { rows = listReceipts(me, { from, to }); } catch (e) { denied = (e as Error).message; }
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6">
+      <h1 className="display text-4xl text-tomato">{t("rcpt.title").toUpperCase()}</h1>
+      {denied ? <p role="status" className="card p-6 text-sm text-muted">{denied}</p> : <ReceiptsPanel from={from} to={to} rows={rows.map((r) => ({ id: r.id, number: r.number, item: r.item, qty: r.qty, estimatedValue: r.estimatedValue, vendorName: r.vendorName, ngoName: r.ngoName, collectedAt: r.collectedAt, hasEightyG: !!r.eightyG }))} />}
+    </div>
+  );
+}

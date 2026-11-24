@@ -10,13 +10,15 @@ import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
 import { cfg } from "./p2/settings";
 import { assertOutlet, outletAllowed, outletsFor } from "./p2/org";
 import { setPriceSteps } from "./p2/schedule";
+import { priorityOver, setupPriority } from "./p2/priority";
+import { issueReceiptTx } from "./p2/receipts";
 import { creditQuote, restoreCreditTx, rewardReferralTx, spendCreditTx } from "./p2/credits";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
 import { runScheduledJobs, jobsPending } from "./jobs";
 import type {
-  ApprovalStatus, Category, CheckoutHold, DB, Diet, Listing, Ngo, Payment,
+  ApprovalStatus, Category, CheckoutHold, DB, Diet, DonationBatch, Listing, Ngo, Payment,
   PaymentMethod, Profile, Reservation, RiskTag, Role,
 } from "./types";
 
@@ -56,7 +58,7 @@ function activeCount(db: DB, customerId: string): number {
 }
 export function isCustomerVisible(db: DB, l: Listing, nowMs: number): boolean {
   const v = db.vendors.find((x) => x.id === l.vendorId);
-  return l.status === "Live" && l.qtyAvailable > 0 && nowMs < t(l.windowEnd) && v?.status === "Approved" && !l.donationOnly && !l.hiddenByAdmin && !v?.hiddenByAdmin;
+  return l.status === "Live" && l.qtyAvailable > 0 && nowMs < t(l.windowEnd) && v?.status === "Approved" && !l.donationOnly && !l.hiddenByAdmin && !v?.hiddenByAdmin && priorityOver(db, l, nowMs);
 }
 
 // ---------------------------------------------------------------- window-end processor
@@ -142,7 +144,7 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
     const vendor = db.vendors.find((v) => v.id === l.vendorId);
     const unitCap = Math.max(RULES.MAX_UNITS_PER_ORDER, vendor?.maxUnitsPerOrder ?? 0);
     if (qty > unitCap) throw new RuleError("qty_cap", `Maximum ${unitCap} units per order.`);
-    if (l.donationOnly || l.hiddenByAdmin || vendor?.hiddenByAdmin) throw new RuleError("not_available", "This listing is not available.", 409);
+    if (l.donationOnly || l.hiddenByAdmin || vendor?.hiddenByAdmin || !priorityOver(db, l, now)) throw new RuleError("not_available", "This listing is not available.", 409);
     if (vendor?.status !== "Approved") throw new RuleError("vendor_unavailable", "This vendor is not accepting orders.", 409);
     if (now >= t(l.windowEnd)) throw new RuleError("window_closed", "The pickup window has ended for this listing.", 409);
     if (l.status === "Sold Out") throw new RuleError("insufficient_stock", "Sold out.", 409);
@@ -334,6 +336,8 @@ export function createListing(actor: Profile | null, i: ListingInput) {
       move(tx, l, -l.qtyTotal, "donation_only");
       const safeUntil = l.safeUntil ? t(l.safeUntil) : Infinity;
       openBatch(tx, l, l.qtyTotal, Math.min(t(l.windowEnd), safeUntil), "Donation-only listing", "donation_only");
+    } else if (i.priorityMinutes) {
+      setupPriority(tx, l, outlet, v, i.priorityMinutes); // charities first; followers are told when it goes public
     } else {
       notifyFollowers(tx, l, outlet, v);
     }
@@ -542,6 +546,7 @@ export function donationHandover(actor: Profile | null, batchId: string, code: s
       throw new RuleError("code_mismatch", "Collection code does not match this batch.", 403);
     b.status = "Collected";
     b.collectedAt = iso(tx.now);
+    issueReceiptTx(tx, b.id);
     const outlet = outletOf(tx.db, b.outletId);
     recordImpact(tx, { source: "ngo_collection", refId: b.id, units: b.qty, vendorId: v.id, outlet, listingId: b.listingId, type: "donated" });
     const ngo = tx.db.ngos.find((n) => n.id === b.claimedByNgoId);
@@ -565,18 +570,23 @@ export function claimBatch(actor: Profile | null, batchId: string) {
     // Conditional transition inside the lock: the first valid claim wins, the rest fail.
     if (b.status !== "Open") throw new RuleError("already_claimed", b.status === "Claimed" ? "Another NGO already claimed this batch." : `Batch is ${b.status}.`, 409);
     if (t(b.collectBy) <= tx.now) throw new RuleError("expired", "Collection deadline has passed.", 409);
-    const code = random4();
-    b.status = "Claimed";
-    b.claimedByNgoId = n.id;
-    b.claimedAt = iso(tx.now);
-    b.collectionCode = code;
-    b.collectionCodeHash = sha256(`${b.vendorId}:don:${code}`);
-    const vendor = tx.db.vendors.find((v) => v.id === b.vendorId)!;
-    notifyOutlet(tx, vendor, b.outletId, `${n.orgName} claimed ${b.ref} (${b.qty} × ${b.title}).`);
-    audit(tx, me.id, "donation_claimed", "donation_batch", b.id, n.id);
-    tx.emit({ type: "donation", batchId: b.id, status: b.status });
-    return b;
+    return lockClaimTx(tx, me, n, b);
   });
+}
+
+/** The state change of a claim, shared by the normal claim and the priority-window claim. */
+export function lockClaimTx(tx: TxContext, me: Profile, n: Ngo, b: DonationBatch) {
+  const code = random4();
+  b.status = "Claimed";
+  b.claimedByNgoId = n.id;
+  b.claimedAt = iso(tx.now);
+  b.collectionCode = code;
+  b.collectionCodeHash = sha256(`${b.vendorId}:don:${code}`);
+  const vendor = tx.db.vendors.find((v) => v.id === b.vendorId)!;
+  notifyOutlet(tx, vendor, b.outletId, `${n.orgName} claimed ${b.ref} (${b.qty} × ${b.title}).`);
+  audit(tx, me.id, "donation_claimed", "donation_batch", b.id, n.id);
+  tx.emit({ type: "donation", batchId: b.id, status: b.status });
+  return b;
 }
 
 export function releaseClaim(actor: Profile | null, batchId: string) {
@@ -652,7 +662,14 @@ export function submitNgoApplication(actor: Profile | null, i: Omit<Ngo, "id" | 
     if (!(Number(i.capacityMeals) > 0)) throw new RuleError("capacity_required", "Enter collection capacity.");
     let n = tx.db.ngos.find((x) => x.ownerId === me.id);
     if (n && n.status === "Approved") throw new RuleError("already_approved", "Already approved.", 409);
-    const data = { ...i, capacityMeals: Number(i.capacityMeals), serviceAreaKm: Number(i.serviceAreaKm) || 5, lat: Number(i.lat), lng: Number(i.lng) };
+    const raw = i as unknown as Record<string, unknown>;
+    const g = String(raw.eightyGNumber ?? "").trim(), gUntil = String(raw.eightyGValidUntil ?? "").trim();
+    if ((g && !gUntil) || (!g && gUntil)) throw new RuleError("eightyg_incomplete", "Enter both the 80G number and the date it is valid until, or leave both empty.");
+    if (g && (g.length > 40 || !/^\d{4}-\d{2}-\d{2}$/.test(gUntil) || !Number.isFinite(Date.parse(gUntil)))) throw new RuleError("eightyg_invalid", "Enter a valid 80G number and a valid-until date.");
+    const reg = String(raw.registrationNumber ?? "").trim();
+    if (reg.length > 60) throw new RuleError("registration_long", "The registration number is too long.");
+    const { eightyGNumber: _g, eightyGValidUntil: _u, eightyG: _e, registrationNumber: _r, ...rest } = raw as Record<string, unknown>; void _g; void _u; void _e; void _r;
+    const data = { ...(rest as typeof i), registrationNumber: reg || undefined, eightyG: g ? { number: g, validUntil: gUntil } : undefined, capacityMeals: Number(i.capacityMeals), serviceAreaKm: Number(i.serviceAreaKm) || 5, lat: Number(i.lat), lng: Number(i.lng) };
     if (n) Object.assign(n, data, { status: "Pending" as ApprovalStatus, rejectionReason: undefined });
     else { n = { id: newId("n"), ownerId: me.id, ...data, status: "Pending", createdAt: iso(tx.now) }; tx.db.ngos.push(n); }
     audit(tx, me.id, "ngo_application_submitted", "ngo", n.id);

@@ -42,7 +42,7 @@ export default async function NewListing({ searchParams }: { searchParams: Promi
         <p className="eyebrow text-burgundy">{v.businessName}</p>
         <h1 className="display text-4xl text-tomato">QUICK LIST{src ? " · DUPLICATE" : ""}</h1>
       </div>
-      <ListingForm mode="create" init={init} templates={db.templates.filter((t) => t.vendorId === v.id)} serverNow={now(db)} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} defaultOutletId={src?.outletId ?? (scope.selected !== "all" ? scope.selected : undefined)} features={{ autoMarkdown: cfg(db).flags.autoMarkdown, maxDiscountPct: cfg(db).maxDiscountPct }} />
+      <ListingForm mode="create" init={init} templates={db.templates.filter((t) => t.vendorId === v.id)} serverNow={now(db)} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} defaultOutletId={src?.outletId ?? (scope.selected !== "all" ? scope.selected : undefined)} features={{ autoMarkdown: cfg(db).flags.autoMarkdown, maxDiscountPct: cfg(db).maxDiscountPct, priorityOptions: cfg(db).flags.priorityWindow ? cfg(db).priorityOptions : [] }} />
     </div>
   );
 }

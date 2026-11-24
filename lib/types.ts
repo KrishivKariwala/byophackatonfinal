@@ -133,6 +133,7 @@ export interface Listing {
   publicVisibleAt?: string; // customers can't see or reserve before this; charities see it immediately
   initialRescuePrice?: number; // price at publish; auto-markdown steps are measured against the ORIGINAL price and can only lower it
   moderationNote?: string;
+  publicNotifiedAt?: string; // followers were told once the listing went public after its priority window
 }
 
 export interface Template {
@@ -270,7 +271,7 @@ export interface DonationBatch {
   createdAt: string;
   vendorInstruction: string;
   /** P1 */
-  origin?: "window_end" | "no_show" | "donation_only";
+  origin?: "window_end" | "no_show" | "donation_only" | "priority";
   pickupSlot?: string;
   volunteerName?: string;
   volunteerPhone?: string;

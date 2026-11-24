@@ -21,6 +21,7 @@ export default async function NgoOnboarding() {
           orgName: n?.orgName ?? "", contactPerson: n?.contactPerson ?? me.name, phone: n?.phone ?? me.phone ?? "", email: n?.email ?? "",
           address: n?.address ?? "", neighbourhood: n?.neighbourhood ?? "Koramangala", lat: n?.lat, lng: n?.lng, serviceAreaKm: n?.serviceAreaKm ?? 5,
           capacityMeals: n?.capacityMeals ?? "", handlingArrangements: n?.handlingArrangements ?? "", fssaiInfo: n?.fssaiInfo ?? "", registrationDocs: n?.registrationDocs ?? [],
+          registrationNumber: n?.registrationNumber ?? "", eightyGNumber: n?.eightyG?.number ?? "", eightyGValidUntil: n?.eightyG?.validUntil ?? "",
         }}
       />
     </div>

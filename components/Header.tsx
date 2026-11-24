@@ -23,10 +23,12 @@ const NAV: Record<string, { href: string; label: string }[]> = {
     { href: "/v/scan", label: "nav.scan" },
     { href: "/v/analytics", label: "nav.analytics" },
     { href: "/v/payouts", label: "nav.payouts" },
+    { href: "/v/receipts", label: "nav.receipts" },
     { href: "/v/onboarding", label: "nav.outletProfile" },
   ],
   ngo: [
     { href: "/n", label: "nav.donationFeed" },
+    { href: "/n/receipts", label: "nav.receipts" },
     { href: "/n/onboarding", label: "nav.verification" },
   ],
   admin: [
@@ -46,7 +48,8 @@ export async function Header() {
   const navItems = (NAV[actor?.role ?? ""] || []).filter((n) => {
     if (actor?.role !== "vendor" || !org) return true;
     if (n.href === "/c/referrals" && !isFlagOn("referrals")) return false;
-    const need: Record<string, Parameters<typeof can>[1] | undefined> = { "/v/new": "listing.write", "/v/analytics": "analytics.view", "/v/payouts": "payouts.view", "/v/onboarding": "org.settings" };
+    if ((n.href === "/v/receipts" || n.href === "/n/receipts") && !isFlagOn("donationReceipts")) return false;
+    const need: Record<string, Parameters<typeof can>[1] | undefined> = { "/v/new": "listing.write", "/v/analytics": "analytics.view", "/v/payouts": "payouts.view", "/v/onboarding": "org.settings", "/v/receipts": "receipts.view" };
     return !need[n.href] || can(org.role, need[n.href]!);
   });
   if (org && can(org.role, "staff.manage") && isFlagOn("multiOutlet")) navItems.push({ href: "/v/team", label: "nav.team" });

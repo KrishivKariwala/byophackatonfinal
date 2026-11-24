@@ -20,7 +20,7 @@ export function approvalsQueue(db: DB = read()) {
   });
   const ngos = db.ngos.filter((n) => n.status !== "Approved").map((n) => ({
     key: `ngo:${n.id}`, kind: "ngo" as const, id: n.id, name: n.orgName, status: n.status, reason: n.rejectionReason, submittedAt: n.createdAt,
-    fields: [["Contact", `${n.contactPerson} · ${n.phone}`], ["Address", n.address], ["Capacity", `${n.capacityMeals} meals/day`], ["Service area", `${n.serviceAreaKm} km`], ["Handling", n.handlingArrangements]] as [string, string][],
+    fields: [["Contact", `${n.contactPerson} · ${n.phone}`], ["Address", n.address], ["Capacity", `${n.capacityMeals} meals/day`], ["Service area", `${n.serviceAreaKm} km`], ["Handling", n.handlingArrangements], ["Registration no.", n.registrationNumber ?? "—"], ["80G", n.eightyG ? `${n.eightyG.number} (valid until ${n.eightyG.validUntil}), verify before approving` : "none"]] as [string, string][],
     documents: n.registrationDocs,
   }));
   const order = { Pending: 0, Rejected: 1, Approved: 2 } as const;

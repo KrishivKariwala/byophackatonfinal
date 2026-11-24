@@ -14,6 +14,7 @@ const FIELDS = {
   ngo: [
     ["orgName", "Organisation name *"], ["contactPerson", "Contact person *"], ["phone", "Phone *"], ["email", "Email"], ["address", "Collection address *"],
     ["serviceAreaKm", "Service area (km)"], ["capacityMeals", "Collection capacity (meals per day) *"], ["handlingArrangements", "Food handling, storage and transport *"], ["fssaiInfo", "FSSAI registration (if applicable)"],
+    ["registrationNumber", "Charity registration number (shown on donation receipts)"], ["eightyGNumber", "80G registration number (if you have one)"],
   ],
 } as const;
 
@@ -81,6 +82,12 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
           <label className="label">Pin latitude<input className="input" value={String(f.lat ?? NEIGHBOURHOODS[hood].lat)} onChange={(e) => setF({ ...f, lat: Number(e.target.value) })} /></label>
           <label className="label">Pin longitude<input className="input" value={String(f.lng ?? NEIGHBOURHOODS[hood].lng)} onChange={(e) => setF({ ...f, lng: Number(e.target.value) })} /></label>
         </div>
+        {kind === "ngo" && (
+          <label className="label">80G valid until
+            <input type="date" className="input" value={String(f.eightyGValidUntil ?? "")} onChange={(e) => setF({ ...f, eightyGValidUntil: e.target.value })} />
+            <span className="font-normal">An administrator checks this. Receipts mention 80G only while it is valid.</span>
+          </label>
+        )}
         {kind === "vendor" && (
           <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={!!f.payAtPickup} onChange={(e) => setF({ ...f, payAtPickup: e.target.checked })} />Accept pay-at-pickup orders</label>
         )}
