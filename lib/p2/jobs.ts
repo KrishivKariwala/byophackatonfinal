@@ -5,16 +5,18 @@ import { distanceKm } from "../geo";
 import { RULES } from "../rules";
 import { cfg } from "./settings";
 import { discountOf } from "./markdown";
+import { certificateJobPending, runCertificateJob } from "./certificate";
 
 /** P2 scheduled jobs. Run inside the same transaction as the P1 jobs (see lib/jobs.ts); the Postgres equivalents are in 0003_p2.sql. Idempotent. */
 
 export function p2JobsPending(db: DB, now: number): boolean {
   const c = cfg(db);
-  return (c.flags.autoMarkdown && db.priceSteps.some((s) => !s.appliedAt && t(s.effectiveAt) <= now));
+  return (c.flags.autoMarkdown && db.priceSteps.some((s) => !s.appliedAt && t(s.effectiveAt) <= now)) || certificateJobPending(db, now);
 }
 
 export function runP2Jobs(tx: TxContext) {
   applyDuePriceSteps(tx);
+  runCertificateJob(tx);
 }
 
 /** Applies due markdown steps. A step never raises a price: if the vendor already went lower, it is marked done and changes nothing. */

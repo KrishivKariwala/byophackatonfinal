@@ -178,3 +178,47 @@ export function JoinClient({ token, signedIn, business }: { token: string; signe
     </div>
   );
 }
+
+export interface CertRow { id: string; month: string; partial: boolean; meals: number; createdAt: string }
+
+/** Impact certificates: list, download PDF, public page, and "generate" for a chosen month. */
+export function CertificatesPanel({ certs, months }: { certs: CertRow[]; months: string[] }) {
+  const router = useRouter();
+  const { t, fmt } = useT();
+  const [month, setMonth] = useState(months[0] ?? "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const gen = async () => {
+    setBusy(true); setMsg(null);
+    try { await api("/api/vendor/certificates", { month }); setMsg({ ok: true, text: t("cert.generated") }); router.refresh(); }
+    catch (e) { setMsg({ ok: false, text: (e as Error).message }); } finally { setBusy(false); }
+  };
+  return (
+    <section className="card flex flex-col gap-3 p-4" aria-labelledby="cert-h">
+      <div>
+        <h2 id="cert-h" className="editorial text-2xl">{t("cert.title")}</h2>
+        <p className="text-xs text-muted">{t("cert.help")}</p>
+      </div>
+      {certs.length === 0 ? <p className="text-sm text-muted">{t("cert.none")}</p> : (
+        <ul className="divide-y divide-line">
+          {certs.map((c) => (
+            <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+              <div><b>{fmt.month(c.month)}</b>{c.partial && <span className="ml-2 chip bg-peach text-burgundy">{t("cert.monthToDate")}</span>}<p className="text-xs text-muted">{c.meals} · {c.id}</p></div>
+              <div className="flex flex-wrap gap-2">
+                <a className="btn-primary !min-h-[44px]" href={`/api/vendor/certificates/${c.id}/pdf`}>{t("cert.download")}</a>
+                <a className="btn-quiet !min-h-[44px]" href={`/verify/${c.id}`} target="_blank" rel="noreferrer">{t("cert.verifyLink")}</a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="label">{t("cert.month")}
+          <select className="input !w-auto" value={month} onChange={(e) => setMonth(e.target.value)}>{months.map((m) => <option key={m} value={m}>{fmt.month(m)}</option>)}</select>
+        </label>
+        <button type="button" className="btn-outline !min-h-[44px]" onClick={gen} disabled={busy || !month}>{busy ? t("common.loading") : t("cert.generate")}</button>
+      </div>
+      {msg && <p role={msg.ok ? "status" : "alert"} className={`text-xs font-semibold ${msg.ok ? "text-veg" : "text-tomato"}`}>{msg.text}</p>}
+    </section>
+  );
+}

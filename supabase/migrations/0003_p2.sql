@@ -111,7 +111,8 @@ create table impact_certificates (
   id text primary key,                                             -- public verification id (random, unguessable)
   vendor_id uuid not null references vendors(id), month text not null check (month ~ '^\d{4}-\d{2}$'),
   meals_sold int not null, meals_donated int not null, kg_rescued numeric not null, rupees_recovered int not null,
-  co2e_kg numeric not null, charities_served int not null, created_at timestamptz not null default now(),
+  co2e_kg numeric not null, charities_served int not null, people_served int not null default 0, partial boolean not null default false,
+  created_at timestamptz not null default now(),
   unique (vendor_id, month)
 );
 create table moderation_actions (

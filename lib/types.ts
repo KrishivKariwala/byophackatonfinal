@@ -380,6 +380,8 @@ export interface Settings {
   moderationKeywords?: string[];
   /** P2 feature flags. Missing = on. */
   flags?: Partial<Record<FlagName, boolean>>;
+  /** internal: last month the certificate job ran for, e.g. "2026-10" */
+  lastCertificateRun?: string;
 }
 
 export interface SettingChange { id: string; adminId: string; key: string; from: string; to: string; at: string }
@@ -428,6 +430,10 @@ export interface DeliveryRequest {
 export interface ImpactCertificate {
   id: string; vendorId: string; month: string; createdAt: string;
   mealsSold: number; mealsDonated: number; kgRescued: number; rupeesRecovered: number; co2eKg: number; charitiesServed: number;
+  /** people reached, from the distribution logs charities filed for this vendor's donations in the month */
+  peopleServed: number;
+  /** generated before the month ended: figures are month-to-date and will be replaced (same id) once the month closes */
+  partial?: boolean;
 }
 
 export type ModerationTarget = "listing" | "review" | "vendor";

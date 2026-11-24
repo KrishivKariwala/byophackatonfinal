@@ -6,7 +6,10 @@ import { parseRange } from "@/lib/analytics";
 import { BarChart } from "@/components/charts";
 import { Rating } from "@/components/p1";
 import { vendorScope } from "@/lib/p2/scope";
-import { OutletSwitcher } from "@/components/p2";
+import { OutletSwitcher, CertificatesPanel } from "@/components/p2";
+import { listCertificates, monthOf } from "@/lib/p2/certificate";
+import { isFlagOn } from "@/lib/p2/platform";
+import { now, read } from "@/lib/store";
 import { orgOverview } from "@/lib/p2/team";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +24,8 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
   try { a = analyticsFor(me, range, scope.selected !== "all" ? scope.selected : undefined); } catch (e) { a = null; if ((e as { code?: string }).code === "forbidden_role") why = "Analytics are visible to owners and managers."; }
   if (!a) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">ANALYTICS</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
   const byOutlet = scope.outlets.length > 1 && scope.selected === "all" ? orgOverview(me, range) : null;
+  const certs = isFlagOn("impactCertificate") && scope.can("certificate.view") ? listCertificates(me) : null;
+  const months = Array.from({ length: 6 }, (_, k) => { const [y, m] = monthOf(now(read())).split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 - k, 1)); return d.toISOString().slice(0, 7); });
   const empty = a.orders === 0 && a.unitsDonated === 0 && a.unitsExpired === 0;
   const hr = (h: number) => `${h % 12 || 12}${h < 12 ? "am" : "pm"}`;
   return (
@@ -35,6 +40,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
           ))}
         </nav>
       </div>
+      {certs && <CertificatesPanel months={months} certs={certs.map((c) => ({ id: c.id, month: c.month, partial: !!c.partial, meals: c.mealsSold + c.mealsDonated, createdAt: c.createdAt }))} />}
       {empty ? (
         <div className="card flex flex-col items-center gap-2 p-8 text-center"><BarChart3 size={32} className="text-tomato" aria-hidden="true" /><h2 className="editorial text-2xl">No activity in the last {range} days</h2><p className="text-sm text-muted">Publish a listing and complete a handover to see numbers here.</p></div>
       ) : (
