@@ -9,6 +9,7 @@ import { cancelQuote } from "./cancel";
 import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
 import { cfg } from "./p2/settings";
 import { assertOutlet, outletAllowed, outletsFor } from "./p2/org";
+import { setPriceSteps } from "./p2/schedule";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
@@ -313,7 +314,9 @@ export function createListing(actor: Profile | null, i: ListingInput) {
       windowStart: iso(t(i.windowStart)), windowEnd: iso(t(i.windowEnd)), donateRest: !!i.donateRest,
       status: "Live", createdAt: iso(tx.now), updatedAt: iso(tx.now),
     };
+    if (!l.donationOnly) l.initialRescuePrice = l.rescuePrice;
     tx.db.listings.push(l);
+    setPriceSteps(tx, me, l, i.priceSteps);
     move(tx, l, l.qtyTotal, "listing_published");
     audit(tx, me.id, "listing_published", "listing", l.id, `declaration accepted; donateRest=${l.donateRest}${l.donationOnly ? "; donation-only" : ""}`);
     if (l.donationOnly) {
@@ -369,6 +372,7 @@ export function updateListing(actor: Profile | null, id: string, patch: Partial<
       windowStart: merged.windowStart, windowEnd: merged.windowEnd, donateRest: !!merged.donateRest, riskTag: merged.riskTag,
       safetyDeclaration: { accepted: true, acceptedAt: iso(now), byUserId: me.id },
     });
+    setPriceSteps(tx, me, l, patch.priceSteps);
     const delta = newTotal - l.qtyTotal;
     l.qtyTotal = newTotal;
     if (delta !== 0) move(tx, l, delta, "vendor_adjust");

@@ -305,7 +305,9 @@ export interface ImpactEvent {
 export type NotificationType =
   | "order_confirmed" | "order_ready" | "pickup_reminder" | "order_cancelled" | "refund_issued"
   | "new_listing_followed" | "new_donation" | "donation_escalation" | "review_prompt"
-  | "approval_decision" | "report_update" | "no_show" | "suspension" | "new_order" | "generic";
+  | "approval_decision" | "report_update" | "no_show" | "suspension" | "new_order" | "generic"
+  /** P2 */
+  | "price_drop" | "priority_listing" | "credit_earned" | "customer_eta" | "certificate_ready" | "delivery_update" | "moderation";
 
 export interface Notification {
   id: string;

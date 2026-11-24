@@ -3,6 +3,7 @@ import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
 import { ListingForm, type FormInit } from "../ListingForm";
 import { vendorScope } from "@/lib/p2/scope";
+import { cfg } from "@/lib/p2/settings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Quick list" };
@@ -41,7 +42,7 @@ export default async function NewListing({ searchParams }: { searchParams: Promi
         <p className="eyebrow text-burgundy">{v.businessName}</p>
         <h1 className="display text-4xl text-tomato">QUICK LIST{src ? " · DUPLICATE" : ""}</h1>
       </div>
-      <ListingForm mode="create" init={init} templates={db.templates.filter((t) => t.vendorId === v.id)} serverNow={now(db)} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} defaultOutletId={src?.outletId ?? (scope.selected !== "all" ? scope.selected : undefined)} />
+      <ListingForm mode="create" init={init} templates={db.templates.filter((t) => t.vendorId === v.id)} serverNow={now(db)} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} defaultOutletId={src?.outletId ?? (scope.selected !== "all" ? scope.selected : undefined)} features={{ autoMarkdown: cfg(db).flags.autoMarkdown, maxDiscountPct: cfg(db).maxDiscountPct }} />
     </div>
   );
 }

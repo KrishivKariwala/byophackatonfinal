@@ -5,6 +5,8 @@ import { newId } from "./crypto";
 import { write, createListing, CATEGORIES } from "./services";
 import { approvedCtx, audit, iso, listingIn, requireRole, t, vendorOf, outletOf } from "./core";
 import { assertOutlet, outletsFor, vendorCtx } from "./p2/org";
+import { suggestSchedule } from "./p2/markdown";
+import { cfg } from "./p2/settings";
 import { sellThroughRate, suggestPrice } from "./pricing";
 import { vendorAnalytics, vendorPayouts, type Range } from "./analytics";
 import type { DB, Outlet, Profile, Template, Vendor } from "./types";
@@ -112,6 +114,21 @@ export function priceSuggestion(actor: Profile | null, q: { listingId?: string; 
   const s = category && CATEGORIES.includes(category as never) ? sellThroughRate(db.listings, db.reservations, v.id, category, n) : null;
   const out = suggestPrice({ original, hoursLeft, sellThrough: s });
   return { ...out, original, hoursLeft: +hoursLeft.toFixed(2), historyUsed: s !== null };
+}
+
+/** "Use suggested schedule": up to 3 steps from the P1 price function, shaped to the pickup window and the vendor's sell-through. */
+export function scheduleSuggestion(actor: Profile | null, q: { original: number; rescue: number; windowStart: string; windowEnd: string; category?: string; listingId?: string }) {
+  const db = read();
+  const ctx = vendorCtx(db, requireRole(actor, "vendor"), "listing.write");
+  if (!cfg(db).flags.autoMarkdown) throw new RuleError("feature_off", "Auto-markdown is switched off by the platform.", 403);
+  const n = clockNow(db);
+  const original = Number(q.original), rescue = Number(q.rescue);
+  if (!Number.isFinite(original) || original <= 0 || !Number.isFinite(rescue) || rescue <= 0) throw new RuleError("price_invalid", "Enter both prices first.");
+  const ws = t(q.windowStart), we = t(q.windowEnd);
+  if (!Number.isFinite(ws) || !Number.isFinite(we) || we <= n) throw new RuleError("hours_required", "Set the pickup times first.");
+  const s = q.category && CATEGORIES.includes(q.category as never) ? sellThroughRate(db.listings, db.reservations, ctx.vendor.id, q.category, n) : null;
+  const steps = suggestSchedule({ original, startingPrice: rescue, nowMs: n, windowStartMs: ws, windowEndMs: we, sellThrough: s, maxDiscountPct: cfg(db).maxDiscountPct });
+  return { steps: steps.map((x) => ({ effectiveAt: iso(x.effectiveAtMs), discountPct: x.discountPct, price: x.price })), historyUsed: s !== null };
 }
 
 // ---------------------------------------------------------------- completeness (D4)

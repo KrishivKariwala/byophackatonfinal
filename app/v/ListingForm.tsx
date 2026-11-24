@@ -5,13 +5,18 @@ import { api } from "@/components/client";
 import { discountPercent, suggestedRescuePrice } from "@/lib/rules";
 import type { Category, Diet, RiskTag, Template } from "@/lib/types";
 import { S } from "@/lib/strings";
+import { useT } from "@/components/I18n";
 
 export type FormInit = {
   title: string; description: string; category: Category; originalPrice: number | ""; rescuePrice: number | ""; qty: number;
   diet: Diet | ""; allergens: string[]; surpriseBag: boolean; storageNote: string; donateRest: boolean;
   windowStart?: string; windowEnd?: string; preparedAt?: string; safeUntil?: string;
   donationOnly?: boolean; riskTag?: RiskTag | "";
+  /** P2: steps that have not run yet (edit mode) */
+  priceSteps?: { effectiveAt: string; discountPct: number }[];
 };
+
+export type FormFeatures = { autoMarkdown: boolean; maxDiscountPct: number };
 
 type Suggestion = { discount: number; price: number; hoursLeft: number; historyUsed: boolean };
 
@@ -20,7 +25,10 @@ const pad = (n: number) => String(n).padStart(2, "0");
 const toLocal = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const fromLocal = (v: string) => (v ? new Date(v).toISOString() : "");
 
-export function ListingForm({ mode, listingId, init, templates = [], serverNow, outlets = [], defaultOutletId }: { mode: "create" | "edit"; listingId?: string; init: FormInit; templates?: Template[]; serverNow: number; outlets?: { id: string; label: string }[]; defaultOutletId?: string }) {
+export function ListingForm({ mode, listingId, init, templates = [], serverNow, outlets = [], defaultOutletId, features = { autoMarkdown: false, maxDiscountPct: 80 }, appliedSteps = [] }: { mode: "create" | "edit"; listingId?: string; init: FormInit; templates?: Template[]; serverNow: number; outlets?: { id: string; label: string }[]; defaultOutletId?: string; features?: FormFeatures; appliedSteps?: { effectiveAt: string; discountPct: number }[] }) {
+  const { t: tr, fmt } = useT();
+  const [steps, setSteps] = useState<{ at: string; pct: string }[]>([]);
+  const [schedMsg, setSchedMsg] = useState<string | null>(null);
   const [outletId, setOutletId] = useState(defaultOutletId ?? outlets[0]?.id ?? "");
   const router = useRouter();
   const [f, setF] = useState<FormInit>(init);
@@ -40,6 +48,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
     const e = init.windowEnd ? Date.parse(init.windowEnd) : s + 90 * 60_000;
     const p = init.preparedAt ? Date.parse(init.preparedAt) : serverNow - 60 * 60_000;
     setTimes({ start: toLocal(s - drift), end: toLocal(e - drift), prepared: toLocal(p - drift), safe: init.safeUntil ? toLocal(Date.parse(init.safeUntil) - drift) : "" });
+    setSteps((init.priceSteps ?? []).map((st) => ({ at: toLocal(Date.parse(st.effectiveAt) - drift), pct: String(st.discountPct) })));
     if (mode === "create") { const i = setInterval(() => setElapsed(Math.round((Date.now() - t0) / 1000)), 1000); return () => clearInterval(i); }
   }, [init, serverNow, mode, t0]);
 
@@ -65,6 +74,21 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
     return () => clearTimeout(h);
   }, [f.originalPrice, f.category, f.donationOnly, times.end, serverNow]);
 
+  const suggestSchedule = async () => {
+    setSchedMsg(null);
+    try {
+      const q = new URLSearchParams({ original: String(f.originalPrice), rescue: String(f.rescuePrice), start: fromLocal(times.start), end: fromLocal(times.end), category: f.category });
+      const res = await fetch(`/api/vendor/schedule-suggestion?${q}`);
+      const j = await res.json();
+      if (!j.ok) { setSchedMsg(j.error); return; }
+      const drift = serverNow - Date.now();
+      const next = (j.data.steps as { effectiveAt: string; discountPct: number }[]).map((s) => ({ at: toLocal(Date.parse(s.effectiveAt) - drift), pct: String(s.discountPct) }));
+      setSteps(next);
+      setSchedMsg(next.length ? null : tr("markdown.noSuggestion"));
+    } catch { setSchedMsg(S.states.error); }
+  };
+  const stepPrice = (pct: string) => { const d = Number(pct); const o = Number(f.originalPrice); return Number.isInteger(d) && d >= 30 && d <= 80 && o > 0 ? Math.max(1, Math.floor((o * (100 - d)) / 100)) : null; };
+
   const applyTemplate = (id: string) => {
     const t = templates.find((x) => x.id === id);
     if (!t) return;
@@ -82,6 +106,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
       windowStart: fromLocal(times.start), windowEnd: fromLocal(times.end), preparedAt: fromLocal(times.prepared), safeUntil: times.safe ? fromLocal(times.safe) : undefined,
       safetyDeclaration: declared,
       ...(mode === "create" && outlets.length > 1 ? { outletId } : {}),
+      ...(features.autoMarkdown && !f.donationOnly ? { priceSteps: steps.filter((s) => s.at && s.pct).map((s) => ({ effectiveAt: fromLocal(s.at), discountPct: Number(s.pct) })) } : {}),
     };
     try {
       if (mode === "create") await api("/api/vendor/listings", payload);
@@ -174,6 +199,26 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
               </>) : <span className="text-xs">{suggErr}</span>}
             </div>
           )}</>}
+          {features.autoMarkdown && !f.donationOnly && (
+            <fieldset className="flex flex-col gap-2 rounded-xl border-2 border-line p-3" aria-describedby="md-help">
+              <legend className="label px-1">{tr("markdown.title")}</legend>
+              <p id="md-help" className="text-[11px] text-muted">{tr("markdown.help", { max: features.maxDiscountPct })}</p>
+              {appliedSteps.length > 0 && <p className="text-[11px] font-semibold text-burgundy">{tr("markdown.applied", { n: appliedSteps.length })}</p>}
+              {steps.map((s, n) => (
+                <div key={n} className="grid grid-cols-[1fr_88px_auto] items-end gap-2">
+                  <label className="label">{tr("markdown.stepAt", { n: n + 1 })}<input type="datetime-local" className="input" value={s.at} onChange={(e) => setSteps(steps.map((x, k) => (k === n ? { ...x, at: e.target.value } : x)))} /></label>
+                  <label className="label">{tr("markdown.pctOff")}<input className="input" inputMode="numeric" value={s.pct} onChange={(e) => setSteps(steps.map((x, k) => (k === n ? { ...x, pct: e.target.value.replace(/\D/g, "").slice(0, 2) } : x)))} /></label>
+                  <button type="button" className="btn-quiet !min-h-[44px]" aria-label={tr("markdown.removeStep", { n: n + 1 })} onClick={() => setSteps(steps.filter((_, k) => k !== n))}>✕</button>
+                  <p className="col-span-3 -mt-1 text-[11px] text-muted">{stepPrice(s.pct) !== null ? tr("markdown.stepPrice", { price: fmt.inr(stepPrice(s.pct)!) }) : tr("markdown.stepRange")}</p>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                {steps.length < 3 && <button type="button" className="btn-quiet !min-h-[44px]" onClick={() => setSteps([...steps, { at: "", pct: "" }])}>{tr("markdown.addStep")}</button>}
+                {f.originalPrice && f.rescuePrice && times.start && times.end ? <button type="button" className="btn-outline !min-h-[44px]" onClick={suggestSchedule}>{tr("markdown.useSuggested")}</button> : null}
+              </div>
+              {schedMsg && <p role="status" className="text-xs font-semibold text-burgundy">{schedMsg}</p>}
+            </fieldset>
+          )}
           <div className="flex items-center justify-between gap-3">
             <span className="label">Quantity *</span>
             <div className="flex items-center gap-2">

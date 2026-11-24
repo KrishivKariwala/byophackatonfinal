@@ -3,6 +3,7 @@ import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
 import { ListingForm } from "../../ListingForm";
 import { vendorScope } from "@/lib/p2/scope";
+import { cfg } from "@/lib/p2/settings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit listing" };
@@ -23,7 +24,9 @@ export default async function EditListing({ params }: { params: Promise<{ id: st
         mode="edit"
         listingId={l.id}
         serverNow={now(db)}
-        init={{ title: l.title, description: l.description, category: l.category, originalPrice: l.originalPrice, rescuePrice: l.rescuePrice, qty: l.qtyTotal, diet: l.diet, allergens: l.allergens, surpriseBag: l.surpriseBag, storageNote: l.storageNote || "", donateRest: l.donateRest, windowStart: l.windowStart, windowEnd: l.windowEnd, preparedAt: l.preparedAt, safeUntil: l.safeUntil, riskTag: l.riskTag ?? "", donationOnly: l.donationOnly }}
+        features={{ autoMarkdown: cfg(db).flags.autoMarkdown, maxDiscountPct: cfg(db).maxDiscountPct }}
+        appliedSteps={db.priceSteps.filter((s) => s.listingId === l.id && s.appliedAt)}
+        init={{ title: l.title, description: l.description, category: l.category, originalPrice: l.originalPrice, rescuePrice: l.rescuePrice, qty: l.qtyTotal, diet: l.diet, allergens: l.allergens, surpriseBag: l.surpriseBag, storageNote: l.storageNote || "", donateRest: l.donateRest, windowStart: l.windowStart, windowEnd: l.windowEnd, preparedAt: l.preparedAt, safeUntil: l.safeUntil, riskTag: l.riskTag ?? "", donationOnly: l.donationOnly, priceSteps: db.priceSteps.filter((s) => s.listingId === l.id && !s.appliedAt).sort((a, b) => (a.effectiveAt < b.effectiveAt ? -1 : 1)) }}
       />
     </div>
   );

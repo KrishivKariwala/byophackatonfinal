@@ -3,6 +3,7 @@ import type { TxContext } from "./store";
 import { RULES } from "./rules";
 import { createNoShowBatchTx, iso, listingIn, ngosNear, notify, notifyOutlet, outletOf, recordImpact, setResStatus, audit, emitRes, t } from "./core";
 import type { DB } from "./types";
+import { p2JobsPending, runP2Jobs } from "./p2/jobs";
 
 /**
  * Scheduled jobs. They run inside the same transaction that already runs `sweepTx` (before every write, and
@@ -27,7 +28,8 @@ export function jobsPending(db: DB, now: number): boolean {
       const end = t(l.windowEnd);
       return (!r.reminderSentAt && end - now <= RULES.REMINDER_MINUTES_LEFT * MIN && end > now) || now >= end + RULES.NO_SHOW_GRACE_MINUTES * MIN;
     }) ||
-    db.donationBatches.some((b) => b.status === "Open" && !b.escalatedAt && t(b.collectBy) - now <= RULES.ESCALATE_MINUTES_BEFORE_DEADLINE * MIN)
+    db.donationBatches.some((b) => b.status === "Open" && !b.escalatedAt && t(b.collectBy) - now <= RULES.ESCALATE_MINUTES_BEFORE_DEADLINE * MIN) ||
+    p2JobsPending(db, now)
   );
 }
 
@@ -84,6 +86,9 @@ export function runScheduledJobs(tx: TxContext) {
       notify(tx, n.ownerId, `Still unclaimed: ${b.qty} × ${b.title} at ${vendor?.businessName}. Collect by ${b.collectBy}.`, "donation_escalation", { batchId: b.id });
     audit(tx, "system", "donation_escalated", "donation_batch", b.id, `${targets.length} charities notified`);
   }
+
+  // 5. P2 jobs (auto-markdown steps; later: credit expiry, certificates, delivery status).
+  runP2Jobs(tx);
 }
 
 /** Counts the customer's no-shows in the last 30 days; at 3 their reservations are suspended for 7 days. */
