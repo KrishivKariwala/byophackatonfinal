@@ -6,6 +6,7 @@ import { write, completedPickups } from "./services";
 import { audit, emitRes, iso, listingIn, move, notify, notifyOutlet, requireRole, setResStatus, t } from "./core";
 import { cancellationOutcome } from "./cancel";
 import { cfg } from "./p2/settings";
+import { restoreCreditTx } from "./p2/credits";
 import { IMPACT, co2eFor, kgFor } from "./impact-config";
 import { refundRazorpayPayment, razorpayConfigured } from "./payments";
 import type { DB, Payment, Profile, Report, ReportReason, ReportTarget, Review, Vendor } from "./types";
@@ -145,15 +146,17 @@ export function cancelReservation(actor: Profile | null, reservationId: string) 
     if (["Live", "Sold Out", "Paused"].includes(l.status) && now < t(l.windowEnd)) move(tx, l, r.qty, "customer_cancel", r.id);
     let refund: { id: string; settled: boolean } | undefined;
     if (out.refund && p) refund = issueRefundTx(tx, p, "Customer cancellation");
+    const credit = out.free ? restoreCreditTx(tx, me.id, [r.id, r.holdId], "order cancelled") : 0; // a late cancellation forfeits credit like it forfeits cash
+    const refundCash = refund && p ? p.amount : 0;
     const vendor = db.vendors.find((v) => v.id === r.vendorId)!;
     notifyOutlet(tx, vendor, r.outletId, `${r.ref} was cancelled by the customer.`, "order_cancelled", { reservationId: r.id });
     notify(tx, me.id, out.free
-      ? `${r.ref} cancelled.${refund ? ` Refund of ₹${r.amount} issued.` : ""}`
+      ? `${r.ref} cancelled.${refund ? ` Refund of ₹${refundCash} issued.` : ""}${credit ? ` ₹${credit} credit returned.` : ""}`
       : `${r.ref} cancelled. It was within 30 minutes of pickup, so it isn't refunded.`, "order_cancelled", { reservationId: r.id });
-    if (refund) notify(tx, me.id, `Refund of ₹${r.amount} issued for ${r.ref}.`, "refund_issued", { reservationId: r.id, amount: r.amount });
+    if (refund) notify(tx, me.id, `Refund of ₹${refundCash} issued for ${r.ref}.`, "refund_issued", { reservationId: r.id, amount: refundCash });
     audit(tx, me.id, "reservation_cancelled", "reservation", r.id, out.free ? "free" : "late, no refund");
     emitRes(tx, r);
-    return { reservationId: r.id, free: out.free, refundId: refund?.id, refundAmount: refund ? r.amount : 0, gatewayPaymentId: p?.gatewayPaymentId, gateway: p?.gateway };
+    return { reservationId: r.id, free: out.free, refundId: refund?.id, refundAmount: refundCash, gatewayPaymentId: p?.gatewayPaymentId, gateway: p?.gateway };
   });
 }
 

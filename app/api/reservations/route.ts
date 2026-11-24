@@ -10,8 +10,8 @@ export async function POST(req: Request) {
   return handle(async () => {
     const actor = await getActor();
     if (actor) rateLimit(`reserve:${actor.id}`, RULES.RESERVE_RATE_LIMIT.max, RULES.RESERVE_RATE_LIMIT.windowMs);
-    const b = await body<{ listingId: string; qty: number; method: PaymentMethod }>(req);
-    const result = await reserve(actor, { listingId: String(b.listingId), qty: Number(b.qty), method: b.method });
+    const b = await body<{ listingId: string; qty: number; method: PaymentMethod; useCredit?: boolean }>(req);
+    const result = await reserve(actor, { listingId: String(b.listingId), qty: Number(b.qty), method: b.method, useCredit: b.useCredit === true });
     if (result.kind === "hold" && razorpayConfigured()) {
       const order = await createRazorpayOrder(result.amount, result.holdId);
       await attachGatewayOrder(result.holdId, order.id, "razorpay_test");

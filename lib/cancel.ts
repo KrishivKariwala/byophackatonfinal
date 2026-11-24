@@ -18,5 +18,5 @@ export function cancelQuote(db: DB, r: Reservation, l: Listing) {
   const p = db.payments.find((x) => x.reservationId === r.id);
   const paidOnline = p?.status === "Test Payment Successful";
   const o = cancellationOutcome({ nowMs: Date.now() + (db.clockOffsetMs || 0), windowStartMs: Date.parse(l.windowStart), by: "customer", paidOnline, freeMinutes: cfg(db).freeCancelMinutes });
-  return { allowed: active, free: o.free, refundAmount: o.refund ? r.amount : 0, freeUntil: new Date(o.deadlineMs).toISOString() };
+  return { allowed: active, free: o.free, refundAmount: o.refund ? (p?.amount ?? r.amount) : 0, creditBack: o.free ? (r.creditApplied ?? 0) : 0, freeUntil: new Date(o.deadlineMs).toISOString() };
 }

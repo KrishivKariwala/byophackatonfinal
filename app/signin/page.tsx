@@ -9,7 +9,7 @@ import { SignInClient } from "./SignInClient";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in" };
 
-export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string; next?: string }> }) {
+export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string; next?: string; ref?: string }> }) {
   const sp = await searchParams;
   const db = read();
   const label = (id: string) => {
@@ -27,7 +27,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     if (actor && actor.role === role && !sp.switch) redirect(next ?? HOME[role]); // already signed in on this side: go straight there
     const skip = label(SKIP_PERSONA[role]);
     const skipName = skip.org ? `${skip.name.split(" (")[0]} · ${skip.org}` : skip.name.split(" (")[0];
-    return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} />;
+    return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} refCode={/^[A-Za-z0-9]{4,16}$/.test(sp.ref ?? "") ? sp.ref!.toUpperCase() : undefined} />;
   }
 
   const personas = ["u_priya", "u_arjun", "u_ravi", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]

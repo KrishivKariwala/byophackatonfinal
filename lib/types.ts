@@ -398,7 +398,7 @@ export interface StaffInvite {
 
 export interface PriceStep { id: string; listingId: string; effectiveAt: string; discountPct: number; appliedAt?: string }
 
-export interface ReferralCode { userId: string; code: string }
+export interface ReferralCode { userId: string; code: string; /** device the owner last opened their referral page on; a referee on the same device is refused */ deviceId?: string }
 export type ReferralStatus = "pending" | "rewarded" | "rejected";
 export interface Referral {
   id: string; referrerId: string; refereeId: string; code: string; status: ReferralStatus;

@@ -10,6 +10,7 @@ import { RULES, RuleError, validatePrices, validateWindow } from "./rules";
 import { cfg } from "./p2/settings";
 import { assertOutlet, outletAllowed, outletsFor } from "./p2/org";
 import { setPriceSteps } from "./p2/schedule";
+import { creditQuote, restoreCreditTx, rewardReferralTx, spendCreditTx } from "./p2/credits";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
@@ -69,6 +70,7 @@ export function sweepTx(tx: TxContext) {
       h.status = "Expired";
       const l = db.listings.find((x) => x.id === h.listingId);
       if (l) move(tx, l, h.qty, "hold_expired", h.id);
+      restoreCreditTx(tx, h.customerId, [h.id], "checkout hold expired");
       const p = db.payments.find((x) => x.holdId === h.id && x.status === "Pending");
       if (p) { p.status = "Failed"; p.updatedAt = iso(now); }
     }
@@ -122,10 +124,10 @@ export function completedPickups(db: DB, customerId: string): number {
 }
 
 export type ReserveResult =
-  | { kind: "hold"; holdId: string; expiresAt: string; amount: number; gatewayOrderId: string }
+  | { kind: "hold"; holdId: string; expiresAt: string; amount: number; gatewayOrderId: string; creditApplied: number }
   | { kind: "reservation"; reservationId: string };
 
-export function reserve(actor: Profile | null, input: { listingId: string; qty: number; method: PaymentMethod }): Promise<ReserveResult> {
+export function reserve(actor: Profile | null, input: { listingId: string; qty: number; method: PaymentMethod; useCredit?: boolean }): Promise<ReserveResult> {
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const { db, now } = tx;
@@ -154,24 +156,29 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
       throw new RuleError("active_cap", `You can have at most ${cfg(db).maxActiveReservations} active reservations.`, 409);
     if (l.qtyAvailable < qty) throw new RuleError("insufficient_stock", l.qtyAvailable === 0 ? "Sold out." : `Only ${l.qtyAvailable} left.`, 409);
 
+    // P2 referral credit: up to 50% of the order, taken now (and returned if the hold lapses or the order is cancelled for free).
+    const total = qty * l.rescuePrice;
+    const credit = input.useCredit ? creditQuote(db, me.id, total, now).usable : 0;
     if (input.method === "online") {
       const expiresAt = Math.min(now + cfg(db).holdMinutes * 60_000, t(l.windowEnd));
       const h: CheckoutHold = {
-        id: newId("h"), listingId: l.id, customerId: me.id, qty, amount: qty * l.rescuePrice, expiresAt: iso(expiresAt),
-        status: "Active", gatewayOrderId: `demo_order_${newId("o")}`, createdAt: iso(now),
+        id: newId("h"), listingId: l.id, customerId: me.id, qty, amount: total - credit, expiresAt: iso(expiresAt),
+        status: "Active", gatewayOrderId: `demo_order_${newId("o")}`, createdAt: iso(now), creditApplied: credit || undefined,
       };
       db.holds.push(h);
+      if (credit) spendCreditTx(tx, me.id, credit, h.id, `used on checkout of ${l.title}`);
       move(tx, l, -qty, "checkout_hold", h.id);
       db.payments.push({
         id: newId("p"), holdId: h.id, customerId: me.id, method: "online", amount: h.amount, status: "Pending",
         gateway: "demo", gatewayOrderId: h.gatewayOrderId, createdAt: iso(now), updatedAt: iso(now),
       });
-      return { kind: "hold", holdId: h.id, expiresAt: h.expiresAt, amount: h.amount, gatewayOrderId: h.gatewayOrderId } as const;
+      return { kind: "hold", holdId: h.id, expiresAt: h.expiresAt, amount: h.amount, gatewayOrderId: h.gatewayOrderId, creditApplied: credit } as const;
     }
     move(tx, l, -qty, "reservation_pay_at_pickup");
     const r = newReservation(tx, l, me.id, qty, "pay_at_pickup");
+    if (credit) { r.creditApplied = credit; spendCreditTx(tx, me.id, credit, r.id, `used on ${r.ref}`); }
     db.payments.push({
-      id: newId("p"), reservationId: r.id, customerId: me.id, method: "pay_at_pickup", amount: r.amount, status: "Pending",
+      id: newId("p"), reservationId: r.id, customerId: me.id, method: "pay_at_pickup", amount: r.amount - credit, status: "Pending",
       gateway: "cash_at_pickup", createdAt: iso(now), updatedAt: iso(now),
     });
     emitRes(tx, r);
@@ -230,6 +237,7 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
     const l = listingIn(db, h.listingId);
     h.status = "Converted";
     const r = newReservation(tx, l, h.customerId, h.qty, "online", h.id);
+    if (h.creditApplied) r.creditApplied = h.creditApplied;
     p.status = "Test Payment Successful";
     p.reservationId = r.id;
     p.gatewayPaymentId = input.gatewayPaymentId;
@@ -250,6 +258,7 @@ export function failOnlinePayment(actor: Profile | null, holdId: string) {
     if (h.status !== "Active") return { status: h.status };
     h.status = "Released";
     move(tx, listingIn(tx.db, h.listingId), h.qty, "hold_released", h.id);
+    restoreCreditTx(tx, h.customerId, [h.id], "checkout was not completed");
     const p = tx.db.payments.find((x) => x.holdId === h.id);
     if (p) { p.status = "Failed"; p.updatedAt = iso(tx.now); }
     return { status: h.status };
@@ -425,6 +434,7 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
       h.status = "Released";
       const p = db.payments.find((x) => x.holdId === h.id);
       if (p && p.status === "Pending") { p.status = "Failed"; p.updatedAt = iso(now); }
+      restoreCreditTx(tx, h.customerId, [h.id], "vendor cancelled the listing");
       notify(tx, h.customerId, `Your checkout for ${l.title} was cancelled by the vendor.`);
     }
     // Cancel outstanding orders; refund captured online payments; never fake a refund for unpaid pay-at-pickup.
@@ -433,6 +443,7 @@ export function cancelListing(actor: Profile | null, id: string, reason: string)
       r.cancelledAt = iso(now);
       r.cancelledBy = "vendor";
       r.cancelReason = `Vendor cancelled listing: ${l.cancelReason}`;
+      restoreCreditTx(tx, r.customerId, [r.id, r.holdId], "vendor cancelled the listing");
       const p = db.payments.find((x) => x.reservationId === r.id);
       if (p && p.status === "Test Payment Successful") {
         // Demo adapter refunds immediately (simulated). Razorpay test mode: Refund Pending until the refund API call succeeds.
@@ -501,6 +512,7 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
     setResStatus(tx, r, "Picked up", me.id, input.token ? "qr" : "code");
     r.pickedUpAt = iso(now);
     r.codeUsedAt = iso(now);
+    rewardReferralTx(tx, r);
     const p = db.payments.find((x) => x.reservationId === r!.id);
     let collect = 0;
     if (p && r.method === "pay_at_pickup" && p.status === "Pending") {

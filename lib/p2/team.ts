@@ -200,7 +200,7 @@ export function teamOverview(actor: Profile | null) {
   const db = read();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"));
   const outlets = db.outlets.filter((o) => o.vendorId === ctx.vendor.id);
-  const label = (id?: string) => { const o = outlets.find((x) => x.id === id); return o ? (o.name ?? o.address) : "All outlets"; };
+  const label = (id?: string): string | null => { const o = outlets.find((x) => x.id === id); return o ? (o.name ?? o.address) : null; }; // null = all outlets (translated by the page)
   const scope = (outletId?: string) => !ctx.outletId || outletId === ctx.outletId;
   const members = can(ctx.role, "staff.manage")
     ? db.memberships.filter((m) => m.vendorId === ctx.vendor.id && !m.revokedAt && scope(m.outletId)).map((m) => {

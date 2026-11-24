@@ -2,7 +2,6 @@ import "server-only";
 import crypto from "node:crypto";
 import { read, type TxContext } from "../store";
 import { RuleError } from "../rules";
-import { newId } from "../crypto";
 import { write } from "../services";
 import { audit, iso, notify, requireRole, t } from "../core";
 import { co2eFor, kgFor, IMPACT } from "../impact-config";

@@ -5,7 +5,6 @@ import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
 import { completedPickups, enrichListing, isCustomerVisible } from "@/lib/services";
 import { isFollowing, vendorReviews } from "@/lib/p1";
-import { CANCEL_POLICY_TEXT } from "@/lib/cancel";
 import { S } from "@/lib/strings";
 import { FollowButton, Rating, ReportButton, SurpriseBadge, VerifiedBadge } from "@/components/p1";
 import { directionsUrl } from "@/lib/geo";
@@ -13,6 +12,9 @@ import { RULES } from "@/lib/rules";
 import { DietTag, Photo, Price, fmtDateTime, fmtWindow, StatusPill } from "@/components/bits";
 import { LiveCount } from "@/components/LiveProvider";
 import { ReserveBox } from "./ReserveBox";
+import { cfg } from "@/lib/p2/settings";
+import { creditQuote } from "@/lib/p2/credits";
+import { cancelPolicyText } from "@/lib/cancel";
 
 export const dynamic = "force-dynamic";
 
@@ -91,12 +93,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               payAtPickup={payOk}
               payAtPickupNote={!l.outlet.payAtPickup ? S.payAtPickup.off : S.payAtPickup.locked(picks, RULES.PAY_AT_PICKUP_MIN_PICKUPS)}
               activeCount={active}
-              policy={CANCEL_POLICY_TEXT}
+              policy={cancelPolicyText(cfg(db).freeCancelMinutes)}
+              creditBalance={creditQuote(db, me.id, 0, n).balance}
+              creditMaxPct={cfg(db).creditMaxPct}
+              maxActive={cfg(db).maxActiveReservations}
+              holdMinutes={cfg(db).holdMinutes}
             />
           ) : suspended ? null : (
             <p className="rounded-xl bg-sand p-3 text-sm font-semibold text-muted">This listing is no longer available to reserve ({raw.status.toLowerCase()}).</p>
           )}
-          <p className="text-[11px] text-muted">Max {unitCap} units per order · up to {RULES.MAX_ACTIVE_RESERVATIONS} active reservations · you have {active}.</p>
+          <p className="text-[11px] text-muted">Max {unitCap} units per order · up to {cfg(db).maxActiveReservations} active reservations · you have {active}.</p>
         </div>
       </aside>
     </div>

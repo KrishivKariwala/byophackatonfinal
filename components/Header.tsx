@@ -15,6 +15,7 @@ const NAV: Record<string, { href: string; label: string }[]> = {
     { href: "/c/orders", label: "nav.myOrders" },
     { href: "/c/following", label: "nav.following" },
     { href: "/c/impact", label: "nav.myImpact" },
+    { href: "/c/referrals", label: "nav.referrals" },
   ],
   vendor: [
     { href: "/v", label: "nav.today" },
@@ -44,6 +45,7 @@ export async function Header() {
   const org = actor?.role === "vendor" ? resolveOrg(db, actor) : null;
   const navItems = (NAV[actor?.role ?? ""] || []).filter((n) => {
     if (actor?.role !== "vendor" || !org) return true;
+    if (n.href === "/c/referrals" && !isFlagOn("referrals")) return false;
     const need: Record<string, Parameters<typeof can>[1] | undefined> = { "/v/new": "listing.write", "/v/analytics": "analytics.view", "/v/payouts": "payouts.view", "/v/onboarding": "org.settings" };
     return !need[n.href] || can(org.role, need[n.href]!);
   });

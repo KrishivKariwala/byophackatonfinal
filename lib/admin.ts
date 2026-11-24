@@ -5,6 +5,7 @@ import { write, setApproval } from "./services";
 import { audit, emitRes, iso, move, notify, requireRole, setResStatus, t } from "./core";
 import { issueRefundTx, isLowRated, vendorFlags } from "./p1";
 import { noShowCount } from "./jobs";
+import { restoreCreditTx } from "./p2/credits";
 import type { DB, Profile, Report, Reservation, Vendor } from "./types";
 
 /** P1 admin console: approvals queue, reports & disputes queue, flagged vendors/customers. */
@@ -96,6 +97,7 @@ export function actOnReport(actor: Profile | null, reportId: string, action: Rep
       if (r.status === "Reserved" || r.status === "Ready") {
         setResStatus(tx, r, "Cancelled", me.id, "refunded by admin");
         r.cancelledAt = iso(tx.now); r.cancelledBy = "admin"; r.cancelReason = "Refunded by an administrator";
+        restoreCreditTx(tx, r.customerId, [r.id, r.holdId], "refunded by an administrator");
         const l = db.listings.find((x) => x.id === r.listingId);
         if (l && ["Live", "Sold Out", "Paused"].includes(l.status) && tx.now < t(l.windowEnd)) move(tx, l, r.qty, "admin_refund", r.id);
         emitRes(tx, r);

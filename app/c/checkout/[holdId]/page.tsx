@@ -27,7 +27,8 @@ export default async function Checkout({ params }: { params: Promise<{ holdId: s
       <div className="card flex flex-col gap-2 p-5 text-sm">
         <p className="font-bold">{h.qty} × {l.title}</p>
         <p className="text-muted">{v.businessName}</p>
-        <div className="flex justify-between border-t border-line pt-2 font-bold"><span>Total</span><span>₹{h.amount}</span></div>
+        {h.creditApplied ? <div className="flex justify-between text-veg"><span>Referral credit used</span><span>−₹{h.creditApplied}</span></div> : null}
+        <div className="flex justify-between border-t border-line pt-2 font-bold"><span>{h.creditApplied ? "To pay" : "Total"}</span><span>₹{h.amount}</span></div>
         <p className="text-xs text-muted">Payment status: {p?.status ?? "Pending"} · Hold status: {h.status}</p>
         {h.status === "Active" && (
           <p className="rounded-lg bg-cream p-2 text-xs font-semibold text-burgundy">

@@ -12,6 +12,7 @@ import { RULES } from "@/lib/rules";
 import { vendorScope } from "@/lib/p2/scope";
 import { OutletSwitcher } from "@/components/p2";
 import { getT } from "@/lib/i18n/server";
+import { boardEta } from "@/lib/p2/eta";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vendor · Today" };
@@ -123,10 +124,16 @@ export default async function VendorHome() {
                 const l = lt(r.listingId);
                 const p = pay(r.id);
                 const cust = db.profiles.find((x) => x.id === r.customerId)?.name.split(" ")[0];
+                const eta = c === "Picked up" ? null : boardEta(db, r, n);
                 return (
                   <div key={r.id} className={`card flex flex-col gap-1 p-3 text-sm ${c === "Ready" ? "ring-2 ring-peach" : ""}`}>
                     <b className="text-base">{r.ref} · {cust}</b>
                     <span>{r.qty} × {l.title}{multi && <span className="text-xs text-muted"> · {outletLabel(r.outletId)}</span>}</span>
+                    {eta && (
+                      <span role="status" className={`rounded-lg px-2 py-1 text-xs font-bold ${eta.stale ? "bg-sand text-muted" : eta.minutes <= 2 ? "bg-veg text-white" : "bg-peach text-burgundy"}`}>
+                        {eta.stale ? t("eta.vendorStale", { n: eta.minutes, m: Math.max(1, Math.round(eta.ageSeconds / 60)) }) : eta.minutes <= 1 ? t("eta.arriving") : t("eta.vendor", { n: eta.minutes })}
+                      </span>
+                    )}
                     <span className="text-xs text-muted">Pickup {fmtWindow(l.windowStart, l.windowEnd)}</span>
                     <span className="text-xs text-muted">{r.method === "online" ? "Online" : "Pay at pickup"} · {p?.status}{r.method === "pay_at_pickup" && p?.status === "Pending" ? ` · collect ₹${r.amount}` : ""}</span>
                     {c === "Reserved" && approved && <ActionButton path={`/api/vendor/orders/${r.id}/ready`} label="Mark ready" className="btn-primary mt-1" />}

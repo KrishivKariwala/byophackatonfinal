@@ -51,7 +51,10 @@ export function vendorPayouts(db: DB, vendorId: string) {
     const d = istDate(t(r.pickedUpAt));
     const row = byDay.get(d) ?? { date: d, orders: 0, units: 0, gross: 0, cash: 0 };
     if (p?.status === "Test Payment Successful") { row.gross += r.amount; row.orders++; row.units += r.qty; }
-    else if (p?.status === "Paid at Pickup") row.cash += r.amount;
+    else if (p?.status === "Paid at Pickup") {
+      row.cash += p.amount; // the cash the vendor actually collected
+      if (r.creditApplied) { row.gross += r.creditApplied; row.orders++; row.units += r.qty; } // referral credit is platform-funded, so it settles through us
+    }
     byDay.set(d, row);
   }
   const rows = [...byDay.values()].sort((a, b) => (a.date < b.date ? 1 : -1)).map((r) => {

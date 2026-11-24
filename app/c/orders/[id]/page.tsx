@@ -10,6 +10,8 @@ import { CancelOrder, ReportButton, ReviewForm } from "@/components/p1";
 import { cancelQuote } from "@/lib/cancel";
 import { RULES } from "@/lib/rules";
 import { S } from "@/lib/strings";
+import { EtaButton } from "@/components/p2-customer";
+import { isFlagOn } from "@/lib/p2/platform";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Pickup pass" };
@@ -66,7 +68,7 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
       </div>
       <div className="card flex flex-col gap-1.5 p-4 text-sm">
         <div className="flex items-center justify-between"><b>{v.businessName}</b><StatusPill status={r.status} /></div>
-        <p>{r.qty} × {l.title} · ₹{r.amount}</p>
+        <p>{r.qty} × {l.title} · ₹{r.amount}{r.creditApplied ? <span className="text-muted"> (₹{r.creditApplied} paid with credit)</span> : null}</p>
         <p className="text-muted">Payment: {p?.status ?? "—"} ({r.method === "online" ? "online, test mode" : "pay at pickup"})</p>
         <p className="text-muted">Pickup window {fmtWindow(l.windowStart, l.windowEnd)}</p>
         {active && (
@@ -79,6 +81,7 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
         <p className="text-[11px] text-muted">Directions start from Koramangala (demo default location).</p>
       </div>
       {r.status === "Picked up" && l.surpriseBag && <p className="rounded-2xl bg-peach p-4 text-sm text-burgundy"><b>Your Surprise Bag:</b> {l.description.startsWith("Surprise Bag") ? "contents varied with what was left today." : l.description}</p>}
+      {active && isFlagOn("liveEta") && <EtaButton reservationId={r.id} outlet={{ lat: o.lat, lng: o.lng }} initialMinutes={r.etaMinutes} canStart={n >= Date.parse(l.windowStart) - 90 * 60_000 && n <= Date.parse(l.windowEnd)} />}
       {active && <div className="card p-4"><p className="mb-2 text-xs text-muted">{S.cancel.policy}</p><CancelOrder reservationId={r.id} free={quote.free} refund={quote.refundAmount} freeUntil={fmtDateTime(quote.freeUntil)} /></div>}
       {canReview && <ReviewForm reservationId={r.id} />}
       {review && <p className="card p-4 text-sm">You rated this order {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}{review.text && <span className="text-muted"> — {review.text}</span>}</p>}

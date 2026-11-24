@@ -18,7 +18,8 @@ const THEME: Record<Role, { panel: string; word: string; title: string; sub: str
   ngo: { panel: "bg-burgundy text-peach", word: "FEED", title: "COLLECT AS AN NGO", sub: "Claim free leftovers and get them to people who need them.", label: "NGO", Icon: HeartHandshake, chip: "bg-peach text-burgundy" },
 };
 
-export function RoleSignIn({ role, actor, skipName, next }: { role: Role; actor: { name: string; role: string } | null; skipName: string; next?: string }) {
+export function RoleSignIn({ role, actor, skipName, next, refCode }: { role: Role; actor: { name: string; role: string } | null; skipName: string; next?: string; refCode?: string }) {
+  const [referral, setReferral] = useState(refCode ?? "");
   const router = useRouter();
   const root = useRef<HTMLDivElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -51,7 +52,7 @@ export function RoleSignIn({ role, actor, skipName, next }: { role: Role; actor:
   const verify = async () => {
     setBusy(true); setErr(null);
     try {
-      const r = await api<{ home: string }>("/api/auth/signup", { name, phone, otp, role });
+      const r = await api<{ home: string }>("/api/auth/signup", { name, phone, otp, role, referralCode: role === "customer" ? referral : undefined });
       finish(r.home);
     } catch (e) {
       const msg = (e as Error).message;
@@ -107,6 +108,11 @@ export function RoleSignIn({ role, actor, skipName, next }: { role: Role; actor:
               <label className="label">Your name <span className="font-normal">(first time only)</span>
                 <input ref={nameRef} className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={80} />
               </label>
+              {role === "customer" && (
+                <label className="label">Referral code <span className="font-normal">(optional, first time only)</span>
+                  <input className="input uppercase tracking-widest" value={referral} onChange={(e) => setReferral(e.target.value)} maxLength={16} autoComplete="off" />
+                </label>
+              )}
               <button className="btn-primary !min-h-[48px]" disabled={!phoneOk}>Send code <ArrowRight size={16} aria-hidden="true" /></button>
             </form>
           ) : (

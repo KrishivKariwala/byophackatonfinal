@@ -88,6 +88,7 @@ export function emitRes(tx: TxContext, r: Reservation) {
 export function setResStatus(tx: TxContext, r: Reservation, to: ReservationStatus, actorId?: string, note?: string) {
   const from = r.status;
   r.status = to;
+  if (to !== "Reserved" && to !== "Ready") { r.etaMinutes = undefined; r.etaUpdatedAt = undefined; } // P2: no ETA outlives an active order
   tx.db.reservationEvents.push({ id: newId("re"), reservationId: r.id, from, to, at: iso(tx.now), actorId, note });
 }
 export function logNewReservation(tx: TxContext, r: Reservation, actorId?: string) {

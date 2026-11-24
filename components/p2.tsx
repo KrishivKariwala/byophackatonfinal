@@ -27,8 +27,8 @@ export function OutletSwitcher({ outlets, selected }: { outlets: { id: string; l
 export interface TeamData {
   canManage: boolean; canManageOutlets: boolean; role: string; flagOn: boolean;
   outlets: { id: string; label: string }[];
-  members: { id: string; name: string; phone?: string; role: string; outlet: string; isMe: boolean }[];
-  invites: { id: string; contact: string; role: string; outlet: string; expired: boolean; expiresAt: string }[];
+  members: { id: string; name: string; phone?: string; role: string; outlet: string | null; isMe: boolean }[];
+  invites: { id: string; contact: string; role: string; outlet: string | null; expired: boolean; expiresAt: string }[];
 }
 
 export function TeamClient({ data }: { data: TeamData }) {
@@ -92,7 +92,7 @@ export function TeamClient({ data }: { data: TeamData }) {
           <ul className="divide-y divide-line">
             {data.members.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                <div><b>{m.name}</b>{m.isMe && <span className="ml-2 chip bg-peach text-burgundy">{t("org.you")}</span>}<p className="text-xs text-muted">{t(`org.role.${m.role}`)} · {m.outlet}{m.phone ? ` · ${m.phone}` : ""}</p></div>
+                <div><b>{m.name}</b>{m.isMe && <span className="ml-2 chip bg-peach text-burgundy">{t("org.you")}</span>}<p className="text-xs text-muted">{t(`org.role.${m.role}`)} · {m.outlet ?? t("org.allOutlets")}{m.phone ? ` · ${m.phone}` : ""}</p></div>
                 {m.role !== "owner" && !m.isMe && data.canManage && (
                   <button type="button" className="btn-quiet !min-h-[44px] text-tomato" disabled={busy}
                     onClick={() => { if (window.confirm(t("org.removeConfirm", { name: m.name }))) run(() => api(`/api/vendor/team/${m.id}`, undefined, "DELETE")); }}>
@@ -112,7 +112,7 @@ export function TeamClient({ data }: { data: TeamData }) {
             <ul className="divide-y divide-line">
               {data.invites.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
-                  <div><b>{i.contact}</b><p className="text-xs text-muted">{t(`org.role.${i.role}`)} · {i.outlet} · {i.expired ? t("org.expired") : t("org.expires", { date: fmt.date(i.expiresAt) })}</p></div>
+                  <div><b>{i.contact}</b><p className="text-xs text-muted">{t(`org.role.${i.role}`)} · {i.outlet ?? t("org.allOutlets")} · {i.expired ? t("org.expired") : t("org.expires", { date: fmt.date(i.expiresAt) })}</p></div>
                   <button type="button" className="btn-quiet !min-h-[44px]" disabled={busy} onClick={() => run(() => api(`/api/vendor/team/invites/${i.id}`, undefined, "DELETE"))}>{t("org.cancelInvite")}</button>
                 </li>
               ))}

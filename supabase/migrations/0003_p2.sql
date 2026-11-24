@@ -61,7 +61,7 @@ create table listing_price_steps (
 );
 create index price_steps_due_idx on listing_price_steps (effective_at) where applied_at is null;
 
-create table referral_codes (user_id uuid primary key references profiles(id), code text not null unique);
+create table referral_codes (user_id uuid primary key references profiles(id), code text not null unique, device_id text);
 create table referrals (
   id uuid primary key default gen_random_uuid(), referrer_id uuid not null references profiles(id), referee_id uuid not null unique references profiles(id),
   code text not null, status referral_status not null default 'pending', device_id text, phone_key text not null,
