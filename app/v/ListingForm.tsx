@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/components/client";
 import { discountPercent, suggestedRescuePrice } from "@/lib/rules";
 import type { Category, Diet, RiskTag, Template } from "@/lib/types";
-import { S } from "@/lib/strings";
 import { useT } from "@/components/I18n";
+import { tOr } from "@/components/i18n-helpers";
 
 export type FormInit = {
   title: string; description: string; category: Category; originalPrice: number | ""; rescuePrice: number | ""; qty: number;
@@ -70,10 +70,10 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
         const res = await fetch(`/api/suggested-discount?${q}`);
         const j = await res.json();
         if (j.ok) setSugg(j.data as Suggestion); else setSuggErr(j.error);
-      } catch { setSuggErr(S.states.error); }
+      } catch { setSuggErr(tr("common.error")); }
     }, 350);
     return () => clearTimeout(h);
-  }, [f.originalPrice, f.category, f.donationOnly, times.end, serverNow]);
+  }, [f.originalPrice, f.category, f.donationOnly, times.end, serverNow, tr]);
 
   const suggestSchedule = async () => {
     setSchedMsg(null);
@@ -86,7 +86,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
       const next = (j.data.steps as { effectiveAt: string; discountPct: number }[]).map((s) => ({ at: toLocal(Date.parse(s.effectiveAt) - drift), pct: String(s.discountPct) }));
       setSteps(next);
       setSchedMsg(next.length ? null : tr("markdown.noSuggestion"));
-    } catch { setSchedMsg(S.states.error); }
+    } catch { setSchedMsg(tr("common.error")); }
   };
   const stepPrice = (pct: string) => { const d = Number(pct); const o = Number(f.originalPrice); return Number.isInteger(d) && d >= 30 && d <= 80 && o > 0 ? Math.max(1, Math.floor((o * (100 - d)) / 100)) : null; };
 
@@ -126,78 +126,78 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
       <div className="card flex flex-col gap-4 p-5">
         {mode === "create" && outlets.length > 1 && (
-          <label className="label">Outlet *
+          <label className="label">{tr("vform.outlet")}
             <select className="input" value={outletId} onChange={(e) => setOutletId(e.target.value)} required>
               {outlets.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
             </select>
           </label>
         )}
         {mode === "create" && templates.length > 0 && (
-          <label className="label">Start from a template
+          <label className="label">{tr("vform.template")}
             <select className="input" defaultValue="" onChange={(e) => applyTemplate(e.target.value)}>
-              <option value="">— Choose —</option>
+              <option value="">{tr("vform.choose")}</option>
               {templates.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
             </select>
           </label>
         )}
-        <label className="label">Food title *<input className="input" required value={f.title} onChange={(e) => set("title", e.target.value)} maxLength={80} /></label>
-        <label className="label">Description<textarea className="input min-h-[70px]" value={f.description} onChange={(e) => set("description", e.target.value)} /></label>
+        <label className="label">{tr("vform.foodTitle")}<input className="input" required value={f.title} onChange={(e) => set("title", e.target.value)} maxLength={80} /></label>
+        <label className="label">{tr("vform.description")}<textarea className="input min-h-[70px]" value={f.description} onChange={(e) => set("description", e.target.value)} /></label>
         <div className="grid grid-cols-2 gap-3">
-          <label className="label">Category *
+          <label className="label">{tr("vform.category")}
             <select className="input" value={f.category} onChange={(e) => set("category", e.target.value as Category)}>
-              <option>Bakery</option><option>Meals</option><option>Snacks</option><option>Desserts</option>
+              {(["Bakery", "Meals", "Snacks", "Desserts"] as Category[]).map((c) => <option key={c} value={c}>{tr(`category.${c}`)}</option>)}
             </select>
           </label>
-          <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={f.surpriseBag} onChange={(e) => set("surpriseBag", e.target.checked)} />{S.surprise.badge} (fixed price, contents hidden until pickup)</label>
+          <label className="flex items-center gap-2 self-end pb-3 text-sm font-semibold"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={f.surpriseBag} onChange={(e) => set("surpriseBag", e.target.checked)} />{tr("vform.surprise")}</label>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {mode === "create" && <label className="flex items-start gap-2 text-sm font-semibold"><input type="checkbox" className="mt-0.5 h-5 w-5 accent-tomato" checked={!!f.donationOnly} onChange={(e) => set("donationOnly", e.target.checked)} /><span>Donation-only<span className="block text-xs font-normal text-muted">Never sold. Goes straight to verified NGOs.</span></span></label>}
-          <label className="label">Food risk tag
+          {mode === "create" && <label className="flex items-start gap-2 text-sm font-semibold"><input type="checkbox" className="mt-0.5 h-5 w-5 accent-tomato" checked={!!f.donationOnly} onChange={(e) => set("donationOnly", e.target.checked)} /><span>{tr("vform.donationOnly")}<span className="block text-xs font-normal text-muted">{tr("vform.donationOnlyHelp")}</span></span></label>}
+          <label className="label">{tr("vform.riskTag")}
             <select className="input" value={f.riskTag ?? ""} onChange={(e) => set("riskTag", e.target.value as RiskTag | "")}>
-              <option value="">None</option><option value="raw">Raw</option><option value="seafood">Seafood</option><option value="dairy_dessert">Dairy dessert</option>
+              <option value="">{tr("vform.riskNone")}</option><option value="raw">{tr("vform.risk.raw")}</option><option value="seafood">{tr("vform.risk.seafood")}</option><option value="dairy_dessert">{tr("vform.risk.dairy_dessert")}</option>
             </select>
-            {f.riskTag ? <span className="text-[11px] font-normal text-tomato">High-risk items: pickup window max 2 hours.</span> : null}
+            {f.riskTag ? <span className="text-[11px] font-normal text-tomato">{tr("vform.riskNote")}</span> : null}
           </label>
         </div>
         <fieldset>
-          <legend className="label mb-1">Diet * (exactly one)</legend>
+          <legend className="label mb-1">{tr("vform.diet")}</legend>
           <div className="grid grid-cols-2 gap-2">
             {(["Vegetarian", "Non-vegetarian"] as Diet[]).map((d) => (
               <label key={d} className={`btn cursor-pointer border-2 ${f.diet === d ? (d === "Vegetarian" ? "border-veg bg-veg text-white" : "border-nonveg bg-nonveg text-white") : "border-line bg-white text-muted"}`}>
-                <input type="radio" name="diet" value={d} required checked={f.diet === d} onChange={() => set("diet", d)} className="sr-only" />{d}
+                <input type="radio" name="diet" value={d} required checked={f.diet === d} onChange={() => set("diet", d)} className="sr-only" />{tr(`diet.${d}`)}
               </label>
             ))}
           </div>
         </fieldset>
         <fieldset>
-          <legend className="label mb-1">Allergens (optional — only what you know)</legend>
+          <legend className="label mb-1">{tr("vform.allergens")}</legend>
           <div className="flex flex-wrap gap-2">
             {ALLERGENS.map((a) => {
               const on = f.allergens.includes(a);
-              return <button type="button" key={a} aria-pressed={on} onClick={() => set("allergens", on ? f.allergens.filter((x) => x !== a) : [...f.allergens, a])} className={`chip border-2 !py-2 ${on ? "border-tomato bg-tomato text-white" : "border-line bg-white text-burgundy"}`}>{a}</button>;
+              return <button type="button" key={a} aria-pressed={on} onClick={() => set("allergens", on ? f.allergens.filter((x) => x !== a) : [...f.allergens, a])} className={`chip border-2 !py-2 ${on ? "border-tomato bg-tomato text-white" : "border-line bg-white text-burgundy"}`}>{tOr(tr, `allergen.${a}`, a)}</button>;
             })}
           </div>
         </fieldset>
-        <label className="label">Storage / handling note<input className="input" value={f.storageNote} onChange={(e) => set("storageNote", e.target.value)} placeholder="e.g. Keep refrigerated; reheat thoroughly" /></label>
+        <label className="label">{tr("vform.storage")}<input className="input" value={f.storageNote} onChange={(e) => set("storageNote", e.target.value)} placeholder={tr("vform.storagePh")} /></label>
       </div>
 
       <div className="flex flex-col gap-4">
         <div className="card flex flex-col gap-4 p-5">
-          {mode === "create" && <p className="self-end rounded-full bg-cream px-3 py-1 text-xs font-bold text-burgundy" aria-live="off">Time to list: {elapsed}s</p>}
-          {f.donationOnly ? <p className="rounded-xl bg-cream p-3 text-sm font-semibold text-burgundy">Donation-only: no price. Charities can claim it free until the pickup window ends.</p> : <>
+          {mode === "create" && <p className="self-end rounded-full bg-cream px-3 py-1 text-xs font-bold text-burgundy" aria-live="off">{tr("vform.timeToList", { s: elapsed })}</p>}
+          {f.donationOnly ? <p className="rounded-xl bg-cream p-3 text-sm font-semibold text-burgundy">{tr("vform.donationOnlyNote")}</p> : <>
           <div className="grid grid-cols-2 gap-3">
-            <label className="label">Original price ₹ *<input className="input" required inputMode="numeric" value={f.originalPrice} onChange={(e) => set("originalPrice", e.target.value === "" ? "" : Number(e.target.value.replace(/\D/g, "")))} /></label>
-            <label className="label">Rescue price ₹ *<input className="input" required inputMode="numeric" value={f.rescuePrice} onChange={(e) => set("rescuePrice", e.target.value === "" ? "" : Number(e.target.value.replace(/\D/g, "")))} /></label>
+            <label className="label">{tr("vform.origPrice")}<input className="input" required inputMode="numeric" value={f.originalPrice} onChange={(e) => set("originalPrice", e.target.value === "" ? "" : Number(e.target.value.replace(/\D/g, "")))} /></label>
+            <label className="label">{tr("vform.rescuePrice")}<input className="input" required inputMode="numeric" value={f.rescuePrice} onChange={(e) => set("rescuePrice", e.target.value === "" ? "" : Number(e.target.value.replace(/\D/g, "")))} /></label>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            {pct !== null && <span className={`font-semibold ${priceOk ? "text-veg" : "text-tomato"}`}>{pct}% off · {priceOk ? "meets the 30% minimum" : "must be at least 30% off"}</span>}
-            {f.originalPrice ? <button type="button" className="font-semibold text-tomato underline" onClick={() => set("rescuePrice", suggestedRescuePrice(Number(f.originalPrice)))}>Use 50% off (₹{suggestedRescuePrice(Number(f.originalPrice))})</button> : null}
+            {pct !== null && <span className={`font-semibold ${priceOk ? "text-veg" : "text-tomato"}`}>{priceOk ? tr("vform.pctOk", { pct }) : tr("vform.pctBad", { pct })}</span>}
+            {f.originalPrice ? <button type="button" className="font-semibold text-tomato underline" onClick={() => set("rescuePrice", suggestedRescuePrice(Number(f.originalPrice)))}>{tr("vform.useHalf", { price: suggestedRescuePrice(Number(f.originalPrice)) })}</button> : null}
           </div>
           {(sugg || suggErr) && (
             <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl bg-cream p-3 text-sm text-burgundy">
               {sugg ? (<>
-                <span><b>Suggested ₹{sugg.price}</b> ({Math.round(sugg.discount * 100)}% off) · {sugg.hoursLeft.toFixed(1)} h left{sugg.historyUsed ? ", based on your last 7 days" : ", no history yet"}</span>
-                <button type="button" className="btn-primary !min-h-[44px] !py-2" onClick={() => set("rescuePrice", sugg.price)} aria-label={`Apply suggested price ₹${sugg.price}`}>Apply</button>
+                <span><b>{tr("vform.suggested", { price: sugg.price })}</b> {tr("vform.suggestedRest", { pct: Math.round(sugg.discount * 100), hours: sugg.hoursLeft.toFixed(1) })}{sugg.historyUsed ? `, ${tr("vform.historyUsed")}` : `, ${tr("vform.noHistory")}`}</span>
+                <button type="button" className="btn-primary !min-h-[44px] !py-2" onClick={() => set("rescuePrice", sugg.price)} aria-label={tr("vform.applySuggested", { price: sugg.price })}>{tr("common.apply")}</button>
               </>) : <span className="text-xs">{suggErr}</span>}
             </div>
           )}</>}
@@ -222,26 +222,26 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
             </fieldset>
           )}
           <div className="flex items-center justify-between gap-3">
-            <span className="label">Quantity *</span>
+            <span className="label">{tr("vform.quantity")}</span>
             <div className="flex items-center gap-2">
-              <button type="button" aria-label="Decrease" className="h-12 w-12 rounded-xl border-2 border-tomato text-2xl text-tomato" onClick={() => set("qty", Math.max(1, f.qty - 1))}>−</button>
-              <input aria-label="Quantity" className="input w-20 text-center text-xl font-bold" inputMode="numeric" value={f.qty} onChange={(e) => set("qty", Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1))} />
-              <button type="button" aria-label="Increase" className="h-12 w-12 rounded-xl bg-tomato text-2xl text-white" onClick={() => set("qty", f.qty + 1)}>+</button>
+              <button type="button" aria-label={tr("vform.decrease")} className="h-12 w-12 rounded-xl border-2 border-tomato text-2xl text-tomato" onClick={() => set("qty", Math.max(1, f.qty - 1))}>−</button>
+              <input aria-label={tr("vform.quantityAria")} className="input w-20 text-center text-xl font-bold" inputMode="numeric" value={f.qty} onChange={(e) => set("qty", Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1))} />
+              <button type="button" aria-label={tr("vform.increase")} className="h-12 w-12 rounded-xl bg-tomato text-2xl text-white" onClick={() => set("qty", f.qty + 1)}>+</button>
             </div>
           </div>
           <div className="flex gap-2">{[5, 10, 15, 20].map((q) => <button type="button" key={q} onClick={() => set("qty", q)} className="chip flex-1 justify-center border-2 border-line bg-white !py-2 text-burgundy">{q}</button>)}</div>
           <div className="grid grid-cols-2 gap-3">
-            <label className="label">Pickup from *<input type="datetime-local" className="input" required value={times.start} onChange={(e) => setTimes({ ...times, start: e.target.value })} /></label>
-            <label className="label">Until *<input type="datetime-local" className="input" required value={times.end} onChange={(e) => setTimes({ ...times, end: e.target.value })} /></label>
-            <label className="label">Prepared at *<input type="datetime-local" className="input" required value={times.prepared} onChange={(e) => setTimes({ ...times, prepared: e.target.value })} /></label>
-            <label className="label">Safe to eat until<input type="datetime-local" className="input" value={times.safe} onChange={(e) => setTimes({ ...times, safe: e.target.value })} /></label>
+            <label className="label">{tr("vform.pickupFrom")}<input type="datetime-local" className="input" required value={times.start} onChange={(e) => setTimes({ ...times, start: e.target.value })} /></label>
+            <label className="label">{tr("vform.until")}<input type="datetime-local" className="input" required value={times.end} onChange={(e) => setTimes({ ...times, end: e.target.value })} /></label>
+            <label className="label">{tr("vform.prepared")}<input type="datetime-local" className="input" required value={times.prepared} onChange={(e) => setTimes({ ...times, prepared: e.target.value })} /></label>
+            <label className="label">{tr("vform.safeUntil")}<input type="datetime-local" className="input" value={times.safe} onChange={(e) => setTimes({ ...times, safe: e.target.value })} /></label>
           </div>
-          <p className="text-[11px] text-muted">Pickup must start in the future and within 12 hours of creating the listing.</p>
+          <p className="text-[11px] text-muted">{tr("vform.windowNote")}</p>
         </div>
         <div className="card flex flex-col gap-3 p-5">
           <label className="flex items-start gap-3 rounded-xl bg-cream p-3 text-sm font-bold text-burgundy">
             <input type="checkbox" className="mt-0.5 h-5 w-5 accent-tomato" checked={f.donateRest} onChange={(e) => set("donateRest", e.target.checked)} />
-            <span>Donate the rest at window end<span className="block text-xs font-normal">Unreserved units become one free batch for verified NGOs, if still safe.</span></span>
+            <span>{tr("vform.donateRest")}<span className="block text-xs font-normal">{tr("vform.donateRestHelp")}</span></span>
           </label>
           {mode === "create" && (features.priorityOptions?.length ?? 0) > 0 && !f.donationOnly && (
             <label className="label">{tr("prio.field")}
@@ -254,9 +254,9 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
           )}
           <label className="flex items-start gap-3 text-sm">
             <input type="checkbox" required className="mt-0.5 h-5 w-5 accent-tomato" checked={declared} onChange={(e) => setDeclared(e.target.checked)} />
-            <span><b>Food-safety declaration *</b> — I confirm this food was prepared and stored hygienically, the details above are accurate, and it is fit to eat within the stated time.</span>
+            <span><b>{tr("vform.declaration")}</b> {tr("vform.declarationBody")}</span>
           </label>
-          <button className="btn-primary !py-4 text-base" disabled={busy}>{busy ? "Saving…" : mode === "create" ? "Publish now" : "Save changes"}</button>
+          <button className="btn-primary !py-4 text-base" disabled={busy}>{busy ? tr("common.saving") : mode === "create" ? tr("vform.publish") : tr("vform.saveChanges")}</button>
           {err && <p role="alert" className="text-sm font-semibold text-tomato">{err}</p>}
         </div>
       </div>

@@ -9,9 +9,10 @@ import { Countdown } from "@/components/client";
 import { CancelOrder, ReportButton, ReviewForm } from "@/components/p1";
 import { cancelQuote } from "@/lib/cancel";
 import { RULES } from "@/lib/rules";
-import { S } from "@/lib/strings";
 import { EtaButton } from "@/components/p2-customer";
 import { isFlagOn } from "@/lib/p2/platform";
+import { getT } from "@/lib/i18n/server";
+import { statusLabel } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Pickup pass" };
@@ -20,6 +21,7 @@ const STEPS = ["Reserved", "Ready", "Picked up"] as const;
 
 export default async function OrderPass({ params }: { params: Promise<{ id: string }> }) {
   const me = await requirePage("customer");
+  const { t } = await getT();
   const { id } = await params;
   const db = read();
   const r = db.reservations.find((x) => x.id === id && x.customerId === me.id); // owner-only
@@ -41,53 +43,53 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-8">
       <div className="flex flex-col items-center gap-3 rounded-[2rem] bg-burgundy p-6 text-cream">
-        <p className="eyebrow text-peach">Pickup pass · {r.ref}</p>
+        <p className="eyebrow text-peach">{t("order.pass", { ref: r.ref })}</p>
         <h1 className="display text-center text-3xl">
-          {r.status === "Ready" ? "READY FOR YOU" : r.status === "Reserved" ? "RESERVED" : r.status.toUpperCase()}
+          {r.status === "Ready" ? t("order.readyForYou") : r.status === "Reserved" ? t("order.reserved") : statusLabel(t, r.status).toUpperCase()}
         </h1>
-        <ol className="flex w-full gap-1.5" aria-label="Order progress">
+        <ol className="flex w-full gap-1.5" aria-label={t("order.progress")}>
           {STEPS.map((s, i) => (
             <li key={s} className={`flex flex-1 items-center justify-center gap-1 rounded-full py-1.5 text-[11px] font-bold ${i <= stepIdx ? "bg-peach text-burgundy" : "border border-peach/60 text-peach"}`} aria-current={i === stepIdx ? "step" : undefined}>
-              {i < stepIdx && <Check size={12} aria-hidden="true" />}{s}
+              {i < stepIdx && <Check size={12} aria-hidden="true" />}{statusLabel(t, s)}
             </li>
           ))}
         </ol>
         {qr ? (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qr} alt={`Pickup QR code for ${r.ref}`} width={220} height={220} className="rounded-2xl bg-white p-2" />
-            <p className="text-xs text-peach">Or tell the counter</p>
-            <p className="display text-5xl tracking-[0.3em]" aria-label={`Fallback code ${r.code.split("").join(" ")}`}>{r.code}</p>
-            <p className="text-center text-[11px] text-peach">Works once, only at {v.businessName}, only during the pickup window.</p>
+            <img src={qr} alt={t("order.qrAlt", { ref: r.ref })} width={220} height={220} className="rounded-2xl bg-white p-2" />
+            <p className="text-xs text-peach">{t("order.orTell")}</p>
+            <p className="display text-5xl tracking-[0.3em]" aria-label={t("order.fallbackAria", { code: r.code.split("").join(" ") })}>{r.code}</p>
+            <p className="text-center text-[11px] text-peach">{t("order.once", { vendor: v.businessName })}</p>
           </>
         ) : (
           <p className="rounded-xl bg-cream/10 p-3 text-center text-sm">
-            {r.status === "Picked up" ? `Collected ${fmtDateTime(r.pickedUpAt!)}. Code is now invalid.` : r.status === "No-show" ? S.noShow : r.cancelReason ?? `This order is ${r.status.toLowerCase()}.`}
+            {r.status === "Picked up" ? t("order.collected", { when: fmtDateTime(r.pickedUpAt!) }) : r.status === "No-show" ? t("order.noShow") : r.cancelReason ?? t("order.isStatus", { status: statusLabel(t, r.status).toLowerCase() })}
           </p>
         )}
       </div>
       <div className="card flex flex-col gap-1.5 p-4 text-sm">
         <div className="flex items-center justify-between"><b>{v.businessName}</b><StatusPill status={r.status} /></div>
-        <p>{r.qty} × {l.title} · ₹{r.amount}{r.creditApplied ? <span className="text-muted"> (₹{r.creditApplied} paid with credit)</span> : null}</p>
-        <p className="text-muted">Payment: {p?.status ?? "—"} ({r.method === "online" ? "online, test mode" : "pay at pickup"})</p>
-        <p className="text-muted">Pickup window {fmtWindow(l.windowStart, l.windowEnd)}</p>
+        <p>{r.qty} × {l.title} · ₹{r.amount}{r.creditApplied ? <span className="text-muted"> {t("order.paidWithCredit", { amount: r.creditApplied })}</span> : null}</p>
+        <p className="text-muted">{t("order.payment", { status: p ? statusLabel(t, p.status) : "—", method: r.method === "online" ? t("order.methodOnline") : t("order.methodPickup") })}</p>
+        <p className="text-muted">{t("order.window", { window: fmtWindow(l.windowStart, l.windowEnd) })}</p>
         {active && (
           <p className="font-bold text-tomato">
-            {started ? <Countdown to={l.windowEnd} serverNow={n} label="until the window closes" endedText="Window closed" /> : <Countdown to={l.windowStart} serverNow={n} label="until pickup opens" endedText="Pickup is open" />}
+            {started ? <Countdown to={l.windowEnd} serverNow={n} label={t("order.untilClose")} endedText={t("order.windowClosed")} /> : <Countdown to={l.windowStart} serverNow={n} label={t("order.untilOpen")} endedText={t("order.pickupOpen")} />}
           </p>
         )}
         <p className="text-muted">{o.address}</p>
-        <a className="btn-primary mt-2" href={directionsUrl(o, NEIGHBOURHOODS.Koramangala)} target="_blank" rel="noreferrer">Get directions</a>
-        <p className="text-[11px] text-muted">Directions start from Koramangala (demo default location).</p>
+        <a className="btn-primary mt-2" href={directionsUrl(o, NEIGHBOURHOODS.Koramangala)} target="_blank" rel="noreferrer">{t("order.directions")}</a>
+        <p className="text-[11px] text-muted">{t("order.directionsNote")}</p>
       </div>
-      {r.status === "Picked up" && l.surpriseBag && <p className="rounded-2xl bg-peach p-4 text-sm text-burgundy"><b>Your Surprise Bag:</b> {l.description.startsWith("Surprise Bag") ? "contents varied with what was left today." : l.description}</p>}
+      {r.status === "Picked up" && l.surpriseBag && <p className="rounded-2xl bg-peach p-4 text-sm text-burgundy"><b>{t("order.surprise")}</b> {l.description.startsWith("Surprise Bag") ? t("order.surpriseVaried") : l.description}</p>}
       {active && isFlagOn("liveEta") && <EtaButton reservationId={r.id} outlet={{ lat: o.lat, lng: o.lng }} initialMinutes={r.etaMinutes} canStart={n >= Date.parse(l.windowStart) - 90 * 60_000 && n <= Date.parse(l.windowEnd)} />}
-      {active && <div className="card p-4"><p className="mb-2 text-xs text-muted">{S.cancel.policy}</p><CancelOrder reservationId={r.id} free={quote.free} refund={quote.refundAmount} freeUntil={fmtDateTime(quote.freeUntil)} /></div>}
+      {active && <div className="card p-4"><p className="mb-2 text-xs text-muted">{t("cancel.policy", { minutes: RULES.CANCEL_FREE_MINUTES_BEFORE_START })}</p><CancelOrder reservationId={r.id} free={quote.free} refund={quote.refundAmount} freeUntil={fmtDateTime(quote.freeUntil)} minutes={RULES.CANCEL_FREE_MINUTES_BEFORE_START} /></div>}
       {canReview && <ReviewForm reservationId={r.id} />}
-      {review && <p className="card p-4 text-sm">You rated this order {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}{review.text && <span className="text-muted"> — {review.text}</span>}</p>}
+      {review && <p className="card p-4 text-sm">{t("order.youRated")} {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}{review.text && <span className="text-muted"> — {review.text}</span>}</p>}
       <details className="card p-4 text-sm">
-        <summary className="cursor-pointer font-semibold">Order history</summary>
-        <ol className="mt-2 flex flex-col gap-1 text-xs text-muted">{events.map((e) => <li key={e.id}>{fmtDateTime(e.at)} · {e.from ? `${e.from} → ` : ""}{e.to}{e.note ? ` (${e.note})` : ""}</li>)}{events.length === 0 && <li>No history recorded.</li>}</ol>
+        <summary className="cursor-pointer font-semibold">{t("order.history")}</summary>
+        <ol className="mt-2 flex flex-col gap-1 text-xs text-muted">{events.map((e) => <li key={e.id}>{fmtDateTime(e.at)} · {e.from ? `${statusLabel(t, e.from)} → ` : ""}{statusLabel(t, e.to)}{e.note ? ` (${e.note})` : ""}</li>)}{events.length === 0 && <li>{t("order.noHistory")}</li>}</ol>
       </details>
       <div className="text-center"><ReportButton targetType="reservation" targetId={r.id} /></div>
     </div>

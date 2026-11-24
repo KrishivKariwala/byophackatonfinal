@@ -204,12 +204,12 @@ create policy moderation_admin on moderation_actions for select using (auth_role
 -- vendors see a moderation action about their own listing through the notification they receive; the table itself is admin-only.
 
 -- ---------------------------------------------------------------- jobs (pg_cron; the demo adapter runs the same logic in lib/jobs.ts)
--- Every minute:  apply due price steps (only ever LOWERS the price, never below 30% off of the original), expire credit lots older than 90 days,
---                make priority listings public once public_visible_at has passed, refresh delivery statuses from the provider.
--- Monthly (1st): generate each active vendor's impact certificate for the previous month and notify the owner.
--- Example:
+-- process_p2_jobs() below implements two of the demo adapter's jobs: apply due price steps (only ever LOWERS a price) and expire credit lots.
+-- NOT yet written in SQL (they exist only in the demo adapter, lib/p2/*.ts, which the tests exercise): follower alerts when a priority
+-- window ends, issuing donation receipts, delivery status sync, the monthly impact certificates, and the credit/referral RPCs
+-- (spend at checkout, restore on cancel, reward on first pickup). These must be ported into reserve_listing / handover / cancel_reservation
+-- before running on Postgres. Schedule what exists with:
 --   select cron.schedule('p2-minute', '* * * * *', $$ select process_p2_jobs() $$);
---   select cron.schedule('p2-certs',  '0 3 1 * *', $$ select generate_monthly_certificates() $$);
 create or replace function process_p2_jobs() returns void language plpgsql security definer set search_path = public as $$
 begin
   if flag_on('autoMarkdown') then

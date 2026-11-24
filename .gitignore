@@ -10,3 +10,7 @@ test-results
 data/uploads
 .DS_Store
 **/.DS_Store
+
+# local agent-skill links (created by `npx skills add`)
+data/skills/
+.agents/

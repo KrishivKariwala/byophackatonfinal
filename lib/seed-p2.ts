@@ -28,7 +28,7 @@ export function seedP2(db: DB, T: number): void {
   const idr = NEIGHBOURHOODS.Indiranagar;
   db.outlets.push({ id: "o_1b", vendorId: "v_1", name: "Crumb & Co. · Indiranagar", hours: "09:00–21:00", address: "Demo address 1B, Indiranagar, Bengaluru", neighbourhood: "Indiranagar", lat: +(idr.lat + 0.002).toFixed(5), lng: +(idr.lng + 0.001).toFixed(5), payAtPickup: true });
   Object.assign(db.outlets.find((o) => o.id === "o_2")!, { name: "Masala Lane Kitchen · Main", hours: "11:00–23:00" });
-  person("u_mgr1", "Anita (Demo manager)", "vendor", "+91 90000 03001");
+  person("u_mgr1", "Mala (Demo manager)", "vendor", "+91 90000 03001");
   person("u_staff1", "Imran (Demo staff)", "vendor", "+91 90000 03002");
   person("u_staff2", "Latha (Demo staff)", "vendor", "+91 90000 03003");
   person("u_staff3", "Vikram (Demo staff)", "vendor", "+91 90000 03004");

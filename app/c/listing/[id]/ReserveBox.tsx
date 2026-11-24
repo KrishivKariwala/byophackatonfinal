@@ -36,22 +36,22 @@ export function ReserveBox({ listingId, unitPrice, maxQty, payAtPickup, payAtPic
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold">Quantity</span>
+        <span className="text-sm font-semibold">{t("listing.quantity")}</span>
         <div className="flex items-center gap-3">
-          <button aria-label="Decrease quantity" className="h-11 w-11 rounded-full border-2 border-tomato text-xl text-tomato disabled:opacity-40" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
+          <button aria-label={t("listing.decrease")} className="h-11 w-11 rounded-full border-2 border-tomato text-xl text-tomato disabled:opacity-40" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
           <b className="w-6 text-center text-lg" aria-live="polite">{qty}</b>
-          <button aria-label="Increase quantity" className="h-11 w-11 rounded-full bg-tomato text-xl text-white disabled:opacity-40" disabled={qty >= capped} onClick={() => setQty(qty + 1)}>+</button>
+          <button aria-label={t("listing.increase")} className="h-11 w-11 rounded-full bg-tomato text-xl text-white disabled:opacity-40" disabled={qty >= capped} onClick={() => setQty(qty + 1)}>+</button>
         </div>
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="label mb-1">Payment</legend>
+        <legend className="label mb-1">{t("listing.payment")}</legend>
         <label className={`flex cursor-pointer items-center gap-2 rounded-xl border-2 p-3 text-sm ${method === "online" ? "border-tomato bg-cream" : "border-line"}`}>
           <input type="radio" name="m" checked={method === "online"} onChange={() => setMethod("online")} className="accent-tomato" />
-          <span><b>Pay now</b> · UPI / card (test mode). Units held {holdMinutes} minutes while you pay.</span>
+          <span><b>{t("listing.payNow")}</b> · {t("listing.payNowBody", { minutes: holdMinutes })}</span>
         </label>
         <label className={`flex items-center gap-2 rounded-xl border-2 p-3 text-sm ${!payAtPickup ? "opacity-50" : "cursor-pointer"} ${method === "pay_at_pickup" ? "border-tomato bg-cream" : "border-line"}`}>
           <input type="radio" name="m" disabled={!payAtPickup} checked={method === "pay_at_pickup"} onChange={() => setMethod("pay_at_pickup")} className="accent-tomato" />
-          <span><b>Pay at pickup</b> · {payAtPickup ? "reserved instantly, pay the vendor at handover." : payAtPickupNote}</span>
+          <span><b>{t("listing.payAtPickup")}</b> · {payAtPickup ? t("listing.payAtPickupOk") : payAtPickupNote}</span>
         </label>
       </fieldset>
       {creditBalance > 0 && (
@@ -62,15 +62,15 @@ export function ReserveBox({ listingId, unitPrice, maxQty, payAtPickup, payAtPic
       )}
       <dl className="rounded-xl bg-canvas p-3 text-sm">
         <div className="flex justify-between"><dt>{qty} × ₹{unitPrice}</dt><dd>₹{total}</dd></div>
-        <div className="flex justify-between text-muted"><dt>Convenience fee</dt><dd>₹0 (pilot)</dd></div>
+        <div className="flex justify-between text-muted"><dt>{t("listing.convenience")}</dt><dd>{t("listing.convenienceVal")}</dd></div>
         {creditUse > 0 && <div className="flex justify-between text-veg"><dt>{t("credit.line")}</dt><dd>−₹{creditUse}</dd></div>}
-        <div className="mt-1 flex justify-between border-t border-line pt-1 font-bold"><dt>{creditUse > 0 ? t("credit.toPay") : "Total"}</dt><dd>₹{pay}</dd></div>
+        <div className="mt-1 flex justify-between border-t border-line pt-1 font-bold"><dt>{creditUse > 0 ? t("credit.toPay") : t("common.total")}</dt><dd>₹{pay}</dd></div>
       </dl>
-      <p className="rounded-xl bg-cream p-3 text-xs text-burgundy"><b>Cancellation policy.</b> {policy}</p>
+      <p className="rounded-xl bg-cream p-3 text-xs text-burgundy"><b>{t("listing.cancelPolicy")}</b> {policy}</p>
       <button className="btn-primary !py-4 text-base" disabled={busy} onClick={submit}>
-        {busy ? "Reserving…" : method === "online" ? `Reserve & pay ₹${pay}` : `Reserve ${qty} · pay at pickup${creditUse > 0 ? ` (₹${pay})` : ""}`}
+        {busy ? t("listing.reserving") : method === "online" ? t("listing.reservePay", { pay }) : creditUse > 0 ? t("listing.reservePickupAmt", { qty, pay }) : t("listing.reservePickup", { qty })}
       </button>
-      {activeCount >= maxActive && <p className="text-xs font-semibold text-tomato">You already have {maxActive} active reservations. Collect or cancel one first.</p>}
+      {activeCount >= maxActive && <p className="text-xs font-semibold text-tomato">{t("listing.maxActive", { max: maxActive })}</p>}
       {err && <p role="alert" className="text-sm font-semibold text-tomato">{err}</p>}
     </div>
   );

@@ -5,12 +5,14 @@ import { HOME, SELF_ROLES, SKIP_PERSONA, type SelfRole } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { RoleSignIn } from "@/components/RoleSignIn";
 import { SignInClient } from "./SignInClient";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Sign in" };
 
 export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string; next?: string; ref?: string }> }) {
   const sp = await searchParams;
+  const { t } = await getT();
   const db = read();
   const label = (id: string) => {
     const p = db.profiles.find((x) => x.id === id);
@@ -30,17 +32,16 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} refCode={/^[A-Za-z0-9]{4,16}$/.test(sp.ref ?? "") ? sp.ref!.toUpperCase() : undefined} />;
   }
 
-  const personas = ["u_priya", "u_arjun", "u_ravi", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
+  const personas = ["u_priya", "u_arjun", "u_sana", "u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
     .filter((id) => db.profiles.some((p) => p.id === id))
     .map(label);
   return (
     <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-2">
       <div className="flex flex-col gap-4">
         <Logo width={220} priority />
-        <h1 className="display text-5xl text-tomato">SIGN IN</h1>
+        <h1 className="display text-5xl text-tomato">{t("signin.title")}</h1>
         <p className="text-sm text-muted">
-          Phone OTP or Google sign-in. In this demo build, SMS and Google are not connected: the OTP is simulated (use <b>123456</b>) and the
-          Google button explains the missing credentials rather than pretending to work.
+          {t("signin.intro1")} <b>123456</b>{t("signin.intro2")}
         </p>
       </div>
       <SignInClient personas={personas} />

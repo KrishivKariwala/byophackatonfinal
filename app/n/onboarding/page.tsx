@@ -2,18 +2,20 @@ import { requirePage } from "@/lib/guard";
 import { read } from "@/lib/store";
 import { StatusPill } from "@/components/bits";
 import { OnboardingForm } from "@/components/OnboardingForm";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "NGO verification" };
 
 export default async function NgoOnboarding() {
   const me = await requirePage("ngo");
+  const { t } = await getT();
   const n = read().ngos.find((x) => x.ownerId === me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">NGO VERIFICATION</h1>
-      {n && <p className="flex items-center gap-2 text-sm">Status: <StatusPill status={n.status} />{n.rejectionReason && <span className="text-tomato">Reason: {n.rejectionReason}</span>}</p>}
-      <p className="text-xs text-muted">Only approved NGOs can claim donation batches. A demo approval is not a real regulatory approval.</p>
+      <h1 className="display text-4xl text-tomato">{t("onb.ngoTitle")}</h1>
+      {n && <p className="flex items-center gap-2 text-sm">{t("onb.status")} <StatusPill status={n.status} />{n.rejectionReason && <span className="text-tomato">{t("onb.reason", { reason: n.rejectionReason })}</span>}</p>}
+      <p className="text-xs text-muted">{t("onb.ngoNote")}</p>
       <OnboardingForm
         kind="ngo"
         locked={n?.status === "Approved"}

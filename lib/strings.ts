@@ -1,3 +1,5 @@
+// NOTE: UI text that used to read from `S` now lives in the i18n catalogs (lib/i18n/messages/*.json, keys like follow.*, cancel.*, review.*, report.*, impact.*, p1.*).
+// `S` is kept only as an English reference for server-generated text; no screen imports it any more.
 // User-facing strings for P1 features live here (the repo had no strings file before P1; P0 copy stays where it was).
 // Currency is INR (₹). Keep wording plain; no string is built from untrusted HTML.
 export const S = {

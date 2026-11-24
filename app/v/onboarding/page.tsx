@@ -3,23 +3,25 @@ import { read } from "@/lib/store";
 import { StatusPill } from "@/components/bits";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { resolveOrg } from "@/lib/p2/org";
+import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vendor onboarding" };
 
 export default async function VendorOnboarding() {
   const me = await requirePage("vendor");
+  const { t } = await getT();
   const db = read();
   const org = resolveOrg(db, me);
   if (org && org.role !== "owner")
-    return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">OUTLET PROFILE</h1><p role="status" className="mt-2 text-sm text-muted">Only the owner can edit the business profile ({org.vendor.businessName}).</p></div>;
+    return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">{t("onb.outletProfile")}</h1><p role="status" className="mt-2 text-sm text-muted">{t("onb.ownerOnly", { business: org.vendor.businessName })}</p></div>;
   const v = db.vendors.find((x) => x.ownerId === me.id);
   const o = v ? db.outlets.find((x) => x.vendorId === v.id) : undefined;
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">VENDOR ONBOARDING</h1>
-      {v && <p className="flex items-center gap-2 text-sm">Application status: <StatusPill status={v.status} />{v.rejectionReason && <span className="text-tomato">Reason: {v.rejectionReason}</span>}</p>}
-      <p className="text-xs text-muted">An administrator reviews every application. Demo approvals are not real FSSAI or regulatory approvals.</p>
+      <h1 className="display text-4xl text-tomato">{t("onb.vendorTitle")}</h1>
+      {v && <p className="flex items-center gap-2 text-sm">{t("onb.appStatus")} <StatusPill status={v.status} />{v.rejectionReason && <span className="text-tomato">{t("onb.reason", { reason: v.rejectionReason })}</span>}</p>}
+      <p className="text-xs text-muted">{t("onb.reviewNote")}</p>
       <OnboardingForm
         kind="vendor"
         locked={v?.status === "Approved"}

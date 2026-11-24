@@ -166,12 +166,19 @@ public/brand    official logo (original + crop, untouched)      reference/  bund
 
 P1 adds notifications (in-app + optional Expo push/SMS), follows, Surprise Bag, ratings, impact profile, cancellation and refunds, reports, pay at pickup, vendor templates, price suggestion, analytics and payouts, donation-only listings, charity scheduling with a public volunteer link, escalation, no-show handling, fraud controls, verified badges, and an admin console (approvals, reports, flagged). See `docs/P1_DEMO.md` to try each one and `docs/P1_NOTES.md` for decisions and limits. Schema: `supabase/migrations/0002_p1.sql` (+ `.down.sql`).
 
+## P2 features
+
+P2 adds referral credits, Hindi and Kannada (switcher in the header), a live "I'm on my way" ETA, auto-markdown schedules, monthly impact certificates with a public verification page, multiple outlets with owner / manager / staff roles, a charity priority window, distribution logs, donation receipts (PDF + zip), a delivery hand-off layer (mock rider by default), an admin moderation queue, and an admin platform-settings screen with an audit trail. **Every P2 feature is behind a feature flag** (Admin → Settings), so any of them can be switched off without a deploy. See `docs/P2_DEMO.md` to try each one, `docs/P2_NOTES.md` for decisions, assumptions and what is *not* done (read it: the Postgres side is only partly written), and `TRANSLATION_REVIEW.md` (the Hindi and Kannada text is an unreviewed first pass). Schema: `supabase/migrations/0003_p2.sql` (+ `.down.sql`, not yet run against a database).
+
+Extra environment variables: `DELIVERY_PROVIDER` (`mock` default | `dunzo` | `porter`), `DUNZO_API_KEY`, `PORTER_API_KEY`, `DELIVERY_WEBHOOK_SECRET` (see `.env.example`).
+
 ## Commands
 
 ```bash
 npm run dev               # dev server
 npm run build && npm start
-npm test                  # vitest: P0 + P1 service tests (incl. 50×10 concurrency)
+npm test                  # translation completeness check + vitest (P0, P1, P2 service tests, incl. concurrency)
+npm run i18n:check        # fails on any missing Hindi/Kannada key or changed {placeholder}
 npm run test:concurrency  # builds must exist: real HTTP server, 50×10, realtime, negative checks
 npm run typecheck && npm run lint
 npm run seed              # fresh demo data

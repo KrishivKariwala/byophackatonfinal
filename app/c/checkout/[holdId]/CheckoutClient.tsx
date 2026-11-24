@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/client";
+import { useT } from "@/components/I18n";
 
 type Outcome = { outcome: "confirmed" | "duplicate" | "late_refund" | "failed"; reservationId?: string };
 type RzpResp = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
@@ -9,13 +10,14 @@ declare global { interface Window { Razorpay?: new (o: Record<string, unknown>) 
 
 export function CheckoutClient({ holdId, gatewayOrderId, amount, razorpay, keyId }: { holdId: string; gatewayOrderId: string; amount: number; razorpay: boolean; keyId: string }) {
   const router = useRouter();
+  const { t } = useT();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const after = (o: Outcome) => {
     if ((o.outcome === "confirmed" || o.outcome === "duplicate") && o.reservationId) router.push(`/c/orders/${o.reservationId}`);
-    else if (o.outcome === "late_refund") setMsg("Payment arrived after your hold expired. A full test-mode refund was initiated; no order was created.");
-    else { setMsg("Payment failed. The units were released."); router.refresh(); }
+    else if (o.outcome === "late_refund") setMsg(t("checkout.lateRefund"));
+    else { setMsg(t("checkout.failed")); router.refresh(); }
   };
 
   const demo = async (outcome: "success" | "fail") => {
@@ -31,7 +33,7 @@ export function CheckoutClient({ holdId, gatewayOrderId, amount, razorpay, keyId
         const s = document.createElement("script");
         s.src = "https://checkout.razorpay.com/v1/checkout.js";
         s.onload = () => res();
-        s.onerror = () => rej(new Error("Could not load Razorpay Checkout"));
+        s.onerror = () => rej(new Error(t("checkout.rzpLoadFail")));
         document.body.appendChild(s);
       }).catch((e) => setMsg((e as Error).message));
     }
@@ -47,14 +49,14 @@ export function CheckoutClient({ holdId, gatewayOrderId, amount, razorpay, keyId
     <div className="card flex flex-col gap-3 p-5">
       {razorpay ? (
         <>
-          <p className="text-xs font-semibold text-burgundy">Razorpay TEST MODE — no real money moves.</p>
-          <button className="btn-primary !py-4" disabled={busy} onClick={real}>Pay ₹{amount} with UPI / card</button>
+          <p className="text-xs font-semibold text-burgundy">{t("checkout.rzpNote")}</p>
+          <button className="btn-primary !py-4" disabled={busy} onClick={real}>{t("checkout.payWith", { amount })}</button>
         </>
       ) : (
         <>
-          <p className="rounded-lg bg-peach p-2 text-xs font-semibold text-burgundy">SIMULATED PAYMENT · Razorpay test keys are not configured, so this demo adapter stands in. No money moves.</p>
-          <button className="btn-primary !py-4" disabled={busy} onClick={() => demo("success")}>Simulate successful payment · ₹{amount}</button>
-          <button className="btn-outline" disabled={busy} onClick={() => demo("fail")}>Simulate failed payment</button>
+          <p className="rounded-lg bg-peach p-2 text-xs font-semibold text-burgundy">{t("checkout.simNote")}</p>
+          <button className="btn-primary !py-4" disabled={busy} onClick={() => demo("success")}>{t("checkout.simOk", { amount })}</button>
+          <button className="btn-outline" disabled={busy} onClick={() => demo("fail")}>{t("checkout.simFail")}</button>
         </>
       )}
       {msg && <p role="alert" className="text-sm font-semibold text-tomato">{msg}</p>}

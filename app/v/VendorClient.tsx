@@ -2,9 +2,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/components/client";
+import { useT } from "@/components/I18n";
 
 export function CancelListingButton({ listingId }: { listingId: string }) {
   const router = useRouter();
+  const { t } = useT();
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -13,17 +15,17 @@ export function CancelListingButton({ listingId }: { listingId: string }) {
         className="btn !min-h-[40px] !py-2 border border-tomato text-tomato hover:bg-cream"
         disabled={busy}
         onClick={async () => {
-          const reason = window.prompt("Reason for cancelling? Customers will see it. Outstanding orders are cancelled and online payments refunded (test mode).");
+          const reason = window.prompt(t("vdash.cancelPrompt"));
           if (!reason) return;
           setBusy(true);
           try {
             const r = await api<{ refunds: number }>(`/api/vendor/listings/${listingId}`, { action: "cancel", reason });
-            setErr(`Cancelled. ${r.refunds} refund(s) issued.`);
+            setErr(t("vdash.cancelled", { n: r.refunds }));
             router.refresh();
           } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
         }}
       >
-        Cancel
+        {t("common.cancel")}
       </button>
       {err && <span role="status" className="text-[11px] font-semibold text-tomato">{err}</span>}
     </span>
@@ -32,6 +34,7 @@ export function CancelListingButton({ listingId }: { listingId: string }) {
 
 export function DonationVerify({ batchId }: { batchId: string }) {
   const router = useRouter();
+  const { t } = useT();
   const [code, setCode] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   return (
@@ -41,15 +44,15 @@ export function DonationVerify({ batchId }: { batchId: string }) {
         e.preventDefault();
         try {
           await api(`/api/vendor/donations/${batchId}/handover`, { code });
-          setMsg({ ok: true, t: "Handover verified. Donation recorded." });
+          setMsg({ ok: true, t: t("vdash.handoverOk") });
           router.refresh();
         } catch (er) { setMsg({ ok: false, t: (er as Error).message }); }
       }}
     >
-      <label className="label">NGO collection code
+      <label className="label">{t("vdash.ngoCode")}
         <input className="input tracking-[0.3em]" inputMode="numeric" maxLength={4} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} />
       </label>
-      <button className="btn-primary" disabled={code.length !== 4}>Verify handover</button>
+      <button className="btn-primary" disabled={code.length !== 4}>{t("vdash.verifyHandover")}</button>
       {msg && <span role={msg.ok ? "status" : "alert"} className={`text-xs font-semibold ${msg.ok ? "text-veg" : "text-tomato"}`}>{msg.t}</span>}
     </form>
   );

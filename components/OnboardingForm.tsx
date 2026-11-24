@@ -3,23 +3,26 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "./client";
 import { NEIGHBOURHOODS, type Neighbourhood } from "@/lib/geo";
+import { useT } from "./I18n";
 
 type Init = Record<string, string | number | boolean | string[] | undefined>;
 
+// [field, catalog key of its label]
 const FIELDS = {
   vendor: [
-    ["businessName", "Business name *"], ["contactName", "Contact name *"], ["phone", "Phone *"], ["email", "Email"],
-    ["address", "Outlet address *"], ["fssaiNumber", "FSSAI licence / registration number *"], ["operatingHours", "Operating hours *"], ["payoutUpi", "Payout UPI ID *"],
+    ["businessName", "onb.f.businessName"], ["contactName", "onb.f.contactName"], ["phone", "onb.f.phone"], ["email", "onb.f.email"],
+    ["address", "onb.f.outletAddress"], ["fssaiNumber", "onb.f.fssaiNumber"], ["operatingHours", "onb.f.operatingHours"], ["payoutUpi", "onb.f.payoutUpi"],
   ],
   ngo: [
-    ["orgName", "Organisation name *"], ["contactPerson", "Contact person *"], ["phone", "Phone *"], ["email", "Email"], ["address", "Collection address *"],
-    ["serviceAreaKm", "Service area (km)"], ["capacityMeals", "Collection capacity (meals per day) *"], ["handlingArrangements", "Food handling, storage and transport *"], ["fssaiInfo", "FSSAI registration (if applicable)"],
-    ["registrationNumber", "Charity registration number (shown on donation receipts)"], ["eightyGNumber", "80G registration number (if you have one)"],
+    ["orgName", "onb.f.orgName"], ["contactPerson", "onb.f.contactPerson"], ["phone", "onb.f.phone"], ["email", "onb.f.email"], ["address", "onb.f.collectionAddress"],
+    ["serviceAreaKm", "onb.f.serviceAreaKm"], ["capacityMeals", "onb.f.capacityMeals"], ["handlingArrangements", "onb.f.handling"], ["fssaiInfo", "onb.f.fssaiInfo"],
+    ["registrationNumber", "onb.f.registrationNumber"], ["eightyGNumber", "onb.f.eightyGNumber"],
   ],
 } as const;
 
 export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo"; init: Init; locked?: boolean }) {
   const router = useRouter();
+  const { t } = useT();
   const [f, setF] = useState<Init>(init);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -32,7 +35,7 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
     const fd = new FormData();
     fd.set("file", file);
     const res = await fetch("/api/uploads", { method: "POST", body: fd });
-    const j = await res.json().catch(() => ({ ok: false, error: "Upload failed" }));
+    const j = await res.json().catch(() => ({ ok: false, error: t("onb.uploadFailed") }));
     if (!j.ok) throw new Error(j.error);
     return j.data.url as string;
   };
@@ -56,7 +59,7 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
     const c = NEIGHBOURHOODS[hood];
     try {
       await api(`/api/${kind}/onboarding`, { ...f, lat: f.lat ?? c.lat, lng: f.lng ?? c.lng, neighbourhood: hood });
-      setMsg({ ok: true, t: "Submitted. Status: Pending until an administrator reviews it." });
+      setMsg({ ok: true, t: t("onb.submitted") });
       router.refresh();
     } catch (er) {
       setMsg({ ok: false, t: (er as Error).message });
@@ -68,43 +71,43 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
   return (
     <form onSubmit={submit} className="card grid gap-4 p-5 sm:grid-cols-2">
       <fieldset disabled={locked} className="contents">
-        {FIELDS[kind].map(([k, label]) => (
-          <label key={k} className={`label ${k === "address" || k === "handlingArrangements" ? "sm:col-span-2" : ""}`}>{label}
+        {FIELDS[kind].map(([k, labelKey]) => (
+          <label key={k} className={`label ${k === "address" || k === "handlingArrangements" ? "sm:col-span-2" : ""}`}>{t(labelKey)}
             <input className="input" value={String(f[k] ?? "")} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
           </label>
         ))}
-        <label className="label">Map pin — neighbourhood
+        <label className="label">{t("onb.mapPin")}
           <select className="input" value={hood} onChange={(e) => { const n = e.target.value as Neighbourhood; setF({ ...f, neighbourhood: n, lat: NEIGHBOURHOODS[n].lat, lng: NEIGHBOURHOODS[n].lng }); }}>
             {Object.keys(NEIGHBOURHOODS).map((n) => <option key={n}>{n}</option>)}
           </select>
         </label>
         <div className="grid grid-cols-2 gap-2">
-          <label className="label">Pin latitude<input className="input" value={String(f.lat ?? NEIGHBOURHOODS[hood].lat)} onChange={(e) => setF({ ...f, lat: Number(e.target.value) })} /></label>
-          <label className="label">Pin longitude<input className="input" value={String(f.lng ?? NEIGHBOURHOODS[hood].lng)} onChange={(e) => setF({ ...f, lng: Number(e.target.value) })} /></label>
+          <label className="label">{t("onb.lat")}<input className="input" value={String(f.lat ?? NEIGHBOURHOODS[hood].lat)} onChange={(e) => setF({ ...f, lat: Number(e.target.value) })} /></label>
+          <label className="label">{t("onb.lng")}<input className="input" value={String(f.lng ?? NEIGHBOURHOODS[hood].lng)} onChange={(e) => setF({ ...f, lng: Number(e.target.value) })} /></label>
         </div>
         {kind === "ngo" && (
-          <label className="label">80G valid until
+          <label className="label">{t("onb.eightyGUntil")}
             <input type="date" className="input" value={String(f.eightyGValidUntil ?? "")} onChange={(e) => setF({ ...f, eightyGValidUntil: e.target.value })} />
-            <span className="font-normal">An administrator checks this. Receipts mention 80G only while it is valid.</span>
+            <span className="font-normal">{t("onb.eightyGHelp")}</span>
           </label>
         )}
         {kind === "vendor" && (
-          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={!!f.payAtPickup} onChange={(e) => setF({ ...f, payAtPickup: e.target.checked })} />Accept pay-at-pickup orders</label>
+          <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-2"><input type="checkbox" className="h-5 w-5 accent-tomato" checked={!!f.payAtPickup} onChange={(e) => setF({ ...f, payAtPickup: e.target.checked })} />{t("onb.acceptPap")}</label>
         )}
         {kind === "vendor" && (
-          <label className="label sm:col-span-2">Logo (JPG, PNG or WebP, under 3 MB)
+          <label className="label sm:col-span-2">{t("onb.logo")}
             <input type="file" accept="image/jpeg,image/png,image/webp" className="input" onChange={(e) => addLogo(e.target.files?.[0])} />
-            <span className="font-normal">{f.logoUrl ? "Logo uploaded." : "Part of a complete profile; optional to submit."}</span>
+            <span className="font-normal">{f.logoUrl ? t("onb.logoUploaded") : t("onb.logoOptional")}</span>
           </label>
         )}
-        <label className="label sm:col-span-2">{kind === "vendor" ? "Supporting documents (FSSAI certificate, ID)" : "Registration documents (12A/80G, trust deed) *"}
+        <label className="label sm:col-span-2">{kind === "vendor" ? t("onb.docsVendor") : t("onb.docsNgo")}
           <input type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" className="input" onChange={(e) => addDocs(Array.from(e.target.files || []))} />
-          <span className="font-normal">Files are stored privately in the demo (data/uploads) and shown to the admin reviewer.{docs.length ? ` ${docs.length} attached.` : ""}</span>
+          <span className="font-normal">{t("onb.docsNote")}{docs.length ? ` ${t("onb.attached", { n: docs.length })}` : ""}</span>
           {upErr && <span role="alert" className="font-semibold text-tomato">{upErr}</span>}
         </label>
-        {!locked && <button className="btn-primary sm:col-span-2" disabled={busy}>{busy ? "Submitting…" : "Submit for review"}</button>}
+        {!locked && <button className="btn-primary sm:col-span-2" disabled={busy}>{busy ? t("onb.submitting") : t("onb.submit")}</button>}
       </fieldset>
-      {locked && <p className="text-sm font-semibold text-veg sm:col-span-2">Approved. Contact the platform team to change verified details.</p>}
+      {locked && <p className="text-sm font-semibold text-veg sm:col-span-2">{t("onb.locked")}</p>}
       {msg && <p role={msg.ok ? "status" : "alert"} className={`text-sm font-semibold sm:col-span-2 ${msg.ok ? "text-veg" : "text-tomato"}`}>{msg.t}</p>}
     </form>
   );

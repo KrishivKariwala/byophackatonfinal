@@ -1,0 +1,47 @@
+# P2 build notes: decisions, deviations, assumptions, limits
+
+All 12 P2 features are built in the demo adapter (service layer + screens + tests), each behind a feature flag. The Postgres side is only **partly** written (see "Not done"). Read that section before relying on the SQL.
+
+## How it is put together
+- New code lives in `lib/p2/*` (settings, org, team, markdown, schedule, credits, eta, certificate, priority, distribution, receipts, delivery, moderation, platform), `lib/delivery/*` (provider interface, mock, stubs), `lib/i18n/*`, `lib/pdf.ts`. Screens are in `app/**` and `components/p2*.tsx`.
+- The existing P0/P1 rules were not relaxed. Concurrent reservation still sells exactly N (re-tested), holds are time-boxed, pickup codes stay single-use and vendor-bound, every reservation state change is logged.
+- Scheduled work runs where the P1 jobs already run (inside the transaction that precedes every write, and on the 5-second stream): `lib/p2/jobs.ts`. Each job is idempotent.
+- Feature flags and all platform settings live in the `settings` collection (`lib/p2/settings.ts`). A flag that is missing counts as **on**. `cfg(db)` resolves values inside a transaction; request handlers use `getSettings()` with a 60-second TTL cache that is cleared on every save and whenever the store is reset.
+
+## Decisions and deviations
+| Topic | Decision | Why |
+|---|---|---|
+| Organizations | The existing `vendors` row **is** the organization. New `memberships` and `staff_invites` link people to it; outlets already hang off it. | No renamed or dropped columns (migration rule). Every existing vendor owner gets an owner membership (backfill in `store.migrate`, `buildSeed`, vendor creation) and `resolveOrg` also falls back to `ownerId`, so nobody can be locked out by a missing row. |
+| One organization per account | An account can own or belong to one organization. Accepting an invite while already in one is refused (`already_member`). | Keeps "who am I acting for" unambiguous. A multi-brand person would need a brand switcher, which is not built. |
+| Roles | owner: everything. manager: listings, orders, analytics, certificates, receipts, staff (invites staff only). staff: orders and donation hand-offs at ONE outlet. Payouts, outlet admin, org settings, inviting managers: owner only. Matrix in `lib/p2/org.ts`, tested. | Matches the brief; the owner can always do what a manager can. |
+| Cross-outlet access | A staff member asking for another outlet's order gets a 404 (not 403) so its existence isn't confirmed. | Isolation test asserts it. |
+| Invites | Link valid 7 days, stored hashed, one use. A phone invite only works for that number; an email invite relies on the secrecy of the link (sign-in is phone-OTP only, so email can't be verified). The link is shown to the inviter to copy: no SMS/email is actually sent. | No messaging provider is connected in the demo. |
+| Credits | Earned in 90-day lots (FIFO by expiry), up to 50% of an order, spent at hold time, restored on free cancel / vendor cancel / admin refund / hold expiry. A **late** customer cancellation or a no-show **forfeits** the credit like the cash. | The brief says "restored on cancel"; forfeiting on late cancel keeps the 30-minute rule meaningful. Easy to change in `lib/p1.ts` (`out.free`). |
+| Referral cap | The 11th rewarded referral in a month still pays the **friend**; only the referrer is capped. | Penalising the new customer for something outside their control seemed wrong. Flagged in the referral record (`referrer_monthly_cap`). |
+| Referral device check | A random httpOnly cookie (`sap_device`), not hardware identity. Clearing cookies defeats it; the phone-number rule still holds. | It is the only device signal a web app has without fingerprinting. |
+| Credit and payouts | Vendors are paid the full order value; the credit part is platform-funded and settles through the platform (counted in `gross`, fee applies). For pay-at-pickup the vendor collects only the cash part. | Otherwise vendors would bear the referral cost. Confirm with finance. |
+| ETA | The phone turns location into **minutes on the device**; the server accepts only `{ etaMinutes }` (any other key is a 400). Foreground only (watch stops when the tab is hidden). Vendors see first name and minutes, greyed after 5 minutes. The **order reference** is shown, not the secret 4-digit pickup code. | "Vendor sees first name/ETA/code" is ambiguous; showing the secret code to everyone on the board would let any staff member complete a handover without the customer. |
+| Auto-markdown | Steps are measured against the **original** price; a step never raises a price (if the vendor already went lower it is a no-op); editing a schedule replaces only steps that haven't run. "Favouriters" = followers (there is no separate favourites feature). | Matches the rule "price only down". |
+| Priority window | Claiming takes the whole listing as a free donation (stock leaves the listing in the same transaction). Public visibility is a pure function of the clock, so nothing has to "flip". Turning the flag off makes hidden listings public at once (the settings screen warns first). Followers are told when it goes public, not at publish. | Simplest model that can't leak a listing early or sell it twice. |
+| Receipts | Created when the vendor verifies the handover and by a catch-up job (covers older donations and flag re-enables). Number from a per-year counter that only goes up. Value = quantity × original price, always labelled an estimate. 80G is mentioned only while the charity's registration is still valid on the collection date. | Per the brief. The 80G number is **self-declared** at onboarding; the admin approval queue shows it with "verify before approving". Nothing checks it against any government register. |
+| Delivery | `DeliveryProvider` interface, `MockProvider` (default, derives its status from the app clock, no state), Dunzo/Porter **stubs** that fail safely until integrated. The provider call is made outside the store transaction. Delivery status is informational: the donation counts as collected only when the vendor verifies the charity's code. Only business information is sent (checked with a spy provider in tests). | Real partner APIs weren't available to build against. |
+| Moderation | Items reach the queue by keyword (whole word, admin-editable list) or 3+ open reports. A dismissal holds until the wording changes or a new report arrives (content fingerprint). Reviews are flagged by keyword only. | Adding "report a review" for vendors would change the P1 report types. |
+| Languages | Own small `t()` (no i18next). Cookie `sap_lang`, else `Accept-Language`, else English; per-key English fallback; Intl for numbers/dates/₹; Noto Sans Devanagari/Kannada as fallback faces. | Small, testable, no new runtime dependency tree. |
+| PDFs | pdf-lib with built-in Times/Helvetica plus the real logo and QR. | The brand fonts are not available as embeddable TTF/OTF here (the Cormorant/Bagel files are WOFF2). PDFs are English only (the built-in fonts have no Indic glyphs). |
+| Settings ranges | Hold time 2–15 min, free-cancel 0–240, radius 1–25, active reservations 1–10, discount cap 30–90, fee 0–30%, referral credit ₹0–500, credit share 0–100%. The 30% minimum discount is **not** configurable. | The 30% rule is a hard P0 rule. |
+
+## Not done / limits (be aware)
+1. **The Postgres migration was never run.** `0003_p2.sql` (+ `.down.sql`) is written like 0001/0002 as the production boundary: additive tables and columns, membership-scoped RLS, helper functions, and `process_p2_jobs()` for markdown steps and credit expiry. **Not written in SQL:** the referral/credit RPC changes (spend at checkout, restore on cancel, reward on pickup), receipt issuing, certificate generation, priority follow-up alerts, delivery sync. They exist only in the demo adapter, which is what the tests exercise.
+2. **Translations are a first pass** and unreviewed (`TRANSLATION_REVIEW.md`). Notification text, API error messages and PDFs stay English.
+3. **No real messaging.** Invites show a link to copy; nothing is sent by SMS or email.
+4. **No real delivery partner.** Dunzo/Porter are stubs; their webhook route, signature check and status mapping are real and tested.
+5. **Accessibility** was designed in (44px targets, labels on controls, `role=status/alert`, text alternatives) and spot-checked in the browser, but there was **no automated audit (axe/Lighthouse) and no screen-reader pass**. Contrast uses the existing palette; the new screens were not measured separately.
+6. **No load test** of the new jobs. The concurrency regression (20 customers, 7 units, exactly 7 sold) passes.
+7. **The ETA vendor board** updates when the page refreshes or the live stream pushes a reservation event; I didn't verify the push path in a real browser with a moving phone (no GPS in the sandbox). The foreground-only watcher is tested logically, not on a phone.
+8. A vendor still can't "report a review", a customer can't pick a different language per notification, and one account can't belong to two organizations.
+
+## Things I'd want a human to decide
+- Whether credit should be forfeited or restored on a late cancellation (currently forfeited).
+- Who pays for referral credit in the vendor settlement (currently the platform).
+- The default keyword list for moderation (`lib/p2/settings.ts`): short and English-only.
+- Whether 80G claims need document upload and a stricter admin check before receipts mention them.

@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LiveEvent } from "@/lib/types";
+import { useT } from "@/components/I18n";
 
 type Listener = (e: LiveEvent) => void;
 const Ctx = createContext<{ subscribe: (fn: Listener) => () => void; connected: boolean }>({ subscribe: () => () => {}, connected: false });
@@ -49,8 +50,9 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 export const useLive = () => useContext(Ctx);
 
 /** Live stock counter for one listing. Starts from server-rendered committed value. */
-export function LiveCount({ listingId, initial, suffix = "left" }: { listingId: string; initial: number; suffix?: string }) {
+export function LiveCount({ listingId, initial, suffix }: { listingId: string; initial: number; suffix?: string }) {
   const { subscribe } = useLive();
+  const { t } = useT();
   const [n, setN] = useState(initial);
   const [flash, setFlash] = useState(false);
   useEffect(() => setN(initial), [initial]);
@@ -67,17 +69,18 @@ export function LiveCount({ listingId, initial, suffix = "left" }: { listingId: 
   );
   return (
     <span data-testid={`count-${listingId}`} className={`chip transition ${n === 0 ? "bg-sand text-muted" : "bg-cream text-burgundy"} ${flash ? "ring-2 ring-tomato" : ""}`}>
-      {n === 0 ? "Sold out" : `${n} ${suffix}`}
+      {n === 0 ? t("common.soldOut") : `${n} ${suffix ?? t("common.left")}`}
     </span>
   );
 }
 
 export function LiveDot() {
   const { connected } = useLive();
+  const { t } = useT();
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-muted" aria-live="polite">
       <span className={`h-2 w-2 rounded-full ${connected ? "bg-veg" : "bg-line"}`} />
-      {connected ? "Live" : "Connecting…"}
+      {connected ? t("status.Live") : t("common.connecting")}
     </span>
   );
 }
