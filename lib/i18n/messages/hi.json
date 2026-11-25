@@ -1456,5 +1456,7 @@
  "vdash.moreFor": "{title} के लिए और विकल्प",
  "vdash.cancelListing": "लिस्टिंग रद्द करें",
  "order.more": "और",
- "order.moreAria": "ऑर्डर के और विकल्प"
+ "order.moreAria": "ऑर्डर के और विकल्प",
+ "admin.takeAction": "कार्रवाई करें",
+ "ngo.moreAria": "इस दावे के और विकल्प"
 }

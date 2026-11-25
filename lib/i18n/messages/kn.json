@@ -1456,5 +1456,7 @@
  "vdash.moreFor": "{title} ಗಾಗಿ ಇನ್ನಷ್ಟು ಕ್ರಿಯೆಗಳು",
  "vdash.cancelListing": "ಲಿಸ್ಟಿಂಗ್ ರದ್ದುಗೊಳಿಸಿ",
  "order.more": "ಇನ್ನಷ್ಟು",
- "order.moreAria": "ಆರ್ಡರ್‌ನ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು"
+ "order.moreAria": "ಆರ್ಡರ್‌ನ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು",
+ "admin.takeAction": "ಕ್ರಮ ತೆಗೆದುಕೊಳ್ಳಿ",
+ "ngo.moreAria": "ಈ ಕ್ಲೇಮ್‌ನ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು"
 }

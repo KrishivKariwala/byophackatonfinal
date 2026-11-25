@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Eye } from "lucide-react";
+import { ChevronDown, FileText, Eye } from "lucide-react";
 import { api } from "@/components/client";
 import { useT } from "@/components/I18n";
+import { Popover } from "@/components/Popover";
 
 const isUpload = (d: string) => d.startsWith("/api/uploads/");
 const isPdf = (d: string) => d.toLowerCase().endsWith(".pdf");
@@ -96,11 +97,31 @@ export function ReportActions({ id, can }: { id: string; can: { canHide: boolean
     <div className="flex flex-col gap-2">
       <label className="label">{t("admin.noteLabel")}
         <input className="input" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-      <div className="flex flex-wrap gap-2">
-        {ACTIONS.filter((a) => !a.needs || can[a.needs]).map((a) => (
-          <button key={a.id} disabled={busy} onClick={() => act(a.id, t(a.label))} className={`btn !min-h-[44px] ${a.danger ? "bg-tomato text-white" : a.id === "dismiss" ? "btn-quiet" : "btn-outline"}`}>{t(a.label)}</button>
-        ))}
-      </div>
+      {(() => {
+        const allowed = ACTIONS.filter((a) => !a.needs || can[a.needs]);
+        const dismiss = allowed.find((a) => a.id === "dismiss");
+        const rest = allowed.filter((a) => a.id !== "dismiss");
+        return (
+          <div className="flex flex-wrap items-start gap-2">
+            {dismiss && <button disabled={busy} onClick={() => act(dismiss.id, t(dismiss.label))} className="btn btn-outline !min-h-[44px]">{t(dismiss.label)}</button>}
+            {rest.length > 0 && (
+              <Popover fixed align="left" panelClass="w-56" panelWidth={224} label={t("admin.takeAction")} buttonClass="border border-line !bg-white"
+                icon={<><span>{t("admin.takeAction")}</span><ChevronDown size={14} aria-hidden="true" /></>}>
+                {(close) => (
+                  <ul className="flex flex-col">
+                    {rest.map((a) => (
+                      <li key={a.id} className={a.danger ? "mt-1 border-t border-line pt-1" : ""}>
+                        <button type="button" role="menuitem" disabled={busy} onClick={() => { close(); act(a.id, t(a.label)); }}
+                          className={`flex min-h-[44px] w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-cream disabled:opacity-50 ${a.danger ? "text-tomato" : "text-ink"}`}>{t(a.label)}</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Popover>
+            )}
+          </div>
+        );
+      })()}
       {err && <span role="alert" className="text-xs font-semibold text-tomato">{err}</span>}
     </div>
   );

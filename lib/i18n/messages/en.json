@@ -1456,5 +1456,7 @@
  "vdash.moreFor": "More actions for {title}",
  "vdash.cancelListing": "Cancel listing",
  "order.more": "More",
- "order.moreAria": "More order options"
+ "order.moreAria": "More order options",
+ "admin.takeAction": "Take action",
+ "ngo.moreAria": "More options for this claim"
 }

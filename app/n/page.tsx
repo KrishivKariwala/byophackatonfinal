@@ -6,6 +6,7 @@ import { DietTag, StatusPill, Photo } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { ScheduleForm, VerifiedBadge } from "@/components/p1";
 import { DistributionForm, DeliveryPanel } from "@/components/p2-charity";
+import { ClaimActions } from "@/components/ClaimActions";
 import { priorityOffersFor } from "@/lib/p2/priority";
 import { cfg } from "@/lib/p2/settings";
 import { getT } from "@/lib/i18n/server";
@@ -108,9 +109,14 @@ export default async function NgoFeed() {
                     <span className="display text-4xl tracking-[0.3em] text-tomato">{b.collectionCode}</span>
                     <span className="text-xs font-semibold">{t("ngo.collectBy", { time: fmt.time(b.collectBy) })}</span>
                     <a className="btn-outline mt-1" href={directionsUrl(b.outlet, ngo)} target="_blank" rel="noreferrer">{t("ngo.directionsVendor")}</a>
-                    {flags.delivery && (() => { const d = db.deliveryRequests.filter((x) => x.batchId === b.id).sort((p, q) => (p.createdAt < q.createdAt ? 1 : -1))[0]; return <DeliveryPanel batchId={b.id} delivery={d ? { id: d.id, status: d.status, provider: d.provider, fee: d.fee, riderName: d.riderName, error: d.error } : null} />; })()}
-                    <ScheduleForm batchId={b.id} serverNow={n} collectBy={b.collectBy} initial={{ slot: b.pickupSlot, name: b.volunteerName, phone: b.volunteerPhone, url: b.volunteerToken ? `/volunteer/${b.volunteerToken}` : undefined }} />
-                    <ActionButton path={`/api/ngo/batches/${b.id}`} body={{ action: "release" }} label={t("ngo.release")} className="btn-quiet" confirm={t("ngo.releaseConfirm")} />
+                    {(() => {
+                      const d = db.deliveryRequests.filter((x) => x.batchId === b.id).sort((p, q) => (p.createdAt < q.createdAt ? 1 : -1))[0];
+                      return (
+                        <ClaimActions batchId={b.id} deliveryEnabled={!!flags.delivery} scheduled={!!b.volunteerName} deliveryActive={!!d && ["Requested", "Rider assigned", "Picked up"].includes(d.status)}
+                          deliverySlot={<DeliveryPanel batchId={b.id} delivery={d ? { id: d.id, status: d.status, provider: d.provider, fee: d.fee, riderName: d.riderName, error: d.error } : null} />}
+                          scheduleSlot={<ScheduleForm batchId={b.id} serverNow={n} collectBy={b.collectBy} initial={{ slot: b.pickupSlot, name: b.volunteerName, phone: b.volunteerPhone, url: b.volunteerToken ? `/volunteer/${b.volunteerToken}` : undefined }} />} />
+                      );
+                    })()}
                   </>
                 )}
                 {b.status === "Collected" && <span className="text-xs font-semibold text-veg">{t("ngo.collected", { when: fmt.dateTime(b.collectedAt!) })}</span>}
