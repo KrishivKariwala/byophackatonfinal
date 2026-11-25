@@ -109,7 +109,7 @@ Roles: `customer`, `vendor` (organization roles owner / manager / staff), `ngo`,
 - **Placeholders are honest.** With no food photography supplied, listings show a hatched "Representative image" tile (like packing paper) instead of a drawn illustration.
 - Official logo as supplied. Palette: tomato `#CB0001`, coral `#FD2828`, burgundy `#790000`, peach `#FDD599`, cream `#FEF2C0`, page `#F6F5F3`, logo cream `#FBF0D5`.
 - The official fonts (The Seasons, Chunko Bold) are not installed; labelled stand-ins (Cormorant Garamond, Bagel Fat One) render instead, with Inter for UI.
-- Designed in: 44 px touch targets, labelled controls, `role=status/alert`, text alternatives, Escape-closable menus, reduced-motion handling. No automated audit or screen-reader pass has been done.
+- Designed in: 44 px touch targets, labelled controls, `role=status/alert`, text alternatives, Escape-closable menus, reduced-motion handling. `npm run a11y:audit` runs axe-core (WCAG 2.0/2.1 A and AA, including colour contrast) on every screen in all three languages: 0 violations on 87 screen-language pairs. A screen-reader pass by a person has not been done.
 
 ---
 
@@ -333,7 +333,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |
 | ETA | Foreground only (the tab must be open); not tested on a phone with real GPS |
 | PDFs | Built-in PDF fonts, English only |
-| Accessibility, load and security | No automated accessibility audit, screen-reader pass, load test or security review |
+| Accessibility, load and security | Automated accessibility audit done (`npm run a11y:audit`, 0 violations); no screen-reader pass by a person, no load test and no security review yet |
 | Legal | Food-safety, FSSAI surplus-food guidance, donation liability and 80G need regulatory review before any real launch |
 | Screens still busy | Some screens (vendor dashboard action rows, order cards) carry more buttons than the landing page and header |
 

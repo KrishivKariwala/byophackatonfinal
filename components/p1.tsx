@@ -49,7 +49,6 @@ export function FollowButton({ vendorId, initial, lat, lng }: { vendorId: string
   return (
     <span className="inline-flex flex-col gap-1">
       <button type="button" onClick={toggle} disabled={busy} aria-pressed={on}
-        aria-label={on ? t("follow.unfollowAria") : t("follow.followAria")}
         className={`btn ${on ? "border-2 border-tomato bg-white text-tomato" : "bg-tomato text-white"} !py-2`}>
         <Heart size={16} className={on ? "fill-tomato" : ""} aria-hidden="true" />{on ? t("follow.following") : t("follow.follow")}
       </button>

@@ -85,7 +85,7 @@ export function RoleSignIn({ role, actor, skipName, next, refCode }: { role: Rol
           <span className={`rs-fade inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${th.chip}`}><th.Icon size={14} aria-hidden="true" />{t("rs.side", { role: label })}</span>
           <p className="rs-word display text-[26vw] leading-[0.85] sm:text-[14rem] lg:text-[11rem] xl:text-[13rem]" aria-hidden="true">{t(`rs.word.${role}`)}</p>
           <h1 className="rs-fade display text-3xl leading-tight sm:text-4xl">{t(`rs.title.${role}`)}</h1>
-          <p className="rs-fade mx-auto max-w-md text-sm font-semibold opacity-90">{t(`rs.sub.${role}`)}</p>
+          <p className="rs-fade mx-auto max-w-md text-sm font-semibold">{t(`rs.sub.${role}`)}</p>
         </div>
       </section>
 
@@ -134,7 +134,7 @@ export function RoleSignIn({ role, actor, skipName, next, refCode }: { role: Rol
           <div className="flex items-center gap-3 text-xs text-muted" aria-hidden="true"><span className="h-px flex-1 bg-line" />{t("rs.or")}<span className="h-px flex-1 bg-line" /></div>
 
           <div className="flex flex-col gap-1.5">
-            <button type="button" onClick={skip} disabled={busy} className="btn-outline !min-h-[48px]" aria-label={t("rs.skipAria", { role: label })}>
+            <button type="button" onClick={skip} disabled={busy} className="btn-outline !min-h-[48px]">
               {t("rs.skip", { role: label })}
             </button>
             <p className="text-center text-[11px] text-muted">{t("rs.skipNote", { name: skipName })}</p>

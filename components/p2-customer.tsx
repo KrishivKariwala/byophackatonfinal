@@ -38,8 +38,8 @@ export function ReferralClient({ data }: { data: ReferralData }) {
         <div className="flex flex-col gap-1 rounded-3xl bg-tomato p-5 text-white">
           <p className="text-sm font-semibold">{t("credit.balance")}</p>
           <p className="display text-6xl leading-none" data-testid="credit-balance">{fmt.inr(data.balance)}</p>
-          <p className="text-xs opacity-90">{data.balance > 0 && data.nextExpiry && data.nextExpiryAmount ? t("credit.expires", { amount: fmt.inr(data.nextExpiryAmount), date: fmt.date(data.nextExpiry) }) : t("credit.noCredit")}</p>
-          <p className="mt-2 text-[11px] opacity-90">{t("credit.notCash", { pct: data.maxPct })}</p>
+          <p className="text-xs">{data.balance > 0 && data.nextExpiry && data.nextExpiryAmount ? t("credit.expires", { amount: fmt.inr(data.nextExpiryAmount), date: fmt.date(data.nextExpiry) }) : t("credit.noCredit")}</p>
+          <p className="mt-2 text-[11px]">{t("credit.notCash", { pct: data.maxPct })}</p>
         </div>
         <div className="card flex flex-col gap-2 p-5">
           <p className="label">{t("ref.yourCode")}</p>

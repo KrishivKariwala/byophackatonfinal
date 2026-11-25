@@ -13,7 +13,7 @@ export function LanguageMenu({ current }: { current: Locale }) {
   const router = useRouter();
   const { t } = useT();
   return (
-    <Popover label={t("lang.label")} icon={<><Globe size={18} aria-hidden="true" /><span className="text-xs font-bold uppercase">{current}</span></>}>
+    <Popover label={t("lang.label")} visibleText={current.toUpperCase()} icon={<><Globe size={18} aria-hidden="true" /><span className="text-xs font-bold uppercase">{current}</span></>}>
       {(close) => (
         <ul className="flex flex-col">
           {LOCALES.map((l) => (
@@ -41,7 +41,7 @@ export function NavMenu({ items, label }: { items: MenuItem[]; label: string }) 
   const path = usePathname();
   const current = items.filter((i) => path === i.href || path.startsWith(`${i.href}/`)).sort((a, b) => b.href.length - a.href.length)[0];
   return (
-    <Popover label={label} align="left" buttonClass="!bg-white border border-line" icon={<><LayoutGrid size={18} aria-hidden="true" /><span>{current?.label ?? label}</span><ChevronDown size={14} aria-hidden="true" /></>}>
+    <Popover label={label} visibleText={current?.label ?? label} align="left" buttonClass="!bg-white border border-line" icon={<><LayoutGrid size={18} aria-hidden="true" /><span>{current?.label ?? label}</span><ChevronDown size={14} aria-hidden="true" /></>}>
       {(close) => (
         <ul className="flex flex-col">
           {items.map((i) => (
@@ -66,7 +66,7 @@ export function AccountMenu({ name, roleLabel, isAdmin, offsetMin, serverTime }:
   const run = async (b: unknown) => { setBusy(true); try { await api("/api/demo", b); router.refresh(); } catch (e) { alert((e as Error).message); } finally { setBusy(false); } };
   const small = "min-h-[40px] rounded-lg border border-line bg-white px-3 text-xs font-semibold text-burgundy hover:bg-sand disabled:opacity-50";
   return (
-    <Popover label={t("header.account")} icon={<><UserRound size={18} aria-hidden="true" /><span className="hidden max-w-[8rem] truncate sm:inline">{name.split(" (")[0]}</span></>}>
+    <Popover label={t("header.account")} visibleText={name.split(" (")[0]} icon={<><UserRound size={18} aria-hidden="true" /><span className="hidden max-w-[8rem] truncate sm:inline">{name.split(" (")[0]}</span></>}>
       {(close) => (
         <div className="flex flex-col gap-1">
           <div className="px-3 py-2"><p className="text-sm font-bold text-ink">{name.split(" (")[0]}</p><p className="text-xs text-muted">{roleLabel}</p></div>

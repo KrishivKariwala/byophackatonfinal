@@ -1369,7 +1369,7 @@
  "vdash.waitingNgo": "किसी स्वीकृत NGO के लेने का इंतज़ार है।",
  "vdash.welcome": "स्वागत है",
  "vform.allergens": "एलर्जी वाली चीज़ें (वैकल्पिक — सिर्फ़ जो आपको पता हो)",
- "vform.applySuggested": "सुझाई गई कीमत ₹{price} लगाएँ",
+ "vform.applySuggested": "लागू करें: सुझाई गई कीमत ₹{price}",
  "vform.backToday": "आज पर वापस जाएँ",
  "vform.category": "श्रेणी *",
  "vform.choose": "— चुनें —",

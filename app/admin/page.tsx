@@ -40,7 +40,7 @@ export default async function Admin() {
         <div className="flex flex-col justify-between rounded-xl bg-tomato p-6 text-white">
           <p className="text-sm font-semibold">{t("admin.totalRescued")}</p>
           <p className="display text-8xl leading-none" data-testid="total-rescued">{s.totalUnits}</p>
-          <p className="text-xs opacity-90">{t("admin.totalNote")}</p>
+          <p className="text-xs">{t("admin.totalNote")}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {tiles.map(([k, v]) => (

@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
  * A small dropdown: closes on outside click, Escape, or when an item is chosen. Keyboard and screen-reader friendly.
  * `fixed` positions the panel against the viewport, so it is never clipped by a scrolling table or card around the button.
  */
-export function Popover({ label, icon, children, align = "right", className = "", buttonClass = "", panelClass = "w-72", panelWidth = 288, fixed = false }: {
+export function Popover({ label, icon, children, align = "right", className = "", buttonClass = "", panelClass = "w-72", panelWidth = 288, fixed = false, visibleText }: {
   label: string; icon: React.ReactNode; children: (close: () => void) => React.ReactNode; align?: "left" | "right";
-  className?: string; buttonClass?: string; panelClass?: string; panelWidth?: number; fixed?: boolean;
+  className?: string; buttonClass?: string; panelClass?: string; panelWidth?: number; fixed?: boolean; visibleText?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -38,7 +38,7 @@ export function Popover({ label, icon, children, align = "right", className = ""
   const place = fixed && pos ? { position: "fixed" as const, top: pos.top, left: pos.left } : undefined;
   return (
     <div ref={ref} className={`relative ${className}`}>
-      <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={toggle}
+      <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={visibleText && !label.toLowerCase().includes(visibleText.toLowerCase()) ? `${visibleText}, ${label}` : label} onClick={toggle}
         className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-burgundy transition hover:bg-cream ${open ? "bg-cream" : ""} ${buttonClass}`}>
         {icon}
       </button>
