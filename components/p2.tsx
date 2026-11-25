@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Building2, Copy, Trash2, UserPlus } from "lucide-react";
 import { api } from "./client";
 import { useT } from "./I18n";
+import { modReasonLabel, modTitleLabel, tOr } from "./i18n-helpers";
 
 /** Cookie the server reads to know which outlet the dashboard is scoped to ("all" = every outlet the person may see). */
 export function OutletSwitcher({ outlets, selected }: { outlets: { id: string; label: string }[]; selected: string }) {
@@ -256,14 +257,14 @@ export function ModerationClient({ items }: { items: ModItem[] }) {
       {items.map((it) => (
         <li key={it.key} className="card flex flex-col gap-2 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-bold">{it.title} <span className="text-xs font-normal text-muted">· {t(`mod.type.${it.targetType}`)} · {it.owner}</span></p>
+            <p className="font-bold">{modTitleLabel(t, it.title)} <span className="text-xs font-normal text-muted">· {t(`mod.type.${it.targetType}`)} · {it.owner}</span></p>
             <span className={`chip ${tone(it.state)}`}>{t(`mod.state.${it.state}`)}</span>
           </div>
-          <p className="text-xs font-semibold text-tomato">{it.reasons.join(" · ")}</p>
+          <p className="text-xs font-semibold text-tomato">{it.reasons.map((r) => modReasonLabel(t, r)).join(" · ")}</p>
           {it.excerpt && <p className="rounded-xl bg-canvas p-3 text-sm">{it.excerpt}</p>}
           {it.history.length > 0 && (
             <details className="text-xs text-muted"><summary className="cursor-pointer font-semibold">{t("mod.history")}</summary>
-              <ol className="mt-1 flex flex-col gap-0.5">{it.history.map((h, i) => <li key={i}>{fmt.dateTime(h.at)} · {h.admin} · <b>{h.action}</b> · {h.reason}</li>)}</ol></details>
+              <ol className="mt-1 flex flex-col gap-0.5">{it.history.map((h, i) => <li key={i}>{fmt.dateTime(h.at)} · {h.admin} · <b>{tOr(t, `mod.${h.action}`, h.action)}</b> · {h.reason}</li>)}</ol></details>
           )}
           {openKey === it.key ? (
             <div className="flex flex-col gap-2 rounded-xl bg-cream p-3">

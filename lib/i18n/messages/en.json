@@ -1458,5 +1458,9 @@
  "order.more": "More",
  "order.moreAria": "More order options",
  "admin.takeAction": "Take action",
- "ngo.moreAria": "More options for this claim"
+ "ngo.moreAria": "More options for this claim",
+ "mod.reason.keyword": "Keyword: {words}",
+ "mod.reason.reports": "{n} open reports",
+ "mod.reason.hidden": "Hidden by an administrator",
+ "mod.reviewOf": "{rating}★ review of {vendor}"
 }

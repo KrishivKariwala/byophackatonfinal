@@ -1458,5 +1458,9 @@
  "order.more": "ಇನ್ನಷ್ಟು",
  "order.moreAria": "ಆರ್ಡರ್‌ನ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು",
  "admin.takeAction": "ಕ್ರಮ ತೆಗೆದುಕೊಳ್ಳಿ",
- "ngo.moreAria": "ಈ ಕ್ಲೇಮ್‌ನ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು"
+ "ngo.moreAria": "ಈ ಕ್ಲೇಮ್‌ನ ಇನ್ನಷ್ಟು ಆಯ್ಕೆಗಳು",
+ "mod.reason.keyword": "ಕೀವರ್ಡ್: {words}",
+ "mod.reason.reports": "{n} ತೆರೆದ ವರದಿಗಳು",
+ "mod.reason.hidden": "ನಿರ್ವಾಹಕರು ಮರೆಮಾಡಿದ್ದಾರೆ",
+ "mod.reviewOf": "{vendor} ಕುರಿತು {rating}★ ವಿಮರ್ಶೆ"
 }

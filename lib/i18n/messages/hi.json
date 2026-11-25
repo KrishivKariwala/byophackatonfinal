@@ -1458,5 +1458,9 @@
  "order.more": "और",
  "order.moreAria": "ऑर्डर के और विकल्प",
  "admin.takeAction": "कार्रवाई करें",
- "ngo.moreAria": "इस दावे के और विकल्प"
+ "ngo.moreAria": "इस दावे के और विकल्प",
+ "mod.reason.keyword": "कीवर्ड: {words}",
+ "mod.reason.reports": "{n} खुली रिपोर्टें",
+ "mod.reason.hidden": "एडमिन द्वारा छिपाया गया",
+ "mod.reviewOf": "{vendor} की {rating}★ समीक्षा"
 }
