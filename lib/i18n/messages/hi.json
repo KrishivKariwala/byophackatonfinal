@@ -1469,5 +1469,9 @@
  "ngo.pref.nonveg": "सिर्फ़ मांसाहारी",
  "ngo.pref.hidden": "इस चुनाव से {n} ऑफ़र छिपे हैं।",
  "ngo.pref.showAll": "सब दिखाएँ",
- "ngo.pref.applyAgain": "मेरा चुनाव फिर लगाएँ"
+ "ngo.pref.applyAgain": "मेरा चुनाव फिर लगाएँ",
+ "admin.reliability.title": "विक्रेता की भरोसेमंदी",
+ "admin.reliability.help": "0 से 100 का स्कोर: रेटिंग (50 अंक), 30 दिनों में विक्रेता ने कितने कम ऑर्डर रद्द किए (35) और खुली रिपोर्टें (15)। 50 से नीचे होने पर विक्रेता फ़ीड में सबसे बाद में दिखता है।",
+ "admin.reliability.parts": "रेटिंग {rating}/50 · रद्दीकरण {cancel}/35 · रिपोर्टें {reports}/15",
+ "admin.reliability.low": "बाकियों के बाद दिखता है"
 }

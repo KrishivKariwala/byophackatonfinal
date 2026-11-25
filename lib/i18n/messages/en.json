@@ -1469,5 +1469,9 @@
  "ngo.pref.nonveg": "Non-vegetarian only",
  "ngo.pref.hidden": "{n} offers hidden by this choice.",
  "ngo.pref.showAll": "Show all",
- "ngo.pref.applyAgain": "Use my choice again"
+ "ngo.pref.applyAgain": "Use my choice again",
+ "admin.reliability.title": "Vendor reliability",
+ "admin.reliability.help": "A score from 0 to 100 built from the rating (50 points), how few orders the vendor cancelled in 30 days (35) and open reports (15). Below 50, a vendor is listed after everyone else in the feed.",
+ "admin.reliability.parts": "Rating {rating}/50 · cancellations {cancel}/35 · reports {reports}/15",
+ "admin.reliability.low": "Listed after others"
 }

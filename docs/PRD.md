@@ -171,6 +171,7 @@ Roles: `customer`, `vendor` (organization roles owner / manager / staff), `ngo`,
 | Approvals | Vendor / NGO queue, document viewer, rejection needs a reason, applicant notified. |
 | Reports | Dismiss, warn, hide listing, suspend account, refund order; every action logged with who and when. |
 | Flagged | Vendors averaging below 3.0 over 20+ ratings; customers with repeat no-shows. |
+| Vendor reliability | A score from 0 to 100 for every vendor: rating (50 points, once there are 5 ratings), how few of the last 30 days' orders the vendor cancelled itself (35) and open reports (15). Shown to admins on the Flagged screen. A vendor below 50 is listed after everyone else in the customer feed. New vendors get neutral points. |
 | Moderation | Keyword and report-based queue; hide, restore, edit, warn, suspend, dismiss, each with a reason. |
 | Settings | Range-validated platform settings, 12 feature flags, change history. |
 
@@ -330,7 +331,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Maps | Schematic demo map; Google Maps directions links work |
 | Documents | Stored on local disk, not a storage bucket |
 | Apps | Web only; no native mobile apps; no offline vendor scanning |
-| Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, recurring listings, rescue subscriptions, waitlist, device fingerprinting, deposits, vendor reliability score |
+| Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, recurring listings, rescue subscriptions, waitlist, device fingerprinting, deposits |
 | Translations | Hindi and Kannada are an unreviewed first pass; some catalogue labels still show English (see 4.4); PDFs are English only |
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |
 | ETA | Foreground only (the tab must be open); not tested on a phone with real GPS |

@@ -17,6 +17,7 @@ import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
 import { runScheduledJobs, jobsPending } from "./jobs";
+import { reliability } from "./reliability";
 import type {
   ApprovalStatus, Category, CheckoutHold, DB, Diet, DonationBatch, Listing, Ngo, Payment,
   PaymentMethod, Profile, Reservation, RiskTag, Role,
@@ -764,6 +765,8 @@ function discoverUncached(f: DiscoverFilters) {
   const n = clockNow(db);
   const q = (f.q || "").trim().toLowerCase();
   const origin = { lat: f.lat, lng: f.lng };
+  // vendors with a low reliability score are listed after everyone else (see lib/reliability.ts)
+  const low = new Set(db.vendors.filter((v) => reliability(db, v, n).low).map((v) => v.id));
   return db.listings
     .filter((l) => isCustomerVisible(db, l, n))
     .map((l) => enrichListing(db, l, origin))
@@ -774,7 +777,7 @@ function discoverUncached(f: DiscoverFilters) {
     .filter((l) => !f.pickupAfter || hm(l.windowEnd) > f.pickupAfter)
     .filter((l) => !f.pickupBy || hm(l.windowStart) <= f.pickupBy)
     .filter((l) => !q || l.title.toLowerCase().includes(q) || l.category.toLowerCase().includes(q) || l.vendor.businessName.toLowerCase().includes(q))
-    .sort((a, b) => t(a.windowStart) - t(b.windowStart) || (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+    .sort((a, b) => (low.has(a.vendorId) ? 1 : 0) - (low.has(b.vendorId) ? 1 : 0) || t(a.windowStart) - t(b.windowStart) || (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
 }
 /** Local IST HH:MM for filter comparison. */
 export function hm(isoStr: string) {
