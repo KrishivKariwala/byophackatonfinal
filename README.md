@@ -188,6 +188,7 @@ npm run build && npm start
 npm test                  # translation completeness check + vitest (P0, P1, P2 service tests, incl. concurrency)
 npm run i18n:check        # fails on any missing Hindi/Kannada key or changed {placeholder}
 npm run test:concurrency  # builds must exist: real HTTP server, 50×10, realtime, negative checks
+npm run test:e2e-browser  # builds must exist: headless Chrome drives sign-out, language, live stock, order, Mark ready, handover (needs Google Chrome installed)
 npm run typecheck && npm run lint
 npm run seed              # fresh demo data
 ```

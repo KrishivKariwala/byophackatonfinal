@@ -303,14 +303,13 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 
 | Check | Result |
 |---|---|
-| `npm test` (translation check + vitest) | **208 tests passing** (P0, P1, P2, localized server text, concurrency regressions) |
-| `npm run i18n:check` | 1,440 keys × 3 languages, none missing |
+| `npm test` (translation check + vitest) | **220 tests passing** (P0, P1, P2, localized server text, sign-out middleware, credit-ledger notes, concurrency regressions) |
+| `npm run i18n:check` | 1,460 keys × 3 languages, none missing |
 | Typecheck, lint | Clean |
 | 50 parallel reservations vs 10 units (real HTTP server) | 10 succeeded, 40 refused, final stock 0 |
 | Realtime (2 independent sessions) | All events received; max 7 ms from request |
-| Browser end-to-end (headless Chrome, earlier pass) | Passed |
-| Landing sign-out | Verified over HTTP and in the browser: session cookie cleared, no account shown |
-| **Not re-run since the latest UI changes** | Production build, HTTP end-to-end script, headless browser pass |
+| Production build, HTTP end-to-end (`npm run test:e2e-http`) | Re-run on the current build: 10 of 50 reservations succeed, 40 refused, realtime and all negative checks pass |
+| Browser end-to-end (`npm run test:e2e-browser`, headless Chrome, 8 steps) | **8/8 pass**: no account on the main screen, refresh and opening sign out while the logo keeps you signed in, one-click Hindi with nothing English left on the main screen, Hindi carried into the app, a second customer's page counts down live, simulated payment gives a pass with a code, vendor "Mark ready" updates the pass without a reload, handover verifies once and is then refused. Proven to fail when the sign-out rule is broken. Log: `test-results/browser-e2e.log` |
 
 ---
 
