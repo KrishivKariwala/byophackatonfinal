@@ -5,6 +5,7 @@
  * contexts (separate cookies): a vendor, a customer who buys, a second customer who only watches.
  *
  *   1. Main screen: no account, no "Continue as"; opening or refreshing signs out; the logo keeps you signed in.
+ *   1b. Installable: Chrome reports no installability errors; offline, a page shows the friendly offline screen.
  *   2. Language: one click on the globe changes the whole page to Hindi, the menu closes, and nothing leaks back to English.
  *   3. Live stock: a second customer's page counts down when the buyer reserves, with no reload.
  *   4. Reserve and simulated payment: the buyer gets a pickup pass with a 4-digit code.
@@ -103,6 +104,26 @@ async function main() {
       await demoLogin(ctx, "u_priya");
       await page.goto(BASE + "/"); // opening the app again
       expect(!(await hasSession(ctx)), "opening the main screen did not sign the user out");
+      await ctx.close();
+    });
+
+    // ------------------------------------------------------------------ installable app and offline page
+    await step("the site is installable and shows a friendly offline page without a connection", async () => {
+      const ctx = await newCtx();
+      const page = await ctx.newPage();
+      await page.goto(BASE + "/");
+      await page.evaluate(() => navigator.serviceWorker.ready);
+      await page.reload(); // the worker now controls the page
+      await page.waitForLoadState("load");
+      const cdp = await ctx.newCDPSession(page);
+      const { installabilityErrors } = (await cdp.send("Page.getInstallabilityErrors")) as { installabilityErrors: { errorId: string }[] };
+      // "in-incognito" is only because this test browser window has no saved profile; a real Chrome window does not report it
+      const problems = installabilityErrors.filter((e) => e.errorId !== "in-incognito");
+      expect(problems.length === 0, `not installable: ${problems.map((e) => e.errorId).join(", ")}`);
+      await ctx.setOffline(true);
+      await page.goto(BASE + "/signin").catch(() => undefined);
+      await page.getByText("You are offline").first().waitFor({ timeout: 10_000 });
+      await ctx.setOffline(false);
       await ctx.close();
     });
 

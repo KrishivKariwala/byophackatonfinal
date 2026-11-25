@@ -330,7 +330,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Delivery | Mock rider only; Dunzo and Porter are stubs |
 | Maps | Schematic demo map; Google Maps directions links work |
 | Documents | Stored on local disk, not a storage bucket |
-| Apps | Web only; no native mobile apps; no offline vendor scanning |
+| Apps | One responsive web app that can be installed on a phone's home screen (manifest, icons, a small service worker); offline, a page shows a plain notice in English, Hindi and Kannada and nothing personal is stored. No native mobile apps, no push notifications from the browser, no offline vendor scanning. Not yet checked on real iPhones and Android phones or with Lighthouse |
 | Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, recurring listings, rescue subscriptions, waitlist, device fingerprinting, deposits |
 | Translations | Hindi and Kannada are an unreviewed first pass; some catalogue labels still show English (see 4.4); PDFs are English only |
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |

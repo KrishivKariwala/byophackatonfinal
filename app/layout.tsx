@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { LiveProvider } from "@/components/LiveProvider";
 import { Footer } from "@/components/Footer";
 import { I18nProvider } from "@/components/I18n";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import { getLocale, getT } from "@/lib/i18n/server";
 import { messagesFor } from "@/lib/i18n/catalog";
 
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="min-h-screen flex flex-col">
         <I18nProvider locale={locale} dict={messagesFor(locale)}>
+          <ServiceWorker />
           <LiveProvider>
             <Header />
             <main className="flex-1">{children}</main>
