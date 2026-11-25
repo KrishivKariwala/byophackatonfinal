@@ -1496,5 +1496,7 @@
  "rerr.days_required": "Choose at least one day of the week.",
  "rerr.time_invalid": "Enter the pickup start time as HH:MM, for example 18:30.",
  "rerr.lead_invalid": "Publish between {min} and {max} minutes before the window opens.",
- "rerr.too_many_schedules": "You can have up to {max} schedules."
+ "rerr.too_many_schedules": "You can have up to {max} schedules.",
+ "scan.waiting": "No connection. {n} saved: they will be sent when you are online (kept for up to 10 minutes).",
+ "scan.dropped": "A saved scan waited more than 10 minutes and was dropped. Scan it again."
 }

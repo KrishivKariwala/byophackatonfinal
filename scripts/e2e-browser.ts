@@ -10,7 +10,7 @@
  *   3. Live stock: a second customer's page counts down when the buyer reserves, with no reload.
  *   4. Reserve and simulated payment: the buyer gets a pickup pass with a 4-digit code.
  *   5. Vendor "Mark ready": the buyer's pass switches to READY without a reload.
- *   6. Handover: the code verifies once, and the same code is refused the second time.
+ *   6. Handover: a scan made with no connection is saved and sent when the connection returns; the same code is refused the second time.
  *
  * Usage:  npm run build && npm run test:e2e-browser
  * Needs Google Chrome installed (set CHROME_CHANNEL=chromium-based channel name to use another, e.g. msedge).
@@ -228,15 +228,19 @@ async function main() {
       return `READY shown after ${Date.now() - t0} ms`;
     });
 
-    await step("handover: the code verifies once, then the same code is refused", async () => {
+    await step("handover: a scan made with no connection is sent when it returns; the same code is then refused", async () => {
       const vp = await vendorCtx.newPage();
       await vp.goto(BASE + "/v/scan");
       const input = vp.getByLabel("4-digit pickup code");
+      const verify = () => vp.getByRole("button", { name: "Verify & hand over" }).click();
+      await vendorCtx.setOffline(true);
       await input.fill(code);
-      await vp.getByRole("button", { name: "Verify & hand over" }).click();
-      await vp.getByText(/VERIFIED/).first().waitFor({ timeout: 15_000 });
+      await verify();
+      await vp.getByText(/No connection\. 1 saved/).first().waitFor({ timeout: 10_000 });
+      await vendorCtx.setOffline(false);
+      await vp.getByText(/VERIFIED/).first().waitFor({ timeout: 30_000 }); // sent automatically when the connection returns
       await input.fill(code);
-      await vp.getByRole("button", { name: "Verify & hand over" }).click();
+      await verify();
       await vp.getByText("NOT ACCEPTED").first().waitFor({ timeout: 15_000 });
       await vp.close();
       void orderUrl;
