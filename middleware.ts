@@ -1,13 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isFreshLoad } from "@/lib/fresh-load";
 
 /**
- * Opening the main screen ("/") always starts signed out: the session cookie is removed from this request (so the page
- * and header render with no account) and from the browser. Because a browser refresh anywhere returns to "/" (see
- * app/layout.tsx), a refresh also ends the demo session. Link prefetches are ignored so hovering a link never signs anyone out.
+ * A fresh load of the main screen ("/") starts signed out: the session cookie is removed from this request (so the page and
+ * header render with no account) and from the browser. A browser refresh anywhere returns to "/" with a full page load
+ * (see app/layout.tsx), so a refresh also ends the demo session.
+ *
+ * In-app moves are different: clicking the logo or a "Back" link is a client-side navigation (a fetch, not a page load),
+ * and that keeps you signed in. Link prefetches are ignored too, so hovering a link never signs anyone out.
+ * See lib/fresh-load.ts for how the two are told apart.
  */
 export function middleware(req: NextRequest) {
-  const prefetch = req.headers.get("next-router-prefetch") || req.headers.get("purpose") === "prefetch";
-  if (prefetch || !req.cookies.has("sap_session")) return NextResponse.next();
+  if (!isFreshLoad(req.headers) || !req.cookies.has("sap_session")) return NextResponse.next();
   const headers = new Headers(req.headers);
   const rest = (headers.get("cookie") ?? "").split(/;\s*/).filter((c) => c && !c.startsWith("sap_session="));
   if (rest.length) headers.set("cookie", rest.join("; ")); else headers.delete("cookie");
