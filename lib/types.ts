@@ -94,6 +94,8 @@ export interface Ngo {
   /** P2: shown on donation receipts; a valid 80G number turns the receipt into a tax-eligible one */
   registrationNumber?: string;
   eightyG?: { number: string; validUntil: string };
+  /** Which donations the feed shows first: everything, only vegetarian, or only non-vegetarian. A filter, never a claim rule. */
+  dietPreference?: "any" | "Vegetarian" | "Non-vegetarian";
 }
 
 export interface Listing {

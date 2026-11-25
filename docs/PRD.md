@@ -157,7 +157,7 @@ Roles: `customer`, `vendor` (organization roles owner / manager / staff), `ngo`,
 | Feature | Behaviour |
 |---|---|
 | Verification | Org, contact, documents, area, capacity, handling, FSSAI, optional 80G → admin approval. |
-| Donation feed | Nearby open batches with all safety details; priority offers with a countdown. |
+| Donation feed | Nearby open batches with all safety details; priority offers with a countdown. A "Food you can take" choice (any, vegetarian only, non-vegetarian only) filters the feed and the priority offers; it is only a filter, so a note says how many offers it hides, "Show all" brings them back, and claiming works the same either way. |
 | Claim and collect | All-or-nothing claim; release; collection code; vendor verifies handover. |
 | Schedule and volunteers | Pickup time and volunteer name; no-login volunteer link (address, vendor phone, time, code) that expires. |
 | Distribution log | Servings, people reached, centre, optional photos (no faces). |
@@ -330,7 +330,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Maps | Schematic demo map; Google Maps directions links work |
 | Documents | Stored on local disk, not a storage bucket |
 | Apps | Web only; no native mobile apps; no offline vendor scanning |
-| Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, recurring listings, rescue subscriptions, waitlist, device fingerprinting, deposits, vendor reliability score, per-NGO food-type requests |
+| Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, recurring listings, rescue subscriptions, waitlist, device fingerprinting, deposits, vendor reliability score |
 | Translations | Hindi and Kannada are an unreviewed first pass; some catalogue labels still show English (see 4.4); PDFs are English only |
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |
 | ETA | Foreground only (the tab must be open); not tested on a phone with real GPS |

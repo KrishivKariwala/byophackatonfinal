@@ -7,6 +7,8 @@ import { ActionButton } from "@/components/client";
 import { ScheduleForm, VerifiedBadge } from "@/components/p1";
 import { DistributionForm, DeliveryPanel } from "@/components/p2-charity";
 import { ClaimActions } from "@/components/ClaimActions";
+import { DietPreference } from "@/components/DietPreference";
+import { dietMatches } from "@/lib/ngo-prefs";
 import { priorityOffersFor } from "@/lib/p2/priority";
 import { cfg } from "@/lib/p2/settings";
 import { getT } from "@/lib/i18n/server";
@@ -18,8 +20,9 @@ export async function generateMetadata() {
   return { title: t("title.donationFeed") };
 }
 
-export default async function NgoFeed() {
+export default async function NgoFeed({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const me = await requirePage("ngo");
+  const sp = await searchParams;
   const db = read();
   const n = now(db);
   const ngo = db.ngos.find((x) => x.ownerId === me.id);
@@ -27,13 +30,17 @@ export default async function NgoFeed() {
   if (!ngo) return <div className="mx-auto max-w-xl px-4 py-12"><Link href="/n/onboarding" className="btn-primary">{t("ngo.start")}</Link></div>;
   const approved = ngo.status === "Approved";
   const flags = cfg(db).flags;
-  const offers = priorityOffersFor(db, ngo, n);
+  const showAll = sp.all === "1";
+  const offers = priorityOffersFor(db, ngo, n).filter((o) => showAll || dietMatches(ngo.dietPreference, o.l.diet));
   const enrich = (b: (typeof db.donationBatches)[number]) => {
     const o = db.outlets.find((x) => x.id === b.outletId)!;
     const l = db.listings.find((x) => x.id === b.listingId);
     return { ...b, outlet: o, vendor: db.vendors.find((v) => v.id === b.vendorId)!, listing: l, km: distanceKm(ngo, o) };
   };
-  const open = db.donationBatches.filter((b) => b.status === "Open" && Date.parse(b.collectBy) > n).map(enrich).filter((b) => b.km <= ngo.serviceAreaKm).sort((a, b) => a.km - b.km);
+  const pref = ngo.dietPreference ?? "any";
+  const inArea = db.donationBatches.filter((b) => b.status === "Open" && Date.parse(b.collectBy) > n).map(enrich).filter((b) => b.km <= ngo.serviceAreaKm).sort((a, b) => a.km - b.km);
+  const open = showAll ? inArea : inArea.filter((b) => dietMatches(pref, b.listing?.diet));
+  const hiddenByPref = inArea.length - open.length;
   const mine = db.donationBatches.filter((b) => b.claimedByNgoId === ngo.id).map(enrich).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 
   return (
@@ -44,6 +51,7 @@ export default async function NgoFeed() {
         <p className="flex items-center gap-2 text-sm font-semibold">{approved && <VerifiedBadge label={t("ngo.verifiedNgo")} />}</p>
         <p className="text-sm text-muted">{t("ngo.freeBatches", { km: ngo.serviceAreaKm })}</p>
       </div>
+      {approved && <DietPreference current={pref} hidden={hiddenByPref} showingAll={showAll} />}
       {!approved && (
         <div role="status" className="rounded-2xl border-2 border-tomato bg-cream p-4 text-sm text-burgundy">
           <b>{t("ngo.verification", { status: statusLabel(t, ngo.status) })}</b> {t("ngo.viewOnly")} <Link className="font-semibold underline" href="/n/onboarding">{t("ngo.viewVerification")}</Link>

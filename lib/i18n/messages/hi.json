@@ -1462,5 +1462,12 @@
  "mod.reason.keyword": "कीवर्ड: {words}",
  "mod.reason.reports": "{n} खुली रिपोर्टें",
  "mod.reason.hidden": "एडमिन द्वारा छिपाया गया",
- "mod.reviewOf": "{vendor} की {rating}★ समीक्षा"
+ "mod.reviewOf": "{vendor} की {rating}★ समीक्षा",
+ "ngo.pref.title": "आप कौन-सा खाना ले सकते हैं",
+ "ngo.pref.any": "कोई भी खाना",
+ "ngo.pref.veg": "सिर्फ़ शाकाहारी",
+ "ngo.pref.nonveg": "सिर्फ़ मांसाहारी",
+ "ngo.pref.hidden": "इस चुनाव से {n} ऑफ़र छिपे हैं।",
+ "ngo.pref.showAll": "सब दिखाएँ",
+ "ngo.pref.applyAgain": "मेरा चुनाव फिर लगाएँ"
 }

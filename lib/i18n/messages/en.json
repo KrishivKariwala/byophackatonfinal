@@ -1462,5 +1462,12 @@
  "mod.reason.keyword": "Keyword: {words}",
  "mod.reason.reports": "{n} open reports",
  "mod.reason.hidden": "Hidden by an administrator",
- "mod.reviewOf": "{rating}★ review of {vendor}"
+ "mod.reviewOf": "{rating}★ review of {vendor}",
+ "ngo.pref.title": "Food you can take",
+ "ngo.pref.any": "Any food",
+ "ngo.pref.veg": "Vegetarian only",
+ "ngo.pref.nonveg": "Non-vegetarian only",
+ "ngo.pref.hidden": "{n} offers hidden by this choice.",
+ "ngo.pref.showAll": "Show all",
+ "ngo.pref.applyAgain": "Use my choice again"
 }

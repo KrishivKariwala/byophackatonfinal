@@ -1462,5 +1462,12 @@
  "mod.reason.keyword": "ಕೀವರ್ಡ್: {words}",
  "mod.reason.reports": "{n} ತೆರೆದ ವರದಿಗಳು",
  "mod.reason.hidden": "ನಿರ್ವಾಹಕರು ಮರೆಮಾಡಿದ್ದಾರೆ",
- "mod.reviewOf": "{vendor} ಕುರಿತು {rating}★ ವಿಮರ್ಶೆ"
+ "mod.reviewOf": "{vendor} ಕುರಿತು {rating}★ ವಿಮರ್ಶೆ",
+ "ngo.pref.title": "ನೀವು ತೆಗೆದುಕೊಳ್ಳಬಹುದಾದ ಆಹಾರ",
+ "ngo.pref.any": "ಯಾವುದೇ ಆಹಾರ",
+ "ngo.pref.veg": "ಸಸ್ಯಾಹಾರ ಮಾತ್ರ",
+ "ngo.pref.nonveg": "ಮಾಂಸಾಹಾರ ಮಾತ್ರ",
+ "ngo.pref.hidden": "ಈ ಆಯ್ಕೆಯಿಂದ {n} ಕೊಡುಗೆಗಳು ಮರೆಯಾಗಿವೆ.",
+ "ngo.pref.showAll": "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ",
+ "ngo.pref.applyAgain": "ನನ್ನ ಆಯ್ಕೆಯನ್ನು ಮತ್ತೆ ಬಳಸಿ"
 }
