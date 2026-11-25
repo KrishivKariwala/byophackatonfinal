@@ -41,7 +41,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
     <div className="mx-auto grid max-w-6xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[1.2fr_1fr]">
       <div className="flex flex-col gap-4">
         <Link href="/c" className="inline-flex items-center gap-1 text-sm font-semibold text-tomato"><ChevronLeft size={16} aria-hidden="true" />{t("listing.back")}</Link>
-        <Photo title={l.title} surprise={l.surpriseBag} className="h-72 rounded-3xl" />
+        <Photo title={l.title} surprise={l.surpriseBag} className="h-72 rounded-xl" />
         <div className="flex flex-wrap items-center gap-2">
           <DietTag diet={l.diet} large />
           <span className="chip bg-cream text-burgundy">{t(`category.${l.category}`)}</span>

@@ -24,7 +24,7 @@ export default async function Receipts({ searchParams }: { searchParams: Promise
   try { rows = listReceipts(me, { from, to }); } catch (e) { denied = await localizeError(e); }
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6">
-      <h1 className="display text-4xl text-tomato">{t("rcpt.title").toUpperCase()}</h1>
+      <h1 className="page-title">{t("rcpt.title").toUpperCase()}</h1>
       {denied ? <p role="status" className="card p-6 text-sm text-muted">{denied}</p> : <ReceiptsPanel from={from} to={to} rows={rows.map((r) => ({ id: r.id, number: r.number, item: r.item, qty: r.qty, estimatedValue: r.estimatedValue, vendorName: r.vendorName, ngoName: r.ngoName, collectedAt: r.collectedAt, hasEightyG: !!r.eightyG }))} />}
     </div>
   );

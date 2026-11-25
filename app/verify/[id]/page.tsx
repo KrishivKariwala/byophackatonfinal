@@ -29,7 +29,7 @@ export default async function Verify({ params }: { params: Promise<{ id: string 
           <p className="chip w-fit bg-veg text-white"><BadgeCheck size={16} aria-hidden="true" />{t("cert.valid")}</p>
           <div>
             <p className="eyebrow text-burgundy">{fmt.month(c.month)}{c.partial ? ` · ${t("cert.partial")}` : ""}</p>
-            <h1 className="display text-4xl text-tomato">{c.business}</h1>
+            <h1 className="page-title">{c.business}</h1>
           </div>
           <dl className="grid grid-cols-2 gap-3 text-sm">
             {[

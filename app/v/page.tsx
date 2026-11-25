@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus, ScanLine } from "lucide-react";
 import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
-import { StatusPill, DietTag } from "@/components/bits";
+import { StatusPill, DietTag, Price } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { LiveCount } from "@/components/LiveProvider";
 import { DonationVerify } from "./VendorClient";
@@ -35,7 +35,7 @@ export default async function VendorHome() {
   if (!v || !scope.ctx) {
     return (
       <div className="mx-auto max-w-xl px-4 py-12 text-center">
-        <h1 className="display text-4xl text-tomato">{t("vdash.welcome")}</h1>
+        <h1 className="page-title">{t("vdash.welcome")}</h1>
         <p className="mt-2 text-sm text-muted">{t("vdash.completeOnb")}</p>
         <Link href="/v/onboarding" className="btn-primary mt-6">{t("vdash.startOnb")}</Link>
       </div>
@@ -69,7 +69,7 @@ export default async function VendorHome() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="eyebrow flex flex-wrap items-center gap-2 text-burgundy">{v.businessName}{approved && <VerifiedBadge />}<Rating avg={v.ratingAvg} count={v.ratingCount} /></p>
-          <h1 className="display text-4xl text-tomato sm:text-5xl">{t("vdash.today")}</h1>
+          <h1 className="page-title">{t("vdash.today")}</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <OutletSwitcher selected={scope.selected} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} />
@@ -101,7 +101,7 @@ export default async function VendorHome() {
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={t("vdash.glance")}>
         {[[t("vdash.liveListings"), live.length], [t("vdash.unitsLeft"), live.reduce((s, l) => s + l.qtyAvailable, 0)], [t("vdash.pickups30"), soon], [t("vdash.collectedToday"), `₹${salesToday}`]].map(([k, val]) => (
-          <div key={k as string} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="display text-3xl text-tomato">{val}</p></div>
+          <div key={k as string} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="stat-num">{val}</p></div>
         ))}
       </section>
 
@@ -201,7 +201,7 @@ export default async function VendorHome() {
                 <div><DietTag diet={l.diet} /></div>
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
                   <div><dt className="text-xs text-muted">{t("vdash.col.left")}</dt><dd>{open ? <LiveCount listingId={l.id} initial={l.qtyAvailable} /> : "—"} <span className="text-xs text-muted">/ {l.qtyTotal}</span></dd></div>
-                  <div><dt className="text-xs text-muted">{t("vdash.col.price")}</dt><dd>₹{l.rescuePrice} <s className="text-xs text-muted">₹{l.originalPrice}</s></dd></div>
+                  <div><dt className="mb-0.5 text-xs text-muted">{t("vdash.col.price")}</dt><dd><Price original={l.originalPrice} rescue={l.rescuePrice} /></dd></div>
                   <div><dt className="text-xs text-muted">{t("vdash.col.window")}</dt><dd>{fmt.window(l.windowStart, l.windowEnd)}</dd></div>
                   <div><dt className="text-xs text-muted">{t("vdash.col.donateRest")}</dt><dd>{l.donateRest ? t("common.yes") : t("common.no")}</dd></div>
                 </dl>
@@ -230,7 +230,7 @@ export default async function VendorHome() {
                     <td className="p-3"><b>{l.title}</b>{multi && <p className="text-xs text-muted">{outletLabel(l.outletId)}</p>}<div className="mt-1"><DietTag diet={l.diet} /></div></td>
                     <td className="p-3"><StatusPill status={l.status} /></td>
                     <td className="p-3">{open ? <LiveCount listingId={l.id} initial={l.qtyAvailable} /> : "—"} <span className="text-xs text-muted">/ {l.qtyTotal}</span></td>
-                    <td className="p-3">₹{l.rescuePrice} <s className="text-xs text-muted">₹{l.originalPrice}</s></td>
+                    <td className="p-3"><Price original={l.originalPrice} rescue={l.rescuePrice} /></td>
                     <td className="p-3 whitespace-nowrap">{fmt.window(l.windowStart, l.windowEnd)}</td>
                     <td className="p-3">{l.donateRest ? t("common.yes") : t("common.no")}</td>
                     <td className="p-3">

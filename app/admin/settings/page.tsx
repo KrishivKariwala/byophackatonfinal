@@ -20,7 +20,7 @@ export default async function PlatformSettings() {
   const { t } = await getT();
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-6 sm:px-6">
-      <div><h1 className="display text-4xl text-tomato">{t("set.title").toUpperCase()}</h1><p className="text-sm text-muted">{t("set.help")}</p></div>
+      <div><h1 className="page-title">{t("set.title").toUpperCase()}</h1><p className="text-sm text-muted">{t("set.help")}</p></div>
       <SettingsClient data={{
         specs: SETTING_SPECS.map((p) => ({ key: p.key, label: tOr(t, `set.spec.${p.key}.label`, p.label), unit: tOr(t, `set.spec.${p.key}.unit`, p.unit), min: p.min, max: p.max, step: p.step, value: Number(s[p.key]) })),
         flags: FLAG_NAMES.map((f) => ({ name: f, label: tOr(t, `set.flag.${f}`, FLAG_LABELS[f]), on: s.flags[f] })),

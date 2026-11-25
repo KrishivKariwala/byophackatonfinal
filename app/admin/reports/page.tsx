@@ -25,7 +25,7 @@ export default async function Reports() {
   const list = reportsQueue();
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
-      <div><h1 className="display text-4xl text-tomato">{t("admin.reportsTitle")}</h1><p className="text-sm text-muted">{t("admin.reportsHelp")}</p></div>
+      <div><h1 className="page-title">{t("admin.reportsTitle")}</h1><p className="text-sm text-muted">{t("admin.reportsHelp")}</p></div>
       {list.length === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-8 text-center"><Flag size={32} className="text-tomato" aria-hidden="true" /><h2 className="editorial text-2xl">{t("admin.noReports")}</h2><p className="text-sm text-muted">{t("admin.noReportsBody")}</p></div>
       ) : (

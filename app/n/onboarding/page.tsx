@@ -16,7 +16,7 @@ export default async function NgoOnboarding() {
   const n = read().ngos.find((x) => x.ownerId === me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">{t("onb.ngoTitle")}</h1>
+      <h1 className="page-title">{t("onb.ngoTitle")}</h1>
       {n && <p className="flex items-center gap-2 text-sm">{t("onb.status")} <StatusPill status={n.status} />{n.rejectionReason && <span className="text-tomato">{t("onb.reason", { reason: n.rejectionReason })}</span>}</p>}
       <p className="text-xs text-muted">{t("onb.ngoNote")}</p>
       <OnboardingForm

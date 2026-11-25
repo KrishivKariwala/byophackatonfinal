@@ -20,7 +20,7 @@ export default async function Scan() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6">
       <p className="eyebrow text-burgundy">{v.businessName}</p>
-      <h1 className="display text-4xl text-tomato">{t("scan.title")}</h1>
+      <h1 className="page-title">{t("scan.title")}</h1>
       <ScanClient />
     </div>
   );

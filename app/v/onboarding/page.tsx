@@ -17,12 +17,12 @@ export default async function VendorOnboarding() {
   const db = read();
   const org = resolveOrg(db, me);
   if (org && org.role !== "owner")
-    return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">{t("onb.outletProfile")}</h1><p role="status" className="mt-2 text-sm text-muted">{t("onb.ownerOnly", { business: org.vendor.businessName })}</p></div>;
+    return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("onb.outletProfile")}</h1><p role="status" className="mt-2 text-sm text-muted">{t("onb.ownerOnly", { business: org.vendor.businessName })}</p></div>;
   const v = db.vendors.find((x) => x.ownerId === me.id);
   const o = v ? db.outlets.find((x) => x.vendorId === v.id) : undefined;
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">{t("onb.vendorTitle")}</h1>
+      <h1 className="page-title">{t("onb.vendorTitle")}</h1>
       {v && <p className="flex items-center gap-2 text-sm">{t("onb.appStatus")} <StatusPill status={v.status} />{v.rejectionReason && <span className="text-tomato">{t("onb.reason", { reason: v.rejectionReason })}</span>}</p>}
       <p className="text-xs text-muted">{t("onb.reviewNote")}</p>
       <OnboardingForm

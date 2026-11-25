@@ -15,7 +15,7 @@ export default async function Volunteer({ params }: { params: Promise<{ token: s
   const v = volunteerView(token);
   if (v.state !== "ok") {
     const msg = v.state === "collected" ? [t("volunteer.allDone"), t("volunteer.collectedMsg")] : v.state === "expired" ? [t("volunteer.expired"), t("volunteer.expiredMsg")] : [t("volunteer.notFound"), t("volunteer.notFoundMsg")];
-    return <div className="mx-auto max-w-md px-4 py-16 text-center"><h1 className="display text-4xl text-tomato">{msg[0].toUpperCase()}</h1><p className="mt-2 text-sm text-muted">{msg[1]}</p></div>;
+    return <div className="mx-auto max-w-md px-4 py-16 text-center"><h1 className="page-title">{msg[0].toUpperCase()}</h1><p className="mt-2 text-sm text-muted">{msg[1]}</p></div>;
   }
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-8">

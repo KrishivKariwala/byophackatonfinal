@@ -22,7 +22,7 @@ export default async function Referrals() {
   const canRedeem = !data.referredBy && !db.reservations.some((r) => r.customerId === me.id) && !db.holds.some((h) => h.customerId === me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6 sm:px-6">
-      <h1 className="display text-4xl text-tomato">{t("credit.title").toUpperCase()}</h1>
+      <h1 className="page-title">{t("credit.title").toUpperCase()}</h1>
       <ReferralClient data={{ ...data, canRedeem }} />
     </div>
   );

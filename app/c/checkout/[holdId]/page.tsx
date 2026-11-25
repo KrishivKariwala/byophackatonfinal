@@ -29,7 +29,7 @@ export default async function Checkout({ params }: { params: Promise<{ holdId: s
   const p = db.payments.find((x) => x.holdId === h.id);
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-4 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">{t("checkout.title")}</h1>
+      <h1 className="page-title">{t("checkout.title")}</h1>
       <div className="card flex flex-col gap-2 p-5 text-sm">
         <p className="font-bold">{h.qty} × {l.title}</p>
         <p className="text-muted">{v.businessName}</p>

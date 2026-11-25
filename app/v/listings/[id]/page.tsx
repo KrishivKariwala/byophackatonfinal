@@ -23,7 +23,7 @@ export default async function EditListing({ params }: { params: Promise<{ id: st
   const allocated = l.qtyTotal - l.qtyAvailable;
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-6 sm:px-6">
-      <h1 className="display text-4xl text-tomato">{t("vform.editTitle")}</h1>
+      <h1 className="page-title">{t("vform.editTitle")}</h1>
       <p className="text-sm text-muted">{t("vform.editNote", { n: allocated })}</p>
       <ListingForm
         mode="edit"

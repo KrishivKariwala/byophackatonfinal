@@ -103,9 +103,12 @@ Roles: `customer`, `vendor` (organization roles owner / manager / staff), `ngo`,
 - 1,440 translatable strings × 3 languages. `npm run i18n:check` fails on any missing key or changed placeholder and runs inside `npm test`.
 - **Current limits:** the Hindi and Kannada text is an unreviewed first pass (`TRANSLATION_REVIEW.md`). Some catalogue labels still appear in English (neighbourhood filter chips, category names such as Meal / Snacks / Desserts, "past" on the orders page, credit-ledger note text). Vendor-written text (listing titles, descriptions, reviews) and proper names are not machine-translated. PDFs (certificates, receipts) are English only.
 
-### 4.5 Brand and accessibility
+### 4.5 Look and feel, brand and accessibility
+- **Direction ("price tag and paper bag").** The app screens (customer, vendor, NGO, admin) are plain and flat so the food and the numbers lead: warm off-white page, white sheets with a thin warm border and 12 px corners, no floating shadows, small squared tags instead of pills, and the plain bold sans for headings. The chunky display face is kept for the main screen, the sign-in screens, the customer's "Rescue something tasty" heading, the pickup pass and the impact numbers, so it means something when it appears.
+- **Signature: the hang tag.** A rescue price is printed on a tomato-red tag with a pointed edge and a punched hole, with the original price struck beside it and the discount in red. It appears on every listing card, the listing page and the vendor's listings.
+- **Placeholders are honest.** With no food photography supplied, listings show a hatched "Representative image" tile (like packing paper) instead of a drawn illustration.
 - Official logo as supplied. Palette: tomato `#CB0001`, coral `#FD2828`, burgundy `#790000`, peach `#FDD599`, cream `#FEF2C0`, page `#F6F5F3`, logo cream `#FBF0D5`.
-- The official fonts (The Seasons, Chunko Bold) are not installed; labelled stand-ins (Cormorant Garamond, Bagel Fat One) render instead, with Inter for UI. No food photography is supplied, so listings show a labelled "Representative image" tile.
+- The official fonts (The Seasons, Chunko Bold) are not installed; labelled stand-ins (Cormorant Garamond, Bagel Fat One) render instead, with Inter for UI.
 - Designed in: 44 px touch targets, labelled controls, `role=status/alert`, text alternatives, Escape-closable menus, reduced-motion handling. No automated audit or screen-reader pass has been done.
 
 ---

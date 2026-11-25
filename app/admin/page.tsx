@@ -31,20 +31,20 @@ export default async function Admin() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="eyebrow text-burgundy">{t("admin.eyebrow")}</p>
-          <h1 className="display text-4xl text-tomato sm:text-6xl">{t("admin.headline")}</h1>
+          <h1 className="page-title">{t("admin.headline")}</h1>
         </div>
         <span className="chip bg-peach text-burgundy">{t("admin.demoChip")}</span>
       </div>
 
       <section className="grid gap-4 lg:grid-cols-[1.1fr_2fr]" aria-label={t("admin.counters")}>
-        <div className="flex flex-col justify-between rounded-3xl bg-tomato p-6 text-white">
+        <div className="flex flex-col justify-between rounded-xl bg-tomato p-6 text-white">
           <p className="text-sm font-semibold">{t("admin.totalRescued")}</p>
           <p className="display text-8xl leading-none" data-testid="total-rescued">{s.totalUnits}</p>
           <p className="text-xs opacity-90">{t("admin.totalNote")}</p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {tiles.map(([k, v]) => (
-            <div key={k} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="display text-4xl text-tomato">{v}</p></div>
+            <div key={k} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="page-title">{v}</p></div>
           ))}
         </div>
       </section>

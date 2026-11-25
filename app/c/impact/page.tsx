@@ -16,11 +16,11 @@ export default async function Impact() {
   const { t } = await getT();
   const m = customerImpact(me.id);
   const Tile = ({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) => (
-    <div className="card flex flex-col gap-1 p-5"><span className="text-tomato" aria-hidden="true">{icon}</span><p className="display text-4xl text-tomato">{value}</p><p className="text-sm text-muted">{label}</p></div>
+    <div className="card flex flex-col gap-1 p-5"><span className="text-tomato" aria-hidden="true">{icon}</span><p className="page-title">{value}</p><p className="text-sm text-muted">{label}</p></div>
   );
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">{t("impact.title").toUpperCase()}</h1>
+      <h1 className="page-title">{t("impact.title").toUpperCase()}</h1>
       {m.orders === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-8 text-center">
           <Leaf size={32} className="text-tomato" aria-hidden="true" />

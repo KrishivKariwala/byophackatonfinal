@@ -18,7 +18,7 @@ export default async function Following() {
   const list = followingList(me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">{t("follow.title")}</h1>
+      <h1 className="page-title">{t("follow.title")}</h1>
       {list.length === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-8 text-center">
           <Heart size={32} className="text-tomato" aria-hidden="true" />

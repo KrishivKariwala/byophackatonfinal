@@ -40,9 +40,9 @@ export function Price({ original, rescue, size = "md" }: { original: number; res
   const { t } = useT();
   return (
     <span className="inline-flex items-baseline gap-2">
-      <b className={`text-tomato ${size === "lg" ? "text-3xl" : "text-lg"}`}>₹{rescue}</b>
-      <s className="text-muted text-sm">₹{original}</s>
-      <span className="chip bg-tomato text-white !py-0.5">{t("bits.off", { pct: discountPercent(original, rescue) })}</span>
+      <span className={`price-tag ${size === "lg" ? "text-2xl" : "text-base"}`}>₹{rescue}</span>
+      <s className="text-sm tabular-nums text-muted">₹{original}</s>
+      <span className="text-xs font-bold text-tomato">{t("bits.off", { pct: discountPercent(original, rescue) })}</span>
     </span>
   );
 }
@@ -51,11 +51,8 @@ export function Photo({ title, surprise, className = "" }: { title: string; surp
   const { t } = useT();
   // No real food photography was supplied; show a clearly labelled representative tile instead of a fake photo.
   return (
-    <div className={`relative flex items-end justify-between bg-peach p-3 ${className}`} role="img" aria-label={t("bits.photoAlt", { title })}>
-      <svg aria-hidden="true" viewBox="0 0 120 60" className="absolute inset-x-6 top-4 h-[55%] text-tomato/25" fill="none" stroke="currentColor" strokeWidth="4">
-        <ellipse cx="60" cy="44" rx="54" ry="10" />
-        <path d="M22 40c4-18 20-30 38-30s34 12 38 30" />
-      </svg>
+    <div className={`relative flex items-end justify-between bg-peach p-3 ${className}`} role="img" aria-label={t("bits.photoAlt", { title })}
+      style={{ backgroundImage: "repeating-linear-gradient(135deg, transparent 0 11px, rgba(121,0,0,0.07) 11px 12px)" }}>
       <span className="relative rounded bg-cream px-1.5 py-0.5 text-[10px] font-semibold text-burgundy">
         {surprise ? t("bits.photoSurprise") : t("bits.photo")}
       </span>

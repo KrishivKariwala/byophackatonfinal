@@ -40,7 +40,7 @@ export default async function NgoFeed() {
     <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6">
       <div>
         <p className="eyebrow text-burgundy">{ngo.orgName}</p>
-        <h1 className="display text-4xl text-tomato sm:text-5xl">{t("ngo.title")}</h1>
+        <h1 className="page-title">{t("ngo.title")}</h1>
         <p className="flex items-center gap-2 text-sm font-semibold">{approved && <VerifiedBadge label={t("ngo.verifiedNgo")} />}</p>
         <p className="text-sm text-muted">{t("ngo.freeBatches", { km: ngo.serviceAreaKm })}</p>
       </div>

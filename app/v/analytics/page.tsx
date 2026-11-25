@@ -27,7 +27,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
   let a;
   let why = t("vanalytics.whyOnboard");
   try { a = analyticsFor(me, range, scope.selected !== "all" ? scope.selected : undefined); } catch (e) { a = null; if ((e as { code?: string }).code === "forbidden_role") why = t("vanalytics.whyRole"); }
-  if (!a) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">{t("vanalytics.title")}</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
+  if (!a) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("vanalytics.title")}</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
   const byOutlet = scope.outlets.length > 1 && scope.selected === "all" ? orgOverview(me, range) : null;
   const certs = isFlagOn("impactCertificate") && scope.can("certificate.view") ? listCertificates(me) : null;
   const months = Array.from({ length: 6 }, (_, k) => { const [y, m] = monthOf(now(read())).split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 - k, 1)); return d.toISOString().slice(0, 7); });
@@ -36,7 +36,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="display text-4xl text-tomato">{t("vanalytics.title")}</h1>
+        <h1 className="page-title">{t("vanalytics.title")}</h1>
         <OutletSwitcher selected={scope.selected} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} />
         <nav aria-label={t("vanalytics.dateRange")} className="flex gap-1">
           {[7, 30, 90].map((r) => (
@@ -52,7 +52,7 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
         <>
           <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={t("vanalytics.summary")}>
             {[[t("vanalytics.recovered"), `₹${a.recovered}`], [t("vanalytics.unitsSold"), a.unitsSold], [t("cert.donated"), a.unitsDonated], [t("status.Expired"), a.unitsExpired], [t("vanalytics.sellThrough"), `${a.sellThroughPct}%`]].map(([k, v]) => (
-              <div key={k as string} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="display text-3xl text-tomato">{v}</p></div>
+              <div key={k as string} className="card p-4"><p className="text-xs font-semibold text-muted">{k}</p><p className="stat-num">{v}</p></div>
             ))}
             <div className="card p-4"><p className="text-xs font-semibold text-muted">{t("vanalytics.avgRating")}</p><div className="mt-2"><Rating avg={a.avgRating} count={a.ratingCount} /></div></div>
           </section>

@@ -15,10 +15,10 @@ export default async function Payouts() {
   let p;
   let why = t("payouts.whyOnboard");
   try { p = payoutsFor(me); } catch (e) { p = null; if ((e as { code?: string }).code === "forbidden_role") why = t("payouts.whyOwner"); }
-  if (!p) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="display text-4xl text-tomato">{t("payouts.title")}</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
+  if (!p) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("payouts.title")}</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6">
-      <div><h1 className="display text-4xl text-tomato">{t("payouts.title")}</h1><p className="text-sm text-muted">{t("payouts.intro", { pct: p.feePercent })}</p></div>
+      <div><h1 className="page-title">{t("payouts.title")}</h1><p className="text-sm text-muted">{t("payouts.intro", { pct: p.feePercent })}</p></div>
       {p.rows.length === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-8 text-center"><Wallet size={32} className="text-tomato" aria-hidden="true" /><h2 className="editorial text-2xl">{t("payouts.emptyTitle")}</h2><p className="text-sm text-muted">{t("payouts.emptyBody")}</p></div>
       ) : (

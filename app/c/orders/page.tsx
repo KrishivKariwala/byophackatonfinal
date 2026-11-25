@@ -31,7 +31,7 @@ export default async function Orders() {
   );
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <h1 className="display text-4xl text-tomato">{t("orders.title")}</h1>
+      <h1 className="page-title">{t("orders.title")}</h1>
       <section>
         <h2 className="editorial mb-2 text-2xl">{t("orders.active", { n: active.length, max: 3 })}</h2>
         {active.length ? <ul className="flex flex-col gap-3">{active.map((o) => <Row key={o.id} o={o} />)}</ul> : <p className="text-sm text-muted">{t("orders.noActive")} <Link href="/c" className="font-semibold text-tomato underline">{t("common.findFood")}</Link>.</p>}

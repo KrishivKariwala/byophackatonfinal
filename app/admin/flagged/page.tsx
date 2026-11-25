@@ -16,7 +16,7 @@ export default async function Flagged() {
   const f = flaggedLists();
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
-      <h1 className="display text-4xl text-tomato">{t("admin.flaggedTitle")}</h1>
+      <h1 className="page-title">{t("admin.flaggedTitle")}</h1>
       <section aria-labelledby="fv"><h2 id="fv" className="editorial mb-2 text-2xl">{t("admin.vendors")}</h2>
         <p className="mb-2 text-xs text-muted">{t("admin.flagVendorsHelp")}</p>
         {f.vendors.length === 0 ? <p className="card p-5 text-sm text-muted">{t("admin.noVendorsFlagged")}</p> : (
