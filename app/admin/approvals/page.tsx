@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import { requirePage } from "@/lib/guard";
 import { approvalsQueue } from "@/lib/admin";
-import { StatusPill, fmtDateTime } from "@/components/bits";
+import { StatusPill } from "@/components/bits";
 import { DecideButtons, DocViewer } from "../AdminClient";
 import { getT } from "@/lib/i18n/server";
 
@@ -13,7 +13,7 @@ export async function generateMetadata() {
 
 export default async function Approvals() {
   await requirePage("admin");
-  const { t } = await getT();
+  const { t, fmt } = await getT();
   const q = approvalsQueue();
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
@@ -30,7 +30,7 @@ export default async function Approvals() {
               </div>
               <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
                 {a.rows.map((r) => (<div key={r.key}><dt className="inline text-xs text-muted">{t(`adm.f.${r.key}`)}: </dt><dd className="inline font-semibold">{r.valueKey ? t(r.valueKey, r.vars) : r.value}</dd></div>))}
-                <div><dt className="inline text-xs text-muted">{t("admin.submitted")} </dt><dd className="inline font-semibold">{fmtDateTime(a.submittedAt)}</dd></div>
+                <div><dt className="inline text-xs text-muted">{t("admin.submitted")} </dt><dd className="inline font-semibold">{fmt.dateTime(a.submittedAt)}</dd></div>
               </dl>
               {a.reason && <p className="text-xs text-tomato">{t("admin.rejected", { reason: a.reason })}</p>}
               <DocViewer docs={a.documents} />

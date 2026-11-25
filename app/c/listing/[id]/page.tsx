@@ -8,7 +8,7 @@ import { isFollowing, vendorReviews } from "@/lib/p1";
 import { FollowButton, Rating, ReportButton, SurpriseBadge, VerifiedBadge } from "@/components/p1";
 import { directionsUrl } from "@/lib/geo";
 import { RULES } from "@/lib/rules";
-import { DietTag, Photo, Price, fmtDateTime, fmtWindow, StatusPill } from "@/components/bits";
+import { DietTag, Photo, Price, StatusPill } from "@/components/bits";
 import { LiveCount } from "@/components/LiveProvider";
 import { ReserveBox } from "./ReserveBox";
 import { cfg } from "@/lib/p2/settings";
@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
   const me = await requirePage("customer");
-  const { t } = await getT();
+  const { t, fmt } = await getT();
   const { id } = await params;
   const db = read();
   const raw = db.listings.find((l) => l.id === id);
@@ -52,15 +52,15 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <h1 className="editorial text-5xl leading-none">{l.title}</h1>
         <p className="text-sm text-muted">{l.description}</p>
         <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <div className="card p-3"><dt className="text-xs text-muted">{t("listing.pickupWindow")}</dt><dd className="font-bold">{fmtWindow(l.windowStart, l.windowEnd)}</dd></div>
+          <div className="card p-3"><dt className="text-xs text-muted">{t("listing.pickupWindow")}</dt><dd className="font-bold">{fmt.window(l.windowStart, l.windowEnd)}</dd></div>
           <div className="card p-3"><dt className="text-xs text-muted">{t("listing.available")}</dt><dd className="font-bold"><LiveCount listingId={l.id} initial={l.qtyAvailable} /> <span className="text-xs text-muted">{t("listing.of", { total: l.qtyTotal })}</span></dd></div>
-          <div className="card p-3"><dt className="text-xs text-muted">{t("listing.prepared")}</dt><dd className="font-bold">{fmtDateTime(l.preparedAt)}</dd></div>
+          <div className="card p-3"><dt className="text-xs text-muted">{t("listing.prepared")}</dt><dd className="font-bold">{fmt.dateTime(l.preparedAt)}</dd></div>
           <div className="card p-3"><dt className="text-xs text-muted">{t("listing.allergens")}</dt><dd className="font-bold">{l.allergens.length ? l.allergens.map((a) => tOr(t, `allergen.${a}`, a)).join(", ") : t("listing.noneDeclared")}</dd></div>
-          {l.safeUntil && <div className="card p-3"><dt className="text-xs text-muted">{t("listing.eatBy")}</dt><dd className="font-bold">{fmtDateTime(l.safeUntil)}</dd></div>}
+          {l.safeUntil && <div className="card p-3"><dt className="text-xs text-muted">{t("listing.eatBy")}</dt><dd className="font-bold">{fmt.dateTime(l.safeUntil)}</dd></div>}
           <div className="card p-3"><dt className="text-xs text-muted">{t("listing.restaurant")}</dt><dd className="font-bold">{l.vendor.businessName}</dd><dd><Rating avg={l.vendor.ratingAvg} count={l.vendor.ratingCount} /></dd></div>
         </dl>
         <div className="rounded-2xl bg-cream p-4 text-sm text-burgundy">
-          <b>{t("listing.foodSafetyTitle")}</b> {t("listing.foodSafetyBody", { date: fmtDateTime(l.safetyDeclaration.acceptedAt) })}
+          <b>{t("listing.foodSafetyTitle")}</b> {t("listing.foodSafetyBody", { date: fmt.dateTime(l.safetyDeclaration.acceptedAt) })}
           {l.storageNote && <> {t("listing.storage", { note: l.storageNote })}</>}
         </div>
         <div className="flex flex-wrap items-center gap-3">

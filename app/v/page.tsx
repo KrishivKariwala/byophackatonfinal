@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Plus, ScanLine } from "lucide-react";
 import { requirePage } from "@/lib/guard";
 import { read, now } from "@/lib/store";
-import { StatusPill, fmtTime, fmtWindow, DietTag } from "@/components/bits";
+import { StatusPill, DietTag } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { LiveCount } from "@/components/LiveProvider";
 import { CancelListingButton, DonationVerify } from "./VendorClient";
@@ -28,7 +28,7 @@ export default async function VendorHome() {
   const me = await requirePage("vendor");
   const db = read();
   const n = now(db);
-  const { t } = await getT();
+  const { t, fmt } = await getT();
   const scope = await vendorScope(me);
   const v = scope.ctx?.vendor;
   if (!v || !scope.ctx) {
@@ -141,11 +141,11 @@ export default async function VendorHome() {
                         {eta.stale ? t("eta.vendorStale", { n: eta.minutes, m: Math.max(1, Math.round(eta.ageSeconds / 60)) }) : eta.minutes <= 1 ? t("eta.arriving") : t("eta.vendor", { n: eta.minutes })}
                       </span>
                     )}
-                    <span className="text-xs text-muted">{t("vdash.pickup", { window: fmtWindow(l.windowStart, l.windowEnd) })}</span>
+                    <span className="text-xs text-muted">{t("vdash.pickup", { window: fmt.window(l.windowStart, l.windowEnd) })}</span>
                     <span className="text-xs text-muted">{r.method === "online" ? t("vdash.online") : t("listing.payAtPickup")} · {p ? statusLabel(t, p.status) : null}{r.method === "pay_at_pickup" && p?.status === "Pending" ? ` · ${t("vdash.collect", { amount: r.amount })}` : ""}</span>
                     {c === "Reserved" && approved && <ActionButton path={`/api/vendor/orders/${r.id}/ready`} label={t("vdash.markReady")} className="btn-primary mt-1" />}
                     {c === "Ready" && <Link href="/v/scan" className="btn-outline mt-1">{t("vdash.scanOrEnter")}</Link>}
-                    {c === "Picked up" && <span className="text-xs font-semibold text-veg">{t("vdash.handedOver", { time: fmtTime(r.pickedUpAt!) })}</span>}
+                    {c === "Picked up" && <span className="text-xs font-semibold text-veg">{t("vdash.handedOver", { time: fmt.time(r.pickedUpAt!) })}</span>}
                   </div>
                 );
               })}
@@ -164,13 +164,13 @@ export default async function VendorHome() {
                 <div key={b.id} className="card flex flex-col gap-1 p-4 text-sm">
                   <div className="flex items-center justify-between"><b>{b.ref}</b><StatusPill status={b.status} /></div>
                   <span>{b.qty} × {b.title}</span>
-                  <span className="text-xs text-muted">{t("vdash.collectBy", { time: fmtTime(b.collectBy), id: b.listingId })}</span>
+                  <span className="text-xs text-muted">{t("vdash.collectBy", { time: fmt.time(b.collectBy), id: b.listingId })}</span>
                   {ngo && <span className="text-xs">{t("vdash.claimedBy")} <b>{ngo.orgName}</b></span>}
                   {(() => { const d = db.deliveryRequests.filter((x) => x.batchId === b.id && ["Rider assigned", "Picked up", "Requested"].includes(x.status))[0]; return d ? <span role="status" className="rounded-lg bg-peach p-2 text-xs font-semibold text-burgundy">{t(`deliv.status.${d.status}`)}{d.riderName ? ` · ${d.riderName}` : ""} · {t("vdash.checkCode")}</span> : null; })()}
-                  {b.volunteerName && <span className="rounded-lg bg-cream p-2 text-xs text-burgundy">{t("vdash.volunteerComing")} <b>{b.volunteerName}</b> · {b.volunteerPhone}{b.pickupSlot ? ` · ${fmtTime(b.pickupSlot)}` : ""}</span>}
+                  {b.volunteerName && <span className="rounded-lg bg-cream p-2 text-xs text-burgundy">{t("vdash.volunteerComing")} <b>{b.volunteerName}</b> · {b.volunteerPhone}{b.pickupSlot ? ` · ${fmt.time(b.pickupSlot)}` : ""}</span>}
                   {b.origin === "no_show" && <span className="text-[11px] text-muted">{t("vdash.fromNoShow")}</span>}
                   {b.status === "Claimed" && approved && <DonationVerify batchId={b.id} />}
-                  {b.status === "Collected" && <span role="status" className="text-xs font-semibold text-veg">{t("vdash.handoverVerified", { time: fmtTime(b.collectedAt!) })}</span>}
+                  {b.status === "Collected" && <span role="status" className="text-xs font-semibold text-veg">{t("vdash.handoverVerified", { time: fmt.time(b.collectedAt!) })}</span>}
                   {(() => { const log = db.distributionLogs.find((x) => x.batchId === b.id); return log ? <span className="rounded-lg bg-cream p-2 text-xs text-burgundy"><b>{t("dist.vendorTitle")}:</b> {t("dist.summary", { servings: log.servings, people: log.beneficiaries, centre: log.centreName })}{log.photoUrls.length > 0 && scope.can("distribution.view") ? <span className="mt-1 flex flex-wrap gap-2">{log.photoUrls.map((u) => (<a key={u} href={u} target="_blank" rel="noreferrer" className="underline">{t("vdash.photo")}</a>))}</span> : null}</span> : null; })()}
                   {b.status === "Open" && <span className="text-xs text-muted">{t("vdash.waitingNgo")}</span>}
                 </div>
@@ -203,7 +203,7 @@ export default async function VendorHome() {
                     <td className="p-3"><StatusPill status={l.status} /></td>
                     <td className="p-3">{open ? <LiveCount listingId={l.id} initial={l.qtyAvailable} /> : "—"} <span className="text-xs text-muted">/ {l.qtyTotal}</span></td>
                     <td className="p-3">₹{l.rescuePrice} <s className="text-xs text-muted">₹{l.originalPrice}</s></td>
-                    <td className="p-3 whitespace-nowrap">{fmtWindow(l.windowStart, l.windowEnd)}</td>
+                    <td className="p-3 whitespace-nowrap">{fmt.window(l.windowStart, l.windowEnd)}</td>
                     <td className="p-3">{l.donateRest ? t("common.yes") : t("common.no")}</td>
                     <td className="p-3">
                       {approved && canList && (

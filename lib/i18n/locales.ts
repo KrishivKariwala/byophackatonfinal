@@ -64,6 +64,7 @@ export function formatters(locale: Locale) {
     inr: (n: number) => new Intl.NumberFormat(tag, { style: "currency", currency: "INR", maximumFractionDigits: Number.isInteger(n) ? 0 : 2 }).format(n),
     date: (d: string | number | Date) => new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }).format(new Date(d)),
     time: (d: string | number | Date) => new Intl.DateTimeFormat(tag, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(d)),
+    window: (a: string | number | Date, b: string | number | Date) => `${new Intl.DateTimeFormat(tag, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(a))}–${new Intl.DateTimeFormat(tag, { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(b))}`,
     dateTime: (d: string | number | Date) => new Intl.DateTimeFormat(tag, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(d)),
     month: (ym: string) => new Intl.DateTimeFormat(tag, { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${ym}-01T00:00:00Z`)),
   };

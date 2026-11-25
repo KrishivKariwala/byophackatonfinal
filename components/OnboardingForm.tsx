@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { api } from "./client";
 import { NEIGHBOURHOODS, type Neighbourhood } from "@/lib/geo";
 import { useT } from "./I18n";
+import { hoodLabel } from "./i18n-helpers";
 
 type Init = Record<string, string | number | boolean | string[] | undefined>;
 
@@ -78,7 +79,7 @@ export function OnboardingForm({ kind, init, locked }: { kind: "vendor" | "ngo";
         ))}
         <label className="label">{t("onb.mapPin")}
           <select className="input" value={hood} onChange={(e) => { const n = e.target.value as Neighbourhood; setF({ ...f, neighbourhood: n, lat: NEIGHBOURHOODS[n].lat, lng: NEIGHBOURHOODS[n].lng }); }}>
-            {Object.keys(NEIGHBOURHOODS).map((n) => <option key={n}>{n}</option>)}
+            {Object.keys(NEIGHBOURHOODS).map((n) => <option key={n} value={n}>{hoodLabel(t, n)}</option>)}
           </select>
         </label>
         <div className="grid grid-cols-2 gap-2">

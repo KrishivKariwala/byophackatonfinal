@@ -4,6 +4,7 @@ import { requirePage } from "@/lib/guard";
 import { followingList } from "@/lib/p1";
 import { FollowButton, Rating, VerifiedBadge } from "@/components/p1";
 import { getT } from "@/lib/i18n/server";
+import { hoodLabel } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
@@ -31,7 +32,7 @@ export default async function Following() {
             <li key={f.vendorId} className="card flex flex-wrap items-center gap-3 p-4">
               <div className="flex-1">
                 <p className="flex flex-wrap items-center gap-2 font-bold">{f.businessName}{f.verified && <VerifiedBadge />}</p>
-                <p className="text-xs text-muted">{f.neighbourhood} · <Rating avg={f.ratingAvg} count={f.ratingCount} /> · {f.liveListings ? t("follow.live", { n: f.liveListings }) : t("follow.none")}</p>
+                <p className="text-xs text-muted">{hoodLabel(t, f.neighbourhood)} · <Rating avg={f.ratingAvg} count={f.ratingCount} /> · {f.liveListings ? t("follow.live", { n: f.liveListings }) : t("follow.none")}</p>
               </div>
               <FollowButton vendorId={f.vendorId} initial />
             </li>

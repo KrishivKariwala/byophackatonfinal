@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { List, Map as MapIcon, MapPin, Search, LocateFixed } from "lucide-react";
 import type { EnrichedListing } from "@/lib/services";
 import { NEIGHBOURHOODS, type Neighbourhood } from "@/lib/geo";
-import { DietTag, Photo, Price, fmtWindow } from "@/components/bits";
+import { DietTag, Photo, Price } from "@/components/bits";
 import { useT } from "@/components/I18n";
+import { hoodLabel } from "@/components/i18n-helpers";
 import { LiveCount, useLive } from "@/components/LiveProvider";
 import { api } from "@/components/client";
 import { DemoMap } from "@/components/DemoMap";
@@ -16,7 +17,7 @@ const CATEGORIES = ["Bakery", "Meals", "Snacks", "Desserts"] as const;
 const EMPTY: F = { q: "", category: "", diet: "", maxPrice: "", after: "", by: "", radius: 5 };
 
 export function Discover({ initial, hasMapKey }: { initial: EnrichedListing[]; hasMapKey: boolean; totalDemoListings: number }) {
-  const { t } = useT();
+  const { t, fmt } = useT();
   const [items, setItems] = useState(initial);
   const [f, setF] = useState<F>(EMPTY);
   const [view, setView] = useState<"list" | "map">("list");
@@ -97,7 +98,7 @@ export function Discover({ initial, hasMapKey }: { initial: EnrichedListing[]; h
         <label className="label">{t("disc.location")}
           <span className="flex gap-2">
             <select className="input" value={hood} onChange={(e) => setHood(e.target.value as Neighbourhood)}>
-              {Object.keys(NEIGHBOURHOODS).map((n) => <option key={n}>{n}</option>)}
+              {Object.keys(NEIGHBOURHOODS).map((n) => <option key={n} value={n}>{hoodLabel(t, n)}</option>)}
               {gps && <option value="gps">{t("disc.myLocation")}</option>}
             </select>
             <button type="button" onClick={useGps} className="btn-quiet !px-3" aria-label={t("disc.useMyLocation")}><LocateFixed size={18} aria-hidden="true" /></button>
@@ -159,9 +160,9 @@ export function Discover({ initial, hasMapKey }: { initial: EnrichedListing[]; h
                     {l.vendor.verified && <VerifiedBadge />}
                     <Rating avg={l.vendor.ratingAvg} count={l.vendor.ratingCount} />
                   </div>
-                  <p className="text-xs text-muted">{l.vendor.businessName} · {l.outlet.neighbourhood} · {l.distanceKm?.toFixed(1)} km</p>
+                  <p className="text-xs text-muted">{l.vendor.businessName} · {hoodLabel(t, l.outlet.neighbourhood)} · {t("units.km", { n: l.distanceKm?.toFixed(1) ?? "" })}</p>
                   <div className="mt-1 flex items-center justify-between"><Price original={l.originalPrice} rescue={l.rescuePrice} /><LiveCount listingId={l.id} initial={l.qtyAvailable} /></div>
-                  <p className="text-xs text-muted">{t("disc.pickup", { window: fmtWindow(l.windowStart, l.windowEnd), category: t(`category.${l.category}`) })}</p>
+                  <p className="text-xs text-muted">{t("disc.pickup", { window: fmt.window(l.windowStart, l.windowEnd), category: t(`category.${l.category}`) })}</p>
                 </div>
               </Link>
             </li>

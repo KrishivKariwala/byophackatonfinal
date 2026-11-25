@@ -1438,5 +1438,11 @@
  "volunteer.notFoundMsg": "हमें यह पिकअप लिंक नहीं मिला। अपनी संस्था से इसकी जाँच करें।",
  "volunteer.pass": "स्वयंसेवक पिकअप · {ref}",
  "volunteer.pickupTime": "पिकअप का समय",
- "volunteer.showCode": "यह कोड विक्रेता को दिखाएँ"
+ "volunteer.showCode": "यह कोड विक्रेता को दिखाएँ",
+ "hood.Koramangala": "कोरमंगला",
+ "hood.Indiranagar": "इंदिरानगर",
+ "hood.HSR Layout": "एचएसआर लेआउट",
+ "hood.Jayanagar": "जयनगर",
+ "hood.Whitefield": "व्हाइटफ़ील्ड",
+ "units.km": "{n} किमी"
 }

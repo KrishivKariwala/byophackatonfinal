@@ -1,7 +1,7 @@
 import { requirePage } from "@/lib/guard";
 import { flaggedLists } from "@/lib/admin";
 import { Rating } from "@/components/p1";
-import { fmtDateTime } from "@/components/bits";
+
 import { getT } from "@/lib/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export async function generateMetadata() {
 
 export default async function Flagged() {
   await requirePage("admin");
-  const { t } = await getT();
+  const { t, fmt } = await getT();
   const f = flaggedLists();
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
@@ -33,7 +33,7 @@ export default async function Flagged() {
           <ul className="flex flex-col gap-3">{f.customers.map((c) => (
             <li key={c.id} className="card flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
               <b>{c.name}</b><span>{t("admin.noShows", { n: c.noShows30d })}</span>
-              {c.suspendedUntil ? <span className="chip bg-sand text-tomato">{t("admin.suspendedUntil", { when: fmtDateTime(c.suspendedUntil) })}</span> : <span className="chip bg-peach text-burgundy">{t("admin.watch")}</span>}
+              {c.suspendedUntil ? <span className="chip bg-sand text-tomato">{t("admin.suspendedUntil", { when: fmt.dateTime(c.suspendedUntil) })}</span> : <span className="chip bg-peach text-burgundy">{t("admin.watch")}</span>}
             </li>))}</ul>
         )}
       </section>

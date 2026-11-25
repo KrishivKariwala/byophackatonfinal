@@ -1,7 +1,7 @@
 import { requirePage } from "@/lib/guard";
 import { read } from "@/lib/store";
 import { impactSummary } from "@/lib/services";
-import { StatusPill, fmtTime } from "@/components/bits";
+import { StatusPill } from "@/components/bits";
 import { ApprovalActions } from "./ApprovalActions";
 import { getT } from "@/lib/i18n/server";
 
@@ -13,7 +13,7 @@ export async function generateMetadata() {
 
 export default async function Admin() {
   await requirePage("admin");
-  const { t } = await getT();
+  const { t, fmt } = await getT();
   const s = impactSummary();
   const db = read();
   const queue = [
@@ -68,7 +68,7 @@ export default async function Admin() {
             {s.recent.map((e) => (
               <li key={e.id} className="flex justify-between gap-3 border-b border-line/60 pb-2">
                 <span>{e.source === "customer_pickup" ? t("admin.recentCustomer", { vendor: e.vendor, units: e.units }) : t("admin.recentNgo", { ngo: e.ngo ?? "NGO", vendor: e.vendor, units: e.units })}</span>
-                <span className="shrink-0 text-xs text-muted">{fmtTime(e.at)}</span>
+                <span className="shrink-0 text-xs text-muted">{fmt.time(e.at)}</span>
               </li>
             ))}
           </ul>

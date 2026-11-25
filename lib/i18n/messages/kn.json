@@ -1438,5 +1438,11 @@
  "volunteer.notFoundMsg": "ಈ ಪಿಕಪ್ ಲಿಂಕ್ ನಮಗೆ ಸಿಗಲಿಲ್ಲ. ನಿಮ್ಮ ಸಂಸ್ಥೆಯೊಂದಿಗೆ ಪರಿಶೀಲಿಸಿ.",
  "volunteer.pass": "ಸ್ವಯಂಸೇವಕ ಪಿಕಪ್ · {ref}",
  "volunteer.pickupTime": "ಪಿಕಪ್ ಸಮಯ",
- "volunteer.showCode": "ಈ ಕೋಡ್ ಅನ್ನು ಮಾರಾಟಗಾರರಿಗೆ ತೋರಿಸಿ"
+ "volunteer.showCode": "ಈ ಕೋಡ್ ಅನ್ನು ಮಾರಾಟಗಾರರಿಗೆ ತೋರಿಸಿ",
+ "hood.Koramangala": "ಕೋರಮಂಗಲ",
+ "hood.Indiranagar": "ಇಂದಿರಾನಗರ",
+ "hood.HSR Layout": "ಎಚ್‌ಎಸ್‌ಆರ್ ಲೇಔಟ್",
+ "hood.Jayanagar": "ಜಯನಗರ",
+ "hood.Whitefield": "ವೈಟ್‌ಫೀಲ್ಡ್",
+ "units.km": "{n} ಕಿಮೀ"
 }

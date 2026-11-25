@@ -1438,5 +1438,11 @@
  "volunteer.notFoundMsg": "We couldn't find this pickup link. Check it with your organisation.",
  "volunteer.pass": "Volunteer pickup · {ref}",
  "volunteer.pickupTime": "Pickup time",
- "volunteer.showCode": "Show this code to the vendor"
+ "volunteer.showCode": "Show this code to the vendor",
+ "hood.Koramangala": "Koramangala",
+ "hood.Indiranagar": "Indiranagar",
+ "hood.HSR Layout": "HSR Layout",
+ "hood.Jayanagar": "Jayanagar",
+ "hood.Whitefield": "Whitefield",
+ "units.km": "{n} km"
 }

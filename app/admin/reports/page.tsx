@@ -1,7 +1,7 @@
 import { Flag } from "lucide-react";
 import { requirePage } from "@/lib/guard";
 import { reportsQueue } from "@/lib/admin";
-import { StatusPill, fmtDateTime } from "@/components/bits";
+import { StatusPill } from "@/components/bits";
 import { ReportActions } from "../AdminClient";
 import { getT } from "@/lib/i18n/server";
 import { tOr } from "@/components/i18n-helpers";
@@ -21,7 +21,7 @@ export async function generateMetadata() {
 
 export default async function Reports() {
   await requirePage("admin");
-  const { t } = await getT();
+  const { t, fmt } = await getT();
   const list = reportsQueue();
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
@@ -33,7 +33,7 @@ export default async function Reports() {
           {list.map((r) => (
             <li key={r.id} className="card flex flex-col gap-3 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="font-bold">{t(`report.reason.${r.reason}`)} <span className="text-xs font-normal text-muted">· {tOr(t, `admin.target.${r.targetType}`, r.targetType)} · {t("admin.by", { reporter: r.reporter })} · {fmtDateTime(r.createdAt)}</span></p>
+                <p className="font-bold">{t(`report.reason.${r.reason}`)} <span className="text-xs font-normal text-muted">· {tOr(t, `admin.target.${r.targetType}`, r.targetType)} · {t("admin.by", { reporter: r.reporter })} · {fmt.dateTime(r.createdAt)}</span></p>
                 <StatusPill status={r.status} />
               </div>
               <p className="text-sm text-muted">{[r.vendorName, r.listingTitle, r.reservationRef].filter(Boolean).join(" · ")}</p>
@@ -43,7 +43,7 @@ export default async function Reports() {
               {r.status === "Open" ? <ReportActions id={r.id} can={{ canHide: r.canHide, canSuspend: r.canSuspend, canRefund: r.canRefund }} /> : <p className="text-sm font-semibold text-muted">{t("admin.resolved", { resolution: resolutionText(t, r.resolution) })}</p>}
               {r.log.length > 0 && (
                 <details className="text-xs text-muted"><summary className="cursor-pointer font-semibold">{t("admin.actionLog")}</summary>
-                  <ol className="mt-1 flex flex-col gap-0.5">{r.log.map((l, i) => <li key={i}>{fmtDateTime(l.at)} · {l.who} · {tOr(t, `adm.log.${l.action}`, l.action)}{l.detail ? ` (${l.detail})` : ""}</li>)}</ol></details>
+                  <ol className="mt-1 flex flex-col gap-0.5">{r.log.map((l, i) => <li key={i}>{fmt.dateTime(l.at)} · {l.who} · {tOr(t, `adm.log.${l.action}`, l.action)}{l.detail ? ` (${l.detail})` : ""}</li>)}</ol></details>
               )}
             </li>
           ))}
