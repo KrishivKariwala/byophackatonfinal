@@ -189,6 +189,7 @@ npm test                  # translation completeness check + vitest (P0, P1, P2 
 npm run i18n:check        # fails on any missing Hindi/Kannada key or changed {placeholder}
 npm run test:concurrency  # builds must exist: real HTTP server, 50×10, realtime, negative checks
 npm run test:load         # builds must exist: 1,500 feed users, 10 reservations/s for 10 s, write time as listings pile up; fails on oversell or a missed target
+npm run security:check    # builds must exist: calls every API route as a visitor, a customer and a foreign site; checks demo shortcuts are refused in production mode
 npm run a11y:audit        # builds must exist: axe-core (WCAG 2.0/2.1 A and AA, incl. colour contrast) on every screen in English, Hindi and Kannada
 npm run i18n:scan         # builds must exist: headless Chrome opens every screen in Hindi and Kannada and fails on any leftover English
 npm run test:e2e-browser  # builds must exist: headless Chrome drives sign-out, language, live stock, order, Mark ready, handover (needs Google Chrome installed)

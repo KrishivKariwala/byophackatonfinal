@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
-import { isFreshLoad } from "@/lib/fresh-load";
+import { isCrossSiteWrite, isFreshLoad } from "@/lib/fresh-load";
 
 const req = (headers: Record<string, string> = {}, cookie = "sap_session=u_priya.sig; sap_lang=hi") =>
   new NextRequest("http://localhost:3000/", { headers: { cookie, ...headers } });
@@ -44,5 +44,30 @@ describe("opening the main screen signs the demo user out", () => {
     expect(isFreshLoad(new Headers())).toBe(true);
     expect(isFreshLoad(new Headers({ "sec-fetch-dest": "document" }))).toBe(true);
     expect(isFreshLoad(new Headers({ "sec-fetch-dest": "empty" }))).toBe(false);
+  });
+});
+
+describe("writes from another site are refused", () => {
+  const api = (method: string, headers: Record<string, string>, path = "/api/reservations") =>
+    middleware(new NextRequest(`http://localhost:3000${path}`, { method, headers: { host: "localhost:3000", ...headers } }));
+
+  it("a POST with a foreign Origin gets 403", () => {
+    expect(api("POST", { origin: "https://evil.example" }).status).toBe(403);
+    expect(api("DELETE", { origin: "https://evil.example" }, "/api/follows").status).toBe(403);
+  });
+
+  it("the same site, no Origin (scripts, servers) and reads are allowed", () => {
+    expect(api("POST", { origin: "http://localhost:3000" }).status).toBe(200);
+    expect(api("POST", {}).status).toBe(200);
+    expect(api("GET", { origin: "https://evil.example" }, "/api/listings").status).toBe(200);
+  });
+
+  it("the signed gateway webhooks are exempt", () => {
+    expect(api("POST", { origin: "https://api.razorpay.com" }, "/api/payments/webhook").status).toBe(200);
+    expect(isCrossSiteWrite("POST", "/api/delivery/webhook", new Headers({ origin: "https://x.example", host: "localhost:3000" }))).toBe(false);
+  });
+
+  it("a proxy's forwarded host counts as the site", () => {
+    expect(isCrossSiteWrite("POST", "/api/reservations", new Headers({ origin: "https://app.example.com", host: "internal:3000", "x-forwarded-host": "app.example.com" }))).toBe(false);
   });
 });

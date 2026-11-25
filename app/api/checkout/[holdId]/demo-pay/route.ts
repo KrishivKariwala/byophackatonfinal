@@ -8,6 +8,7 @@ import { newId } from "@/lib/crypto";
 // Demo payment adapter: SIMULATED. Used only when Razorpay test keys are not configured.
 export async function POST(req: Request, ctx: { params: Promise<{ holdId: string }> }) {
   return handle(async () => {
+    if (process.env.DATA_MODE && process.env.DATA_MODE !== "demo") throw new RuleError("forbidden", "The simulated payment is only available in demo mode.", 403);
     if (razorpayConfigured()) throw new RuleError("use_gateway", "Razorpay test mode is configured; use the real checkout.", 409);
     const { holdId } = await ctx.params;
     const actor = await getActor();

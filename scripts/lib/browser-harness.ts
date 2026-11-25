@@ -24,12 +24,12 @@ export const SCREENS: Record<string, string[]> = {
 export interface Server { base: string; db: string; stop: () => Promise<void> }
 
 /** Starts `next start` on its own demo database (no browser). */
-export async function startServer(port: number, name: string): Promise<Server> {
+export async function startServer(port: number, name: string, extraEnv: Record<string, string> = {}): Promise<Server> {
   const base = `http://127.0.0.1:${port}`;
   const db = path.resolve(`data/${name}-db.json`);
   if (fs.existsSync(db)) fs.rmSync(db);
   const server: ChildProcess = spawn("npx", ["next", "start", "-p", String(port)], {
-    env: { ...process.env, DEMO_DB_PATH: db, DATA_MODE: "demo", SESSION_SECRET: `${name}-secret-0123456789`, PORT: String(port) },
+    env: { ...process.env, DEMO_DB_PATH: db, DATA_MODE: "demo", SESSION_SECRET: `${name}-secret-0123456789`, PORT: String(port), ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
   });
   server.stderr?.on("data", (d) => process.stderr.write(`[server] ${d}`));

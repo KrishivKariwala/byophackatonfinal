@@ -313,6 +313,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Realtime (2 independent sessions) | All events received; max 7 ms from request |
 | Production build, HTTP end-to-end (`npm run test:e2e-http`) | Re-run on the current build: 10 of 50 reservations succeed, 40 refused, realtime and all negative checks pass |
 | Load test (`npm run test:load`, one laptop, one process, JSON demo store) | **Passes**: 1,500 people on the feed arriving over 3 s: p95 2 ms, 0 errors (target 1.5 s). 100 reservations at 10 per second: p95 13 ms, all accepted, no oversell (target 1 s). Writes, which run the scheduled jobs first, stay under 10 ms with 185 listings. A same-millisecond burst of 1,500 new connections is limited by the operating system's accept queue (128 on macOS), not by the app. Numbers are for this machine and the demo store, not a production database |
+| Security review (`docs/SECURITY_REVIEW.md`, `npm run security:check`) | 126 route calls: every protected route refuses a visitor without the right session; a customer is refused on every staff route; a foreign-site write is refused; demo shortcuts are refused in production mode. Fixed: the unguarded simulated payment, cross-site writes, missing headers. Open: shared rate limits (#41), Content-Security-Policy (#42), Next.js 16 (#43), plus the backend items |
 | Browser end-to-end (`npm run test:e2e-browser`, headless Chrome, 8 steps) | **8/8 pass**: no account on the main screen, refresh and opening sign out while the logo keeps you signed in, one-click Hindi with nothing English left on the main screen, Hindi carried into the app, a second customer's page counts down live, simulated payment gives a pass with a code, vendor "Mark ready" updates the pass without a reload, handover verifies once and is then refused. Proven to fail when the sign-out rule is broken. Log: `test-results/browser-e2e.log` |
 
 ---
@@ -334,7 +335,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |
 | ETA | Foreground only (the tab must be open); not tested on a phone with real GPS |
 | PDFs | Built-in PDF fonts, English only |
-| Accessibility, load and security | Automated accessibility audit done (`npm run a11y:audit`, 0 violations) and load test done (`npm run test:load`); no screen-reader pass by a person and no security review yet |
+| Accessibility, load and security | Done and repeatable: accessibility audit (`npm run a11y:audit`, 0 violations), load test (`npm run test:load`) and security route sweep (`npm run security:check`, see `docs/SECURITY_REVIEW.md`). Still to do: a screen-reader pass by a person, and an outside security test |
 | Legal | Food-safety, FSSAI surplus-food guidance, donation liability and 80G need regulatory review before any real launch |
 | Screens still busy | Some screens (vendor dashboard action rows, order cards) carry more buttons than the landing page and header |
 

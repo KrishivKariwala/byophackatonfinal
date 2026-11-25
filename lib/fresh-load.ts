@@ -14,3 +14,18 @@ export function isFreshLoad(headers: Headers): boolean {
   const softNavigation = headers.get("rsc") !== null || (dest !== null && dest !== "document");
   return !softNavigation;
 }
+
+/**
+ * Defence in depth against cross-site request forgery: a write request (anything but GET, HEAD, OPTIONS) that carries an `Origin`
+ * header from a DIFFERENT site is refused. The session cookie is already SameSite=Lax, which browsers honour; this protects older
+ * browsers and mistakes. Requests with no Origin (curl, server-to-server webhooks, the test scripts) are not affected, and the two
+ * gateway webhooks are exempt because they are signed instead.
+ */
+export function isCrossSiteWrite(method: string, pathname: string, headers: Headers): boolean {
+  if (["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) return false;
+  if (pathname === "/api/payments/webhook" || pathname === "/api/delivery/webhook") return false;
+  const origin = headers.get("origin");
+  if (!origin) return false;
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  try { return new URL(origin).host !== host; } catch { return true; }
+}

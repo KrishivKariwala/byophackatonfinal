@@ -14,6 +14,7 @@
     "test:e2e-http": "tsx scripts/http-tests.ts",
     "test:e2e-browser": "tsx scripts/e2e-browser.ts",
     "i18n:scan": "tsx scripts/i18n-scan.ts",
+    "security:check": "tsx scripts/security-check.ts",
     "a11y:audit": "tsx scripts/a11y-audit.ts",
     "test:load": "tsx scripts/load-test.ts",
     "i18n:check": "tsx scripts/i18n-check.ts"

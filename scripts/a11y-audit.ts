@@ -37,7 +37,7 @@ async function main() {
           }, TAGS);
           screens++;
           if (res.length) report[locale][`${group}:${url}`] = res;
-          for (const v of res as Found[]) (v.impact === "serious" || v.impact === "critical" ? blocking++ : other++);
+          for (const v of res as Found[]) { if (v.impact === "serious" || v.impact === "critical") blocking++; else other++; }
         }
         await ctx.close();
       }

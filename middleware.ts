@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { isFreshLoad } from "@/lib/fresh-load";
+import { isCrossSiteWrite, isFreshLoad } from "@/lib/fresh-load";
 
 /**
  * A fresh load of the main screen ("/") starts signed out: the session cookie is removed from this request (so the page and
@@ -11,6 +11,12 @@ import { isFreshLoad } from "@/lib/fresh-load";
  * See lib/fresh-load.ts for how the two are told apart.
  */
 export function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname.startsWith("/api/")) {
+    // writes from another site are refused (see lib/fresh-load.ts)
+    return isCrossSiteWrite(req.method, req.nextUrl.pathname, req.headers)
+      ? NextResponse.json({ ok: false, code: "cross_site", error: "Cross-site requests are not allowed." }, { status: 403 })
+      : NextResponse.next();
+  }
   if (!isFreshLoad(req.headers) || !req.cookies.has("sap_session")) return NextResponse.next();
   const headers = new Headers(req.headers);
   const rest = (headers.get("cookie") ?? "").split(/;\s*/).filter((c) => c && !c.startsWith("sap_session="));
@@ -20,4 +26,4 @@ export function middleware(req: NextRequest) {
   return res;
 }
 
-export const config = { matcher: ["/"] };
+export const config = { matcher: ["/", "/api/:path*"] };
