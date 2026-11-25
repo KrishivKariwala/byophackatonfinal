@@ -1,39 +1,13 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, Check, ChevronDown, Clock, Globe, LayoutGrid, LogOut, UserRound } from "lucide-react";
 import { api } from "./client";
 import { Logo } from "./Logo";
 import { useT } from "./I18n";
+import { Popover } from "./Popover";
 import { LOCALES, LOCALE_COOKIE, LOCALE_NAMES, type Locale } from "@/lib/i18n/locales";
-
-/** A small dropdown: closes on outside click, Escape, or when an item is chosen. Keyboard and screen-reader friendly. */
-function Popover({ label, icon, children, align = "right", className = "", buttonClass = "" }: { label: string; icon: React.ReactNode; children: (close: () => void) => React.ReactNode; align?: "left" | "right"; className?: string; buttonClass?: string }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const away = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", away);
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
-  }, [open]);
-  return (
-    <div ref={ref} className={`relative ${className}`}>
-      <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => setOpen(!open)}
-        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-burgundy transition hover:bg-cream ${open ? "bg-cream" : ""} ${buttonClass}`}>
-        {icon}
-      </button>
-      {open && (
-        <div role="menu" className={`absolute top-12 z-50 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-line bg-white p-2 shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>
-          {children(() => setOpen(false))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function LanguageMenu({ current }: { current: Locale }) {
   const router = useRouter();

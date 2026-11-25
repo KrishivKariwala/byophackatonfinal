@@ -5,7 +5,8 @@ import { read, now } from "@/lib/store";
 import { StatusPill, DietTag } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { LiveCount } from "@/components/LiveProvider";
-import { CancelListingButton, DonationVerify } from "./VendorClient";
+import { DonationVerify } from "./VendorClient";
+import { ListingMenu } from "@/components/ListingMenu";
 import { RepostButton, VendorSettings, VerifiedBadge, Rating } from "@/components/p1";
 import { profileCompleteness } from "@/lib/vendor";
 import { RULES } from "@/lib/rules";
@@ -189,7 +190,34 @@ export default async function VendorHome() {
 
       <section aria-labelledby="list-h">
         <h2 id="list-h" className="editorial mb-3 text-3xl">{t("vdash.listings")}</h2>
-        <div className="card overflow-x-auto">
+        {/* phone width: one card per listing, so the actions are never hidden off to the right of a wide table */}
+        <ul className="flex flex-col gap-3 md:hidden">
+          {listings.map((l) => {
+            const open = ["Live", "Paused", "Sold Out"].includes(l.status);
+            return (
+              <li key={l.id} className="card flex flex-col gap-2 p-4 text-sm">
+                <div className="flex items-start justify-between gap-2"><b className="text-base">{l.title}</b><StatusPill status={l.status} /></div>
+                {multi && <p className="text-xs text-muted">{outletLabel(l.outletId)}</p>}
+                <div><DietTag diet={l.diet} /></div>
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+                  <div><dt className="text-xs text-muted">{t("vdash.col.left")}</dt><dd>{open ? <LiveCount listingId={l.id} initial={l.qtyAvailable} /> : "—"} <span className="text-xs text-muted">/ {l.qtyTotal}</span></dd></div>
+                  <div><dt className="text-xs text-muted">{t("vdash.col.price")}</dt><dd>₹{l.rescuePrice} <s className="text-xs text-muted">₹{l.originalPrice}</s></dd></div>
+                  <div><dt className="text-xs text-muted">{t("vdash.col.window")}</dt><dd>{fmt.window(l.windowStart, l.windowEnd)}</dd></div>
+                  <div><dt className="text-xs text-muted">{t("vdash.col.donateRest")}</dt><dd>{l.donateRest ? t("common.yes") : t("common.no")}</dd></div>
+                </dl>
+                {approved && canList && (
+                  <div className="flex items-start gap-2 pt-1">
+                    {open
+                      ? <Link href={`/v/listings/${l.id}`} className="btn-outline !min-h-[44px] !py-2">{t("common.edit")}</Link>
+                      : <Link href={`/v/new?from=${l.id}`} className="btn-outline !min-h-[44px] !py-2">{t("vdash.duplicate")}</Link>}
+                    <ListingMenu listingId={l.id} title={l.title} status={l.status} />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="card hidden overflow-x-auto md:block">
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-line text-xs uppercase text-muted">
               <tr><th className="p-3">{t("vdash.col.listing")}</th><th className="p-3">{t("vdash.col.status")}</th><th className="p-3">{t("vdash.col.left")}</th><th className="p-3">{t("vdash.col.price")}</th><th className="p-3">{t("vdash.col.window")}</th><th className="p-3">{t("vdash.col.donateRest")}</th><th className="p-3">{t("vdash.col.actions")}</th></tr>
@@ -207,13 +235,11 @@ export default async function VendorHome() {
                     <td className="p-3">{l.donateRest ? t("common.yes") : t("common.no")}</td>
                     <td className="p-3">
                       {approved && canList && (
-                        <div className="flex flex-wrap gap-2">
-                          {open && <Link href={`/v/listings/${l.id}`} className="btn-quiet !min-h-[40px] !py-2">{t("common.edit")}</Link>}
-                          {(l.status === "Live" || l.status === "Sold Out") && <ActionButton path={`/api/vendor/listings/${l.id}`} body={{ action: "pause" }} label={t("vdash.pause")} className="btn-quiet !min-h-[40px] !py-2" />}
-                          {l.status === "Paused" && <ActionButton path={`/api/vendor/listings/${l.id}`} body={{ action: "resume" }} label={t("vdash.resume")} className="btn-quiet !min-h-[40px] !py-2" />}
-                          {open && <CancelListingButton listingId={l.id} />}
-                          <Link href={`/v/new?from=${l.id}`} className="btn-quiet !min-h-[40px] !py-2">{t("vdash.duplicate")}</Link>
-                          <ActionButton path="/api/vendor/templates" body={{ listingId: l.id }} label={t("vdash.saveTemplate")} successText={t("common.saved")} className="btn-quiet !min-h-[40px] !py-2" />
+                        <div className="flex items-start gap-2">
+                          {open
+                            ? <Link href={`/v/listings/${l.id}`} className="btn-outline !min-h-[44px] !py-2">{t("common.edit")}</Link>
+                            : <Link href={`/v/new?from=${l.id}`} className="btn-outline !min-h-[44px] !py-2">{t("vdash.duplicate")}</Link>}
+                          <ListingMenu listingId={l.id} title={l.title} status={l.status} />
                         </div>
                       )}
                     </td>

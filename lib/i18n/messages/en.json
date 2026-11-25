@@ -1451,5 +1451,8 @@
  "ledger.note.usedCheckout": "Used at checkout for {title}",
  "ledger.note.usedOrder": "Used on {ref}",
  "ledger.note.restored": "Returned: {reason}",
- "ledger.note.expired": "Expired after {days} days"
+ "ledger.note.expired": "Expired after {days} days",
+ "vdash.more": "More",
+ "vdash.moreFor": "More actions for {title}",
+ "vdash.cancelListing": "Cancel listing"
 }

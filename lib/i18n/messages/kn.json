@@ -1451,5 +1451,8 @@
  "ledger.note.usedCheckout": "{title} ಚೆಕ್‌ಔಟ್‌ನಲ್ಲಿ ಬಳಸಲಾಗಿದೆ",
  "ledger.note.usedOrder": "{ref} ಗೆ ಬಳಸಲಾಗಿದೆ",
  "ledger.note.restored": "ಹಿಂತಿರುಗಿಸಲಾಗಿದೆ: {reason}",
- "ledger.note.expired": "{days} ದಿನಗಳ ನಂತರ ಅವಧಿ ಮುಗಿದಿದೆ"
+ "ledger.note.expired": "{days} ದಿನಗಳ ನಂತರ ಅವಧಿ ಮುಗಿದಿದೆ",
+ "vdash.more": "ಇನ್ನಷ್ಟು",
+ "vdash.moreFor": "{title} ಗಾಗಿ ಇನ್ನಷ್ಟು ಕ್ರಿಯೆಗಳು",
+ "vdash.cancelListing": "ಲಿಸ್ಟಿಂಗ್ ರದ್ದುಗೊಳಿಸಿ"
 }

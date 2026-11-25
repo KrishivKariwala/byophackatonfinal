@@ -13,7 +13,7 @@ import { hoodLabel, statusLabel, tOr } from "@/components/i18n-helpers";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
-  const { t, fmt } = await getT();
+  const { t } = await getT();
   return { title: t("title.donationFeed") };
 }
 

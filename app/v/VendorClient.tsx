@@ -4,34 +4,6 @@ import { useRouter } from "next/navigation";
 import { api } from "@/components/client";
 import { useT } from "@/components/I18n";
 
-export function CancelListingButton({ listingId }: { listingId: string }) {
-  const router = useRouter();
-  const { t } = useT();
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  return (
-    <span className="inline-flex flex-col">
-      <button
-        className="btn !min-h-[40px] !py-2 border border-tomato text-tomato hover:bg-cream"
-        disabled={busy}
-        onClick={async () => {
-          const reason = window.prompt(t("vdash.cancelPrompt"));
-          if (!reason) return;
-          setBusy(true);
-          try {
-            const r = await api<{ refunds: number }>(`/api/vendor/listings/${listingId}`, { action: "cancel", reason });
-            setErr(t("vdash.cancelled", { n: r.refunds }));
-            router.refresh();
-          } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
-        }}
-      >
-        {t("common.cancel")}
-      </button>
-      {err && <span role="status" className="text-[11px] font-semibold text-tomato">{err}</span>}
-    </span>
-  );
-}
-
 export function DonationVerify({ batchId }: { batchId: string }) {
   const router = useRouter();
   const { t } = useT();
