@@ -59,32 +59,6 @@ function useSlices(): Slice[] {
 const mid = (s: SliceBase) => (s.a0 + s.a1) / 2;
 const REDUCED = "(prefers-reduced-motion: reduce)";
 
-function Decor({ kind }: { kind: "tomato" | "leaf" | "crumbs" }) {
-  if (kind === "tomato")
-    return (
-      <svg viewBox="0 0 80 80" aria-hidden="true" className="h-full w-full">
-        <circle cx="40" cy="40" r="36" fill="#CB0001" />
-        <circle cx="40" cy="40" r="27" fill="#FD2828" opacity=".55" />
-        {[0, 72, 144, 216, 288].map((a) => (
-          <ellipse key={a} cx="40" cy="22" rx="3.6" ry="7" fill="#FEF2C0" transform={`rotate(${a} 40 40)`} />
-        ))}
-        <circle cx="40" cy="40" r="5" fill="#FEF2C0" />
-      </svg>
-    );
-  if (kind === "leaf")
-    return (
-      <svg viewBox="0 0 80 80" aria-hidden="true" className="h-full w-full">
-        <path d="M10 62C10 28 34 10 70 10c0 36-18 60-52 60" fill="#1F7A3A" />
-        <path d="M14 66C30 46 46 32 66 14" stroke="#E6F2E9" strokeWidth="3" fill="none" strokeLinecap="round" />
-      </svg>
-    );
-  return (
-    <svg viewBox="0 0 80 80" aria-hidden="true" className="h-full w-full">
-      <circle cx="20" cy="24" r="7" fill="#FDD599" /><circle cx="52" cy="16" r="5" fill="#CB0001" /><circle cx="60" cy="52" r="8" fill="#FDD599" /><circle cx="26" cy="58" r="5" fill="#790000" />
-    </svg>
-  );
-}
-
 /** Shared gradients / filters. `p` prefixes every id so the hero plate and the intro plate can coexist in one document. */
 function PlateDefs({ p }: { p: string }) {
   return (
@@ -151,6 +125,9 @@ function IntroPlate() {
   );
 }
 
+/** The plate labels are stored in capitals for the slices; the plain list reads better in sentence case (English only). */
+const sentenceCase = (x: string, locale: string) => (locale === "en" ? (x.charAt(0).toUpperCase() + x.slice(1).toLowerCase()).replace(/\bngo\b/g, "NGO") : x);
+
 export function PlateHero() {
   /** A slice opens that side's own sign-in; if you're already signed in on that side it goes straight to your dashboard. */
   const sliceHref = (s: Slice) => `/signin?role=${s.id}`;
@@ -198,7 +175,6 @@ export function PlateHero() {
 
           gsap.set(".plate-wrap", { opacity: 0 });
           gsap.set(".hero-fade", { opacity: 0, y: 14 });
-          gsap.set(".decor", { scale: 0 });
           const split = SplitText.create(".hero-word", { type: locale === "en" ? "chars" : "words", charsClass: "ch", wordsClass: "wd" });
           gsap.set((locale === "en" ? split.chars : split.words), { yPercent: 125 });
 
@@ -245,7 +221,6 @@ export function PlateHero() {
               duration: 1.1, ease: "expo.inOut",
             }, "open")
             .add(() => { gsap.set(".plate-wrap", { opacity: 1 }); gsap.set(".intro-root", { display: "none" }); }, "open+=1.12")
-            .to(".decor", { scale: 1, rotate: 0, duration: 0.7, stagger: 0.1, ease: "back.out(2.4)" }, "open+=1.0")
             // headline: letters rise fast, one by one
             .to((locale === "en" ? split.chars : split.words), { yPercent: 0, duration: 0.5, stagger: { each: 0.016 }, ease: "power4.out" }, "open+=.45")
             .to(".hero-fade", { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power3.out" }, "open+=.75")
@@ -266,40 +241,31 @@ export function PlateHero() {
           gsap.set(".hero-fade", { opacity: 0, y: 20 });
           gsap.set(".plate-wrap", { opacity: 0, rotation: -540, scale: 0.82 });
           gsap.set(".plate-hub", { scale: 0, svgOrigin: "300 300" });
-          gsap.set(".decor", { scale: 0 });
           html.removeAttribute("data-sap-quick"); // the start states above now hold, so the CSS pre-hide (no flash) can go
           const tl = gsap.timeline({ onComplete: () => { gsap.set((locale === "en" ? split.chars : split.words), { clearProps: "color" }); } });
           tl.to(".hero-fade", { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" }, 0.1)
             .to((locale === "en" ? split.chars : split.words), { yPercent: 0, duration: 0.45, stagger: { each: 0.014 }, ease: "power4.out" }, 0)
             .to(".plate-wrap", { opacity: 1, rotation: 0, scale: 1, duration: WHIRL, ease: "power3.out" }, 0)
             .to(".plate-hub", { scale: 1, svgOrigin: "300 300", duration: 0.6, ease: "elastic.out(1, 0.6)" }, WHIRL - 0.35)
-            .to(".decor", { scale: 1, duration: 0.5, stagger: 0.07, ease: "back.out(2.4)" }, WHIRL - 0.4)
             // the gold wave starts only once the wheel has come to rest
             .add("settled", WHIRL)
             .to((locale === "en" ? split.chars : split.words), { keyframes: [{ color: GOLD, duration: 0.1, ease: "power1.out" }, { color: "#CB0001", duration: 0.28, ease: "power1.in" }], stagger: { each: 0.018 } }, "settled");
         }
 
-        // idle motion: rim dashes turn slowly, decor floats
+        // idle motion: the rim dashes turn slowly
         gsap.to(".plate-dashes", { rotate: 360, svgOrigin: "300 300", duration: 120, ease: "none", repeat: -1 });
-        gsap.utils.toArray<HTMLElement>(".decor").forEach((el, i) => {
-          gsap.to(el, { y: i % 2 ? -14 : 14, x: i % 2 ? 8 : -8, rotate: i % 2 ? 8 : -8, duration: 2.6 + i * 0.5, ease: "sine.inOut", yoyo: true, repeat: -1 });
-        });
 
         // pointer: plate leans gently toward the cursor (the hit layer is inside the plate, so hover stays exact)
         if (window.matchMedia("(pointer: fine)").matches && root.current) {
           const rx = gsap.quickTo(".plate-wrap", "rotationX", { duration: 0.7, ease: "power3.out" });
           const ry = gsap.quickTo(".plate-wrap", "rotationY", { duration: 0.7, ease: "power3.out" });
-          const parallax = gsap.utils.toArray<HTMLElement>(".decor-depth").map((el, i) => ({
-            x: gsap.quickTo(el, "x", { duration: 1, ease: "power3.out" }), y: gsap.quickTo(el, "y", { duration: 1, ease: "power3.out" }), k: 10 + i * 8,
-          }));
           const onMove = (e: PointerEvent) => {
             const r = root.current!.getBoundingClientRect();
             const nx = (e.clientX - r.left) / r.width - 0.5;
             const ny = (e.clientY - r.top) / r.height - 0.5;
             ry(nx * 8); rx(-ny * 8);
-            parallax.forEach((p) => { p.x(-nx * p.k); p.y(-ny * p.k); });
           };
-          const onLeave = () => { rx(0); ry(0); parallax.forEach((p) => { p.x(0); p.y(0); }); };
+          const onLeave = () => { rx(0); ry(0); };
           const el = root.current;
           el.addEventListener("pointermove", onMove);
           el.addEventListener("pointerleave", onLeave);
@@ -389,17 +355,18 @@ export function PlateHero() {
             <span key={`${i}-${w}`} className="mr-3 inline-block overflow-hidden align-bottom" aria-hidden="true"><span className="hero-word inline-block">{w}</span></span>
           ))}
         </h1>
-        <p className="hero-fade max-w-md text-sm font-semibold tracking-wide text-burgundy">
+        <p className="hero-fade max-w-md text-base normal-case leading-relaxed text-burgundy/80">
           {t("land.tagline")}
         </p>
-        <div className="hero-fade flex flex-col gap-2">
+        <div className="hero-fade flex w-full max-w-sm flex-col gap-1">
           <p className="eyebrow text-burgundy">{t("land.pickSide")}</p>
-          <ul className="flex flex-wrap gap-2">
+          <ul className="flex flex-col divide-y divide-burgundy/15 border-y border-burgundy/15">
             {SLICES.map((s) => (
               <li key={s.id}>
                 <Link href={sliceHref(s)} onMouseEnter={() => enter(s)} onMouseLeave={leave} onFocus={() => enter(s)} onBlur={leave}
-                  className="inline-flex min-h-[44px] items-center gap-2 rounded-full border-2 border-tomato bg-white/60 px-4 py-2 text-sm font-semibold text-tomato transition hover:bg-tomato hover:text-cream">
-                  <s.Icon size={16} aria-hidden="true" />{s.lines.join(" ")}
+                  className="group flex min-h-[48px] items-center justify-between gap-3 py-2 text-sm font-semibold text-burgundy transition hover:text-tomato">
+                  <span className="flex items-center gap-2.5"><s.Icon size={18} aria-hidden="true" />{sentenceCase(s.lines.join(" "), locale)}</span>
+                  <ArrowRight size={16} aria-hidden="true" className="transition group-hover:translate-x-1" />
                 </Link>
               </li>
             ))}
@@ -409,10 +376,6 @@ export function PlateHero() {
 
       {/* ---------------------------------------------------------------- right: the plate */}
       <div className="relative mx-auto flex w-full max-w-[640px] flex-col items-center gap-3">
-        <div className="decor decor-depth absolute -left-2 top-4 z-10 h-16 w-16 sm:h-20 sm:w-20"><Decor kind="tomato" /></div>
-        <div className="decor decor-depth absolute -right-1 top-24 z-10 h-14 w-14 sm:h-16 sm:w-16"><Decor kind="leaf" /></div>
-        <div className="decor decor-depth absolute bottom-16 -left-1 z-10 h-14 w-14 sm:h-16 sm:w-16"><Decor kind="leaf" /></div>
-        <div className="decor decor-depth absolute -right-2 bottom-8 z-10 h-16 w-16 sm:h-20 sm:w-20"><Decor kind="crumbs" /></div>
 
         <div className="w-full" style={{ perspective: 1100 }}>
           <div className="plate-wrap w-full will-change-transform" style={{ transformStyle: "preserve-3d" }}>

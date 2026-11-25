@@ -80,7 +80,7 @@ Roles: `customer`, `vendor` (organization roles owner / manager / staff), `ngo`,
 ## 4. Experience
 
 ### 4.1 Landing page
-- Shows the logo, headline, a short tagline, and **"Pick your side"** with three choices: **Find food near me**, **List surplus as a vendor**, **Collect as an NGO**. The same three choices are the slices of an interactive plate (hover or tap a slice).
+- Shows the logo, headline, a short tagline, and **"Pick your side"** with three choices: **Find food near me**, **List surplus as a vendor**, **Collect as an NGO**. The same three choices are the slices of an interactive plate (hover or tap a slice), and also a plain list of three rows with arrows, which is easier to use on a phone and with a keyboard. The plate is the only illustration on the page: there are no floating leaves, dots or blurred blobs, and the tagline and list are in sentence case.
 - **Opening the app, or refreshing any page, starts signed out.** There is no "Continue as…" button and no saved demo account. (`middleware.ts` clears the session cookie whenever `/` is requested as a fresh page load; a browser refresh on any other page returns to `/` with a page load, so it signs out too.)
 - **Moving around inside the app keeps you signed in.** Clicking the logo or a "Back" link is an in-app navigation, not a page load, so it does not sign you out. Link prefetches never sign anyone out. (Browsers send `Sec-Fetch-Dest: document` on a page load; see `lib/fresh-load.ts`. A client that sends no such header is treated as a fresh load.)
 - **Language** is a small globe + code in the top corner. Choosing a language closes the menu immediately.
