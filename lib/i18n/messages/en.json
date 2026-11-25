@@ -1444,5 +1444,12 @@
  "hood.HSR Layout": "HSR Layout",
  "hood.Jayanagar": "Jayanagar",
  "hood.Whitefield": "Whitefield",
- "units.km": "{n} km"
+ "units.km": "{n} km",
+ "ledger.note.referralReward": "Referral reward",
+ "ledger.note.referralWelcome": "Referral welcome credit",
+ "ledger.note.usedPast": "Used on a past order",
+ "ledger.note.usedCheckout": "Used at checkout for {title}",
+ "ledger.note.usedOrder": "Used on {ref}",
+ "ledger.note.restored": "Returned: {reason}",
+ "ledger.note.expired": "Expired after {days} days"
 }

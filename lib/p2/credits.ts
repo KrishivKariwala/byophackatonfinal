@@ -7,6 +7,7 @@ import { audit, iso, notifyT, requireRole, t } from "../core";
 import { normalizePhone } from "../auth";
 import { cfg } from "./settings";
 import type { CreditEntry, DB, Profile, Referral, Reservation } from "../types";
+import { CREDIT_NOTE_KEYS } from "./ledger-note";
 
 /**
  * P2 feature 1: referral credits.
@@ -63,15 +64,6 @@ export function spendCreditTx(tx: TxContext, userId: string, amount: number, ref
 }
 
 /** Gives back what `refIds` (a hold and/or reservation) spent, as a fresh 90-day lot. Idempotent: a second call restores nothing. */
-/** The reasons restoreCreditTx is called with, mapped to catalog entries so the notification reads in the customer's language. */
-const CREDIT_NOTE_KEYS: Record<string, string> = {
-  "refunded by an administrator": "notif.creditNote.refundedByAdmin",
-  "checkout hold expired": "notif.creditNote.holdExpired",
-  "checkout was not completed": "notif.creditNote.notCompleted",
-  "vendor cancelled the listing": "notif.creditNote.vendorCancelled",
-  "order cancelled": "notif.creditNote.orderCancelled",
-};
-
 export function restoreCreditTx(tx: TxContext, userId: string, refIds: (string | undefined)[], note: string): number {
   const refs = refIds.filter(Boolean) as string[];
   const spent = tx.db.creditLedger.filter((e) => e.userId === userId && e.type === "spent" && e.refId && refs.includes(e.refId)).reduce((s, e) => s + e.amount, 0);

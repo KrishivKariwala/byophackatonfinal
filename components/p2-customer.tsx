@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Copy, MapPin, Navigation } from "lucide-react";
 import { api } from "./client";
 import { useT } from "./I18n";
+import { ledgerNote } from "@/lib/p2/ledger-note";
 
 // ------------------------------------------------------------------ referrals and credit
 export interface ReferralData {
@@ -80,7 +81,7 @@ export function ReferralClient({ data }: { data: ReferralData }) {
         {data.ledger.length === 0 ? <p className="text-sm text-muted">{t("common.empty")}</p> : (
           <ul className="divide-y divide-line">{data.ledger.map((e) => (
             <li key={e.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-              <div><b>{t(`ref.ledger.${e.type}`)}</b><p className="text-xs text-muted">{e.note ?? ""} · {fmt.date(e.createdAt)}</p></div>
+              <div><b>{t(`ref.ledger.${e.type}`)}</b><p className="text-xs text-muted">{(() => { const n = ledgerNote(e.note); return n ? t(n.key, n.vars) : e.note ?? ""; })()} · {fmt.date(e.createdAt)}</p></div>
               <b className={e.type === "earned" ? "text-veg" : "text-tomato"}>{e.type === "earned" ? "+" : "−"}{fmt.inr(e.amount)}</b>
             </li>
           ))}</ul>

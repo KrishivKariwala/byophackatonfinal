@@ -1444,5 +1444,12 @@
  "hood.HSR Layout": "ಎಚ್‌ಎಸ್‌ಆರ್ ಲೇಔಟ್",
  "hood.Jayanagar": "ಜಯನಗರ",
  "hood.Whitefield": "ವೈಟ್‌ಫೀಲ್ಡ್",
- "units.km": "{n} ಕಿಮೀ"
+ "units.km": "{n} ಕಿಮೀ",
+ "ledger.note.referralReward": "ರೆಫರಲ್ ಬಹುಮಾನ",
+ "ledger.note.referralWelcome": "ರೆಫರಲ್ ಸ್ವಾಗತ ಕ್ರೆಡಿಟ್",
+ "ledger.note.usedPast": "ಹಿಂದಿನ ಆರ್ಡರ್‌ಗೆ ಬಳಸಲಾಗಿದೆ",
+ "ledger.note.usedCheckout": "{title} ಚೆಕ್‌ಔಟ್‌ನಲ್ಲಿ ಬಳಸಲಾಗಿದೆ",
+ "ledger.note.usedOrder": "{ref} ಗೆ ಬಳಸಲಾಗಿದೆ",
+ "ledger.note.restored": "ಹಿಂತಿರುಗಿಸಲಾಗಿದೆ: {reason}",
+ "ledger.note.expired": "{days} ದಿನಗಳ ನಂತರ ಅವಧಿ ಮುಗಿದಿದೆ"
 }

@@ -1444,5 +1444,12 @@
  "hood.HSR Layout": "एचएसआर लेआउट",
  "hood.Jayanagar": "जयनगर",
  "hood.Whitefield": "व्हाइटफ़ील्ड",
- "units.km": "{n} किमी"
+ "units.km": "{n} किमी",
+ "ledger.note.referralReward": "रेफ़रल इनाम",
+ "ledger.note.referralWelcome": "रेफ़रल स्वागत क्रेडिट",
+ "ledger.note.usedPast": "पिछले ऑर्डर पर इस्तेमाल हुआ",
+ "ledger.note.usedCheckout": "{title} के चेकआउट पर इस्तेमाल हुआ",
+ "ledger.note.usedOrder": "{ref} पर इस्तेमाल हुआ",
+ "ledger.note.restored": "लौटाया गया: {reason}",
+ "ledger.note.expired": "{days} दिन बाद अवधि समाप्त"
 }
