@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, MapPin, Navigation } from "lucide-react";
+import { ChevronDown, Copy, MapPin, Navigation } from "lucide-react";
 import { api } from "./client";
 import { useT } from "./I18n";
 import { ledgerNote } from "@/lib/p2/ledger-note";
@@ -110,6 +110,7 @@ export function EtaButton({ reservationId, outlet, initialMinutes, canStart }: {
   const [live, setLive] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
+  const [expanded, setExpanded] = useState(false); // the options stay tucked away until the customer taps "I'm on my way"
   const watch = useRef<number | null>(null);
   const lastSent = useRef(0);
 
@@ -151,24 +152,29 @@ export function EtaButton({ reservationId, outlet, initialMinutes, canStart }: {
   if (!canStart && minutes === undefined) return <p className="card p-4 text-xs text-muted">{t("eta.notYet")}</p>;
   return (
     <section className="card flex flex-col gap-3 p-4" aria-labelledby="eta-h">
-      <div>
-        <h2 id="eta-h" className="editorial flex items-center gap-2 text-2xl"><Navigation size={20} aria-hidden="true" />{t("eta.title")}</h2>
-        <p className="text-xs text-muted">{t("eta.help")}</p>
-      </div>
+      <button type="button" aria-expanded={expanded} aria-controls="eta-panel" onClick={() => setExpanded(!expanded)} className="flex min-h-[44px] w-full items-center justify-between gap-2 text-left">
+        <span id="eta-h" className="editorial flex items-center gap-2 text-2xl"><Navigation size={20} aria-hidden="true" />{t("eta.title")}</span>
+        <ChevronDown size={18} aria-hidden="true" className={`shrink-0 transition ${expanded ? "rotate-180" : ""}`} />
+      </button>
       {minutes !== undefined && (
         <p role="status" className="rounded-xl bg-cream p-3 text-sm font-bold text-burgundy">{minutes <= 1 ? t("eta.arriving") : t("eta.sharing", { n: minutes })}</p>
       )}
-      <div className="flex flex-wrap gap-2">
-        {!live && <button type="button" className="btn-primary !min-h-[44px]" onClick={startWatch}><MapPin size={16} aria-hidden="true" />{t("eta.useLocation")}</button>}
-        {minutes !== undefined && <button type="button" className="btn-quiet !min-h-[44px]" onClick={stop}>{t("eta.stop")}</button>}
-      </div>
-      <fieldset>
-        <legend className="label mb-1">{t("eta.manual")}</legend>
-        <div className="flex flex-wrap gap-2">{[5, 10, 15, 20, 30].map((n) => (
-          <button key={n} type="button" aria-pressed={minutes === n} className={`chip min-h-[44px] min-w-[44px] justify-center border-2 ${minutes === n ? "border-tomato bg-tomato text-white" : "border-line bg-white text-burgundy"}`} onClick={() => send(n)}>{t("eta.minutes", { n })}</button>
-        ))}</div>
-      </fieldset>
-      <p className="text-[11px] text-muted">{t("eta.privacy")}</p>
+      {expanded && (
+        <div id="eta-panel" className="flex flex-col gap-3">
+          <p className="text-xs text-muted">{t("eta.help")}</p>
+          <div className="flex flex-wrap gap-2">
+            {!live && <button type="button" className="btn-primary !min-h-[44px]" onClick={startWatch}><MapPin size={16} aria-hidden="true" />{t("eta.useLocation")}</button>}
+            {minutes !== undefined && <button type="button" className="btn-quiet !min-h-[44px]" onClick={stop}>{t("eta.stop")}</button>}
+          </div>
+          <fieldset>
+            <legend className="label mb-1">{t("eta.manual")}</legend>
+            <div className="flex flex-wrap gap-2">{[5, 10, 15, 20, 30].map((n) => (
+              <button key={n} type="button" aria-pressed={minutes === n} className={`chip min-h-[44px] min-w-[44px] justify-center border-2 ${minutes === n ? "border-tomato bg-tomato text-white" : "border-line bg-white text-burgundy"}`} onClick={() => send(n)}>{t("eta.minutes", { n })}</button>
+            ))}</div>
+          </fieldset>
+          <p className="text-[11px] text-muted">{t("eta.privacy")}</p>
+        </div>
+      )}
       {denied && <p role="status" className="text-xs font-semibold text-burgundy">{t("eta.denied")}</p>}
       {err && <p role="alert" className="text-xs font-semibold text-tomato">{err}</p>}
     </section>

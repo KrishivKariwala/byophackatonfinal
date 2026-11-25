@@ -1454,5 +1454,7 @@
  "ledger.note.expired": "{days} दिन बाद अवधि समाप्त",
  "vdash.more": "और",
  "vdash.moreFor": "{title} के लिए और विकल्प",
- "vdash.cancelListing": "लिस्टिंग रद्द करें"
+ "vdash.cancelListing": "लिस्टिंग रद्द करें",
+ "order.more": "और",
+ "order.moreAria": "ऑर्डर के और विकल्प"
 }

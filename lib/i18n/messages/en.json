@@ -1454,5 +1454,7 @@
  "ledger.note.expired": "Expired after {days} days",
  "vdash.more": "More",
  "vdash.moreFor": "More actions for {title}",
- "vdash.cancelListing": "Cancel listing"
+ "vdash.cancelListing": "Cancel listing",
+ "order.more": "More",
+ "order.moreAria": "More order options"
 }

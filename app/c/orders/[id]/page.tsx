@@ -6,7 +6,8 @@ import { read, now } from "@/lib/store";
 import { directionsUrl, NEIGHBOURHOODS } from "@/lib/geo";
 import { StatusPill } from "@/components/bits";
 import { Countdown } from "@/components/client";
-import { CancelOrder, ReportButton, ReviewForm } from "@/components/p1";
+import { ReviewForm } from "@/components/p1";
+import { OrderMenu } from "@/components/OrderMenu";
 import { cancelQuote } from "@/lib/cancel";
 import { RULES } from "@/lib/rules";
 import { EtaButton } from "@/components/p2-customer";
@@ -96,14 +97,10 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
       </div>
       {r.status === "Picked up" && l.surpriseBag && <p className="rounded-2xl bg-peach p-4 text-sm text-burgundy"><b>{t("order.surprise")}</b> {l.description.startsWith("Surprise Bag") ? t("order.surpriseVaried") : l.description}</p>}
       {active && isFlagOn("liveEta") && <EtaButton reservationId={r.id} outlet={{ lat: o.lat, lng: o.lng }} initialMinutes={r.etaMinutes} canStart={n >= Date.parse(l.windowStart) - 90 * 60_000 && n <= Date.parse(l.windowEnd)} />}
-      {active && <div className="card p-4"><p className="mb-2 text-xs text-muted">{t("cancel.policy", { minutes: RULES.CANCEL_FREE_MINUTES_BEFORE_START })}</p><CancelOrder reservationId={r.id} free={quote.free} refund={quote.refundAmount} freeUntil={fmt.dateTime(quote.freeUntil)} minutes={RULES.CANCEL_FREE_MINUTES_BEFORE_START} /></div>}
       {canReview && <ReviewForm reservationId={r.id} />}
       {review && <p className="card p-4 text-sm">{t("order.youRated")} {"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}{review.text && <span className="text-muted"> — {review.text}</span>}</p>}
-      <details className="card p-4 text-sm">
-        <summary className="cursor-pointer font-semibold">{t("order.history")}</summary>
-        <ol className="mt-2 flex flex-col gap-1 text-xs text-muted">{events.map((e) => <li key={e.id}>{fmt.dateTime(e.at)} · {e.from ? `${statusLabel(t, e.from)} → ` : ""}{statusLabel(t, e.to)}{e.note ? ` (${e.note})` : ""}</li>)}{events.length === 0 && <li>{t("order.noHistory")}</li>}</ol>
-      </details>
-      <div className="text-center"><ReportButton targetType="reservation" targetId={r.id} /></div>
+      <OrderMenu reservationId={r.id} active={active} free={quote.free} refund={quote.refundAmount} freeUntil={fmt.dateTime(quote.freeUntil)} minutes={RULES.CANCEL_FREE_MINUTES_BEFORE_START}
+        history={events.map((e) => `${fmt.dateTime(e.at)} · ${e.from ? `${statusLabel(t, e.from)} → ` : ""}${statusLabel(t, e.to)}${e.note ? ` (${e.note})` : ""}`)} />
     </div>
   );
 }

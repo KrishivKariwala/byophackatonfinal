@@ -58,28 +58,6 @@ export function FollowButton({ vendorId, initial, lat, lng }: { vendorId: string
   );
 }
 
-export function CancelOrder({ reservationId, free, refund, freeUntil, minutes = 30 }: { reservationId: string; free: boolean; refund: number; freeUntil: string; minutes?: number }) {
-  const router = useRouter();
-  const { t } = useT();
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const go = async () => {
-    if (!window.confirm(free ? (refund ? t("cancel.confirmFreeRefund", { amount: refund }) : t("cancel.confirmFreeNone")) : t("cancel.confirmLate", { minutes }))) return;
-    setBusy(true); setErr(null);
-    try { await api(`/api/reservations/${reservationId}/cancel`); router.refresh(); }
-    catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
-  };
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className="text-xs text-muted">{free ? t("cancel.freeUntil", { time: freeUntil }) : t("cancel.late")}</p>
-      <button type="button" onClick={go} disabled={busy} className="btn-quiet !border-tomato !text-tomato" aria-label={free ? t("cancel.ariaFree") : t("cancel.ariaLate")}>
-        {busy ? t("cancel.cancelling") : t("cancel.button")}
-      </button>
-      {err && <p role="alert" className="text-xs font-semibold text-tomato">{err}</p>}
-    </div>
-  );
-}
-
 export function ReviewForm({ reservationId }: { reservationId: string }) {
   const router = useRouter();
   const { t } = useT();
@@ -116,9 +94,9 @@ export function ReviewForm({ reservationId }: { reservationId: string }) {
 
 const REPORT_REASONS = ["food_safety", "wrong_item", "rude_behaviour", "other"] as const;
 
-export function ReportButton({ targetType, targetId }: { targetType: "reservation" | "listing" | "vendor"; targetId: string }) {
+export function ReportButton({ targetType, targetId, defaultOpen = false, hideTrigger = false }: { targetType: "reservation" | "listing" | "vendor"; targetId: string; defaultOpen?: boolean; hideTrigger?: boolean }) {
   const { t } = useT();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [reason, setReason] = useState("food_safety");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -138,7 +116,7 @@ export function ReportButton({ targetType, targetId }: { targetType: "reservatio
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   };
   if (sent) return <p role="status" className="text-sm font-semibold text-veg">{t("report.sent")}</p>;
-  if (!open) return <button type="button" className="text-sm font-semibold text-muted underline" onClick={() => setOpen(true)}>{t("report.button")}</button>;
+  if (!open) return hideTrigger ? null : <button type="button" className="text-sm font-semibold text-muted underline" onClick={() => setOpen(true)}>{t("report.button")}</button>;
   return (
     <div className="card flex flex-col gap-3 p-4" role="group" aria-label={t("report.title")}>
       <h2 className="editorial text-xl">{t("report.title")}</h2>
