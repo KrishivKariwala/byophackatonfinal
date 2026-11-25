@@ -7,6 +7,7 @@ import { ActionButton } from "@/components/client";
 import { LiveCount } from "@/components/LiveProvider";
 import { DonationVerify } from "./VendorClient";
 import { ListingMenu } from "@/components/ListingMenu";
+import { ScheduleManager } from "@/components/ScheduleManager";
 import { RepostButton, VendorSettings, VerifiedBadge, Rating } from "@/components/p1";
 import { profileCompleteness } from "@/lib/vendor";
 import { RULES } from "@/lib/rules";
@@ -119,6 +120,12 @@ export default async function VendorHome() {
             </ul>
           )}
         </section>
+      )}
+
+      {approved && canList && (
+        <ScheduleManager templates={templates.map((x) => ({ id: x.id, title: x.title }))}
+          schedules={db.schedules.filter((x) => x.vendorId === v.id && inScope(x.outletId)).map((x) => ({
+            id: x.id, templateTitle: db.templates.find((tp) => tp.id === x.templateId)?.title ?? "—", days: x.days, startTime: x.startTime, leadMinutes: x.leadMinutes, paused: x.paused, lastError: x.lastError }))} />
       )}
 
       <section aria-labelledby="orders-h">

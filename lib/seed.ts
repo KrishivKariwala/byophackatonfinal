@@ -340,7 +340,7 @@ export function buildSeed(T: number): DB {
   }
 
   const db: DB = {
-    version: 1, clockOffsetMs: 0, seq, profiles, vendors, outlets, ngos, listings, templates,
+    version: 1, clockOffsetMs: 0, seq, profiles, vendors, outlets, ngos, listings, templates, schedules: [],
     holds: [], reservations, payments, refunds: [], inventory: [], donationBatches, impact,
     notifications: [
       { id: "nt_1", userId: "u_priya", text: "SAP-4801 is ready for pickup at Crumb & Co. Bakery (Demo).", at: iso(T - m(5)), read: false, key: "seedReadyAt", vars: { ref: "SAP-4801", place: "Crumb & Co. Bakery (Demo)" } },

@@ -53,6 +53,7 @@ function load(): DB {
 
 /** Additive upgrade of stores written before P1: fill the new collections and settings with defaults. */
 export function migrate(db: DB): DB {
+  db.schedules ??= [];
   db.reservationEvents ??= [];
   db.pushTokens ??= [];
   db.follows ??= [];

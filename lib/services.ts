@@ -306,8 +306,12 @@ function validateListingFields(i: ListingInput, now: number, createdAt: number, 
 }
 
 export function createListing(actor: Profile | null, i: ListingInput) {
-  return write((tx) => {
-    const me = requireRole(actor, "vendor");
+  return write((tx) => createListingTx(tx, requireRole(actor, "vendor"), i));
+}
+
+/** The body of createListing, usable inside a transaction that is already open (the recurring-listing job publishes with it). */
+export function createListingTx(tx: TxContext, me: Profile, i: ListingInput) {
+  {
     const ctx = approvedCtx(tx.db, me, "listing.write");
     const v = ctx.vendor;
     const mine = outletsFor(tx.db, ctx);
@@ -343,7 +347,7 @@ export function createListing(actor: Profile | null, i: ListingInput) {
       notifyFollowers(tx, l, outlet, v);
     }
     return l;
-  });
+  }
 }
 
 export function updateListing(actor: Profile | null, id: string, patch: Partial<ListingInput>) {

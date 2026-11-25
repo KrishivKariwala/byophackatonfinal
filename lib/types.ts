@@ -160,6 +160,28 @@ export interface Template {
   priorityMinutes?: number;
 }
 
+export interface RecurringSchedule {
+  id: string;
+  vendorId: string;
+  outletId: string;
+  templateId: string;
+  /** days of the week the pickup window starts on, 0 = Sunday .. 6 = Saturday (India time) */
+  days: number[];
+  /** when the pickup window starts, "HH:MM" India time */
+  startTime: string;
+  /** the listing is published this many minutes before the window starts (15 to 180) */
+  leadMinutes: number;
+  paused: boolean;
+  /** the owner confirmed the food-safety declaration for every listing this schedule publishes */
+  declaration: { acceptedAt: string; byUserId: string };
+  /** the India-time date ("YYYY-MM-DD") of the last window it published for, so it never publishes twice for one day */
+  lastPublishedFor?: string;
+  lastListingId?: string;
+  /** why the last attempt did not publish (an unapproved vendor, a rule the template now breaks, ...) */
+  lastError?: string;
+  createdAt: string;
+}
+
 export interface CheckoutHold {
   id: string;
   listingId: string;
@@ -470,6 +492,8 @@ export interface DB {
   ngos: Ngo[];
   listings: Listing[];
   templates: Template[];
+  /** Recurring listings: templates the platform publishes by itself on chosen days */
+  schedules: RecurringSchedule[];
   holds: CheckoutHold[];
   reservations: Reservation[];
   payments: Payment[];

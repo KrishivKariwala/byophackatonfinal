@@ -141,6 +141,7 @@ Roles: `customer`, `vendor` (organization roles owner / manager / staff), `ngo`,
 | Onboarding | Business, contact, address and pin, FSSAI, hours, UPI, logo and documents (stored privately) → Pending / Approved / Rejected. |
 | Quick list | Templates, duplicate, suggested price, quantity chips, safety declaration, Surprise Bag, donation-only, "Donate the rest", food-risk tag, one-tap publish. |
 | Price suggestion | Suggested rescue price from time left and history; the 30% minimum is still enforced. |
+| Recurring listings | "Repeat on a schedule" on the dashboard: pick a saved template, the days of the week and a pickup start time (India time); the platform publishes the listing by itself 15 to 180 minutes ahead of each window. The owner confirms the food-safety declaration once per schedule; every normal rule still applies at publish time (30% discount, window rules, approved vendor). Never twice for one day; if a rule now fails it records why and tries again the next day. Up to 10 schedules, each can be paused or deleted. |
 | Auto-markdown | Up to 3 timed price drops; price only goes down; followers notified; existing orders keep their price. |
 | Charity priority window | "Offer to charities first" for 15 / 30 / 45 minutes; customers cannot see or reserve it until it ends. |
 | Live orders board | Reserved → Ready → Collected; Mark ready; shows first name and ETA for customers on the way. |
@@ -331,7 +332,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Maps | Schematic demo map; Google Maps directions links work |
 | Documents | Stored on local disk, not a storage bucket |
 | Apps | One responsive web app that can be installed on a phone's home screen (manifest, icons, a small service worker); offline, a page shows a plain notice in English, Hindi and Kannada and nothing personal is stored. No native mobile apps, no push notifications from the browser, no offline vendor scanning. Not yet checked on real iPhones and Android phones or with Lighthouse |
-| Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, recurring listings, rescue subscriptions, waitlist, device fingerprinting, deposits |
+| Not in this build | Preferred-NGO first refusal, NGO capacity signals, standing arrangements, rescue subscriptions, waitlist, device fingerprinting, deposits |
 | Translations | Hindi and Kannada are an unreviewed first pass; some catalogue labels still show English (see 4.4); PDFs are English only |
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |
 | ETA | Foreground only (the tab must be open); not tested on a phone with real GPS |
