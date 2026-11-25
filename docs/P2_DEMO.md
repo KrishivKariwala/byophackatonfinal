@@ -1,8 +1,8 @@
 # P2 demo checklist
 
-Run once: `npm run seed` (fresh data, includes the P2 demo data), then `npm run dev`. Sign in at `/signin?all=1` by clicking a persona (no password).
-Header **Demo clock** (+15 min / +1 h) moves time forward, which drives auto-markdown steps, priority windows, ETAs going stale, credit expiry, the mock delivery rider and the monthly certificate job.
-The header's **language switcher** (English / हिन्दी / ಕನ್ನಡ) works on every screen; the first visit uses the device language.
+Run once: `npm run seed` (fresh data, includes the P2 demo data), then `npm run dev`. Open the app and pick a side on the plate. Every side's sign-in has a **Skip, use demo {side}** button; to pick a specific person open `/signin?all=1` and click a persona (no password). Opening the app or refreshing any page starts you signed out, so sign in again after a refresh; clicking the logo inside the app keeps you signed in. To change person, use **Account → Switch role**, which signs you out and shows the list of demo personas.
+The **Demo clock** (Account menu → **Demo tools** → +15 min / +1 h; **Real time** appears once the clock has moved) moves time forward, which drives auto-markdown steps, priority windows, ETAs going stale, credit expiry, the mock delivery rider and the monthly certificate job.
+The **language** menu (the small globe with EN / HI / KN at the top corner, also on the main screen) switches English / हिन्दी / ಕನ್ನಡ on every screen with one click; the menu closes as soon as you pick one. The first visit uses the device language.
 
 Personas: **Priya** (customer, ₹60 credit, has a code), **Sana / Arjun** (customers with pickups), **Ravi** (owner of Crumb & Co., 2 outlets), **Mala** (Crumb & Co. manager), **Imran** (staff, Koramangala outlet), **Latha** (staff, Indiranagar outlet), **Anita** (owner of Masala Lane), **Joseph** (approved charity), **Meera** (admin).
 
@@ -10,14 +10,14 @@ Every feature is behind a switch: Admin → **Settings** → *Feature flags*. Tu
 
 ## 1. Referral credits
 1. As **Priya** open **Credit and referrals** (`/c/referrals`): balance **₹60** (₹100 earned, ₹40 used), her code and share link, the 5 friends she referred in various states, the credit ledger.
-2. Sign out, open her link `/signin?role=customer&ref=<code>` (or paste the code), sign up as a new customer. Nothing is paid yet.
+2. Use **Account → Switch role** (or just refresh) to sign out, open her link `/signin?role=customer&ref=<code>` (or paste the code), sign up as a new customer. Nothing is paid yet.
 3. Order and pick up that customer's first order (vendor `/v/scan`): both wallets get ₹50 (notifications "credit earned").
 4. As a customer with credit, open a listing: **Use ₹X credit** (at most 50% of the order). The total shows cash due. Cancel it for free: the credit comes back; cancel inside the 30-minute window: credit is forfeited like the cash.
 5. Abuse checks to try: own code, same phone, same device, a second code, a 12th referral in a month. Each is refused with a clear reason.
 6. Advance the clock 90+ days in steps of 1 day: unused credit expires (ledger shows "Expired").
 
 ## 2. Languages
-Switch to हिन्दी or ಕನ್ನಡ in the header. Menus, forms and the new P2 screens change; dates, times and ₹ amounts follow the language. A key with no translation falls back to English per key. `npm run i18n:check` fails on any missing key. Server-written notification text and PDFs stay English (see P2_NOTES).
+Switch to हिन्दी or ಕನ್ನಡ with the globe menu at the top corner. Menus, forms and the new P2 screens change; dates, times and ₹ amounts follow the language. A key with no translation falls back to English per key. `npm run i18n:check` fails on any missing key. Server-written notification text and PDFs stay English (see P2_NOTES).
 
 ## 3. "I'm on my way" (live ETA)
 As a customer with an order whose pickup opens within 90 minutes: order page → **I'm on my way**. Use **Estimate from my location** (the phone works out the minutes, only the minutes are sent, only while the page is open) or tap 5/10/15/20/30 min. As the vendor, the Live orders card shows first name and "On the way · ~N min"; after 5 minutes without updates it greys to "last updated N min ago". The request body is rejected if it carries anything but minutes.
@@ -29,7 +29,7 @@ As **Ravi**: *Evening Bread Box* already ran one step (listed ₹210, now ₹180
 As **Ravi**: `/v/analytics` → **Impact certificates** → pick a month → **Generate** → **Download PDF** (verification ID + QR) and **Public page** (`/verify/SAP-XXXX-XXXX-XXXX`, no login, totals only). The current month is marked "month to date" and keeps the same ID when it is finalised. On the 1st of each month the job issues last month's certificates and notifies owners.
 
 ## 6. Multi-outlet and staff
-1. As **Ravi**: header **Team** (`/v/team`). Crumb & Co. has two outlets (Koramangala, Indiranagar), a manager and two staff, plus one pending invite. Create an invite (phone or email) and copy the link; open it signed in as another vendor account to join. **Remove** takes effect on that person's next click.
+1. As **Ravi**: open the menu at the top left (it shows the name of the page you are on) and choose **Team** (`/v/team`). Crumb & Co. has two outlets (Koramangala, Indiranagar), a manager and two staff, plus one pending invite. Create an invite (phone or email) and copy the link; open it signed in as another vendor account to join. **Remove** takes effect on that person's next click.
 2. The dashboard and Analytics have an **Outlet** switcher (All / each outlet); Analytics shows a per-outlet table plus the total.
 3. As **Imran** (staff, Koramangala): only that outlet's orders appear; no Quick list, Analytics, Payouts or Team in the menu; Scan works only for that outlet's codes. As **Latha** the mirror image. As **Mala** (manager): both outlets, listings and analytics, no Payouts or outlet admin.
 4. Payouts and outlet creation are owner-only; managers can invite staff, only the owner invites managers.

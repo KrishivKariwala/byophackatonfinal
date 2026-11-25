@@ -42,7 +42,7 @@ Opening the app, or refreshing any page, always signs you out, so it starts with
 
 New accounts: choose Customer, Vendor or NGO, then use the simulated OTP **123456**. Admin cannot be self-selected.
 
-**Demo clock.** The bar under the header has **+15 min / +1 h / Real time**. It shifts the *server* clock, so you can watch holds expire, windows close and "Donate the rest" batches appear live. All rules use the server clock; client clocks are never trusted.
+**Demo clock.** Open the **Account** menu (top right) → **Demo tools** for **+15 min / +1 h** (and **Real time** once the clock has moved). It shifts the *server* clock, so you can watch holds expire, windows close and "Donate the rest" batches appear live. All rules use the server clock; client clocks are never trusted.
 
 ### Five-minute walkthrough
 1. **Ravi → Quick list** → pick the "Evening Bread Box" template → 10 → tick the declaration → **Publish now**. A timer shows time to list.
@@ -168,7 +168,7 @@ P1 adds notifications (in-app + optional Expo push/SMS), follows, Surprise Bag, 
 
 ## P2 features
 
-P2 adds referral credits, Hindi and Kannada (switcher in the header), a live "I'm on my way" ETA, auto-markdown schedules, monthly impact certificates with a public verification page, multiple outlets with owner / manager / staff roles, a charity priority window, distribution logs, donation receipts (PDF + zip), a delivery hand-off layer (mock rider by default), an admin moderation queue, and an admin platform-settings screen with an audit trail. **Every P2 feature is behind a feature flag** (Admin → Settings), so any of them can be switched off without a deploy. See `docs/P2_DEMO.md` to try each one, `docs/P2_NOTES.md` for decisions, assumptions and what is *not* done (read it: the Postgres side is only partly written), and `TRANSLATION_REVIEW.md` (the Hindi and Kannada text is an unreviewed first pass). Schema: `supabase/migrations/0003_p2.sql` (+ `.down.sql`, not yet run against a database).
+P2 adds referral credits, Hindi and Kannada (globe menu at the top corner), a live "I'm on my way" ETA, auto-markdown schedules, monthly impact certificates with a public verification page, multiple outlets with owner / manager / staff roles, a charity priority window, distribution logs, donation receipts (PDF + zip), a delivery hand-off layer (mock rider by default), an admin moderation queue, and an admin platform-settings screen with an audit trail. **Every P2 feature is behind a feature flag** (Admin → Settings), so any of them can be switched off without a deploy. See `docs/P2_DEMO.md` to try each one, `docs/P2_NOTES.md` for decisions, assumptions and what is *not* done (read it: the Postgres side is only partly written), and `TRANSLATION_REVIEW.md` (the Hindi and Kannada text is an unreviewed first pass). Schema: `supabase/migrations/0003_p2.sql` (+ `.down.sql`, not yet run against a database).
 
 Extra environment variables: `DELIVERY_PROVIDER` (`mock` default | `dunzo` | `porter`), `DUNZO_API_KEY`, `PORTER_API_KEY`, `DELIVERY_WEBHOOK_SECRET` (see `.env.example`).
 

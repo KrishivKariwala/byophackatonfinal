@@ -1,8 +1,8 @@
 # P1 demo checklist
 
-Run once: `npm run seed` (fresh data), then `./launch.sh` (or `npm run dev`). Sign in at `/signin` by clicking a persona (no password).
-The header's **Demo clock** (+15 min / +1 h) fast-forwards time so windows, reminders, no-shows and escalations can be shown live.
-Personas: **Sana** and **Arjun** (customers with 3+ pickups, so pay-at-pickup is open), **Kiran / Meghna / Dev** (customers with no pickups), **Ravi** (Crumb & Co. vendor), **Anita** (Masala Lane vendor), **Joseph** (approved NGO), **Meera** (admin).
+Run once: `npm run seed` (fresh data), then `./launch.sh` (or `npm run dev`). Open the app and pick a side on the plate. Every side's sign-in has a **Skip, use demo {side}** button; to pick a specific person open `/signin?all=1` and click a persona (no password). Opening the app or refreshing any page starts you signed out, so sign in again after a refresh; clicking the logo inside the app keeps you signed in. To change person, use **Account → Switch role**, which signs you out and shows the list of demo personas.
+**Demo clock:** open the **Account** menu (top right) → **Demo tools** → **+15 min** or **+1 h** (a **Real time** button appears once the clock has been moved). It fast-forwards time so windows, reminders, no-shows and escalations can be shown live.
+Personas: **Sana** and **Arjun** (customers with 3+ pickups, so pay-at-pickup is open), **Kiran / Meghna / Dev** (customers with no pickups; they are not on the persona list, so sign in on the customer side with their phone numbers +91 90000 00013 / 00014 / 00015 and the code 123456), **Ravi** (Crumb & Co. vendor), **Anita** (Masala Lane vendor), **Joseph** (approved NGO), **Meera** (admin).
 
 ## A. Customer
 1. **Notifications** (A1). As Sana open `/c/listing/l_2`, reserve & pay (demo pay). Bell: "Order confirmed". Sign in as Ravi, **Mark ready** on the Live orders board; Sana's bell shows "ready for pickup". Use **+1 h** until a pickup window has ≤15 min left: "15 minutes left". Cancel an order for "order cancelled" and "refund issued". Push/SMS: set `EXPO_PUSH_ENABLED=true` or `SMS_ENABLED=true`; token storage via `POST /api/push-tokens`.

@@ -10,8 +10,11 @@ SAVE A PLATE (demo build) - how to run it
    The first run installs packages and builds the app (a few minutes).
    A private SESSION_SECRET is generated for you in .env.local.
 
-3. Open http://localhost:3000 and go to /signin. Click a persona, no password.
-   New accounts use the simulated OTP 123456.
+3. Open http://localhost:3000 and pick a side on the plate. Each side's sign-in has a
+   "Skip, use demo ..." button; to pick a specific person open /signin?all=1 and click
+   a persona (no password). New accounts use the simulated OTP 123456.
+   Opening or refreshing the app starts you signed out. Demo clock: Account menu,
+   Demo tools.
 
 Windows: use WSL, or run these instead:
        npm ci
