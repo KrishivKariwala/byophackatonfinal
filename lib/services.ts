@@ -739,7 +739,27 @@ export type EnrichedListing = ReturnType<typeof enrichListing>;
 export interface DiscoverFilters {
   lat: number; lng: number; radiusKm: number; q?: string; category?: string; diet?: string; maxPrice?: number; pickupAfter?: string; pickupBy?: string;
 }
+/**
+ * The feed is the busiest read, so identical requests inside the same second share one result. The cache is keyed by the store object
+ * itself: every committed write replaces that object, so a reservation, a cancellation or a clock change can never show stale stock.
+ */
+const discoverCache = new WeakMap<object, { second: number; byKey: Map<string, ReturnType<typeof discoverUncached>> }>();
 export function discover(f: DiscoverFilters) {
+  const db = read();
+  const second = Math.floor(clockNow(db) / 1000);
+  let entry = discoverCache.get(db);
+  if (!entry || entry.second !== second) { entry = { second, byKey: new Map() }; discoverCache.set(db, entry); }
+  const key = JSON.stringify(f);
+  let hit = entry.byKey.get(key);
+  if (!hit) {
+    if (entry.byKey.size > 200) entry.byKey.clear(); // distinct searches are unbounded; keep the memory bounded
+    hit = discoverUncached(f);
+    entry.byKey.set(key, hit);
+  }
+  return hit;
+}
+
+function discoverUncached(f: DiscoverFilters) {
   const db = read();
   const n = clockNow(db);
   const q = (f.q || "").trim().toLowerCase();

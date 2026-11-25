@@ -312,6 +312,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | 50 parallel reservations vs 10 units (real HTTP server) | 10 succeeded, 40 refused, final stock 0 |
 | Realtime (2 independent sessions) | All events received; max 7 ms from request |
 | Production build, HTTP end-to-end (`npm run test:e2e-http`) | Re-run on the current build: 10 of 50 reservations succeed, 40 refused, realtime and all negative checks pass |
+| Load test (`npm run test:load`, one laptop, one process, JSON demo store) | **Passes**: 1,500 people on the feed arriving over 3 s: p95 2 ms, 0 errors (target 1.5 s). 100 reservations at 10 per second: p95 13 ms, all accepted, no oversell (target 1 s). Writes, which run the scheduled jobs first, stay under 10 ms with 185 listings. A same-millisecond burst of 1,500 new connections is limited by the operating system's accept queue (128 on macOS), not by the app. Numbers are for this machine and the demo store, not a production database |
 | Browser end-to-end (`npm run test:e2e-browser`, headless Chrome, 8 steps) | **8/8 pass**: no account on the main screen, refresh and opening sign out while the logo keeps you signed in, one-click Hindi with nothing English left on the main screen, Hindi carried into the app, a second customer's page counts down live, simulated payment gives a pass with a code, vendor "Mark ready" updates the pass without a reload, handover verifies once and is then refused. Proven to fail when the sign-out rule is broken. Log: `test-results/browser-e2e.log` |
 
 ---
@@ -333,7 +334,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 | Referral device check | A cookie, so clearing cookies defeats it (the phone-number rule still holds) |
 | ETA | Foreground only (the tab must be open); not tested on a phone with real GPS |
 | PDFs | Built-in PDF fonts, English only |
-| Accessibility, load and security | Automated accessibility audit done (`npm run a11y:audit`, 0 violations); no screen-reader pass by a person, no load test and no security review yet |
+| Accessibility, load and security | Automated accessibility audit done (`npm run a11y:audit`, 0 violations) and load test done (`npm run test:load`); no screen-reader pass by a person and no security review yet |
 | Legal | Food-safety, FSSAI surplus-food guidance, donation liability and 80G need regulatory review before any real launch |
 | Screens still busy | Some screens (vendor dashboard action rows, order cards) carry more buttons than the landing page and header |
 

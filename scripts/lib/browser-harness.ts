@@ -21,7 +21,10 @@ export const SCREENS: Record<string, string[]> = {
   admin: ["/admin", "/admin/approvals", "/admin/reports", "/admin/flagged", "/admin/moderation", "/admin/settings"],
 };
 
-export async function startHarness(port: number, name: string): Promise<Harness> {
+export interface Server { base: string; db: string; stop: () => Promise<void> }
+
+/** Starts `next start` on its own demo database (no browser). */
+export async function startServer(port: number, name: string): Promise<Server> {
   const base = `http://127.0.0.1:${port}`;
   const db = path.resolve(`data/${name}-db.json`);
   if (fs.existsSync(db)) fs.rmSync(db);
@@ -35,6 +38,19 @@ export async function startHarness(port: number, name: string): Promise<Harness>
     await new Promise((r) => setTimeout(r, 500));
     if (i === 79) throw new Error("server did not start");
   }
+  return {
+    base, db,
+    stop: async () => {
+      server.kill("SIGTERM");
+      await new Promise((r) => setTimeout(r, 400));
+      if (fs.existsSync(db)) fs.rmSync(db);
+    },
+  };
+}
+
+export async function startHarness(port: number, name: string): Promise<Harness> {
+  const srv = await startServer(port, name);
+  const { base, db } = srv;
   const browser = await chromium.launch({ channel: process.env.CHROME_CHANNEL || "chrome", headless: true });
   return {
     base, db, browser,
@@ -47,11 +63,6 @@ export async function startHarness(port: number, name: string): Promise<Harness>
       }
       return ctx;
     },
-    stop: async () => {
-      await browser.close().catch(() => undefined);
-      server.kill("SIGTERM");
-      await new Promise((r) => setTimeout(r, 400));
-      if (fs.existsSync(db)) fs.rmSync(db);
-    },
+    stop: async () => { await browser.close().catch(() => undefined); await srv.stop(); },
   };
 }
