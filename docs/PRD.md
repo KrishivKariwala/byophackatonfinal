@@ -308,15 +308,15 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 
 | Check | Result |
 |---|---|
-| `npm test` (translation check + vitest) | **220 tests passing** (P0, P1, P2, localized server text, sign-out middleware, credit-ledger notes, concurrency regressions) |
-| `npm run i18n:check` | 1,460 keys × 3 languages, none missing |
+| `npm test` (translation check + vitest) | **252 tests passing** (P0, P1, P2, localized server text, sign-out middleware, credit-ledger notes, concurrency regressions) |
+| `npm run i18n:check` | 1,500 keys × 3 languages, none missing |
 | Typecheck, lint | Clean |
 | 50 parallel reservations vs 10 units (real HTTP server) | 10 succeeded, 40 refused, final stock 0 |
 | Realtime (2 independent sessions) | All events received; max 7 ms from request |
 | Production build, HTTP end-to-end (`npm run test:e2e-http`) | Re-run on the current build: 10 of 50 reservations succeed, 40 refused, realtime and all negative checks pass |
 | Load test (`npm run test:load`, one laptop, one process, JSON demo store) | **Passes**: 1,500 people on the feed arriving over 3 s: p95 2 ms, 0 errors (target 1.5 s). 100 reservations at 10 per second: p95 13 ms, all accepted, no oversell (target 1 s). Writes, which run the scheduled jobs first, stay under 10 ms with 185 listings. A same-millisecond burst of 1,500 new connections is limited by the operating system's accept queue (128 on macOS), not by the app. Numbers are for this machine and the demo store, not a production database |
 | Security review (`docs/SECURITY_REVIEW.md`, `npm run security:check`) | 126 route calls: every protected route refuses a visitor without the right session; a customer is refused on every staff route; a foreign-site write is refused; demo shortcuts are refused in production mode. Fixed: the unguarded simulated payment, cross-site writes, missing headers. Open: shared rate limits (#41), Content-Security-Policy (#42), Next.js 16 (#43), plus the backend items |
-| Browser end-to-end (`npm run test:e2e-browser`, headless Chrome, 8 steps) | **8/8 pass**: no account on the main screen, refresh and opening sign out while the logo keeps you signed in, one-click Hindi with nothing English left on the main screen, Hindi carried into the app, a second customer's page counts down live, simulated payment gives a pass with a code, vendor "Mark ready" updates the pass without a reload, handover verifies once and is then refused. Proven to fail when the sign-out rule is broken. Log: `test-results/browser-e2e.log` |
+| Browser end-to-end (`npm run test:e2e-browser`, headless Chrome, 9 steps) | **9/9 pass**: no account on the main screen, refresh and opening sign out while the logo keeps you signed in, one-click Hindi with nothing English left on the main screen, Hindi carried into the app, a second customer's page counts down live, simulated payment gives a pass with a code, vendor "Mark ready" updates the pass without a reload, a handover made with no connection is saved and sent when it returns and the same code is then refused, and Chrome reports the site installable with a friendly offline page. Proven to fail when the sign-out rule is broken. Log: `test-results/browser-e2e.log` |
 
 ---
 
