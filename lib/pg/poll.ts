@@ -40,7 +40,7 @@ export async function pollOnce(): Promise<void> {
 }
 
 /** Start watching (reference counted: call the returned function when the listener goes away). */
-export function watchDatabase(intervalMs = 1000): () => void {
+export function watchDatabase(intervalMs = 1500): () => void {
   const s = state();
   s.listeners++;
   if (!s.timer) {

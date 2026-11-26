@@ -6,6 +6,7 @@ import { watchDatabase } from "@/lib/pg/poll";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 300;   // the host's limit for one request; the stream ends itself a little earlier (below) so it never ends in a timeout error
 
 /**
  * Server-sent events: pushes committed state changes (stock counts, order/donation status, impact).
@@ -29,7 +30,10 @@ export async function GET(req: Request) {
         controller.enqueue(enc.encode(`: ping\n\n`));
         sweep().catch(() => undefined);
       }, 5000);
-      cleanup = () => { clearInterval(ka); bus().off("live", send); unwatch(); };
+      // End the stream cleanly after 4 minutes; the browser's EventSource reconnects by itself. (Otherwise the host kills it at its
+      // limit and logs a timeout error, and a stream that never ends keeps a server busy.)
+      const end = setTimeout(() => { cleanup(); try { controller.close(); } catch {} }, 240_000);
+      cleanup = () => { clearInterval(ka); clearTimeout(end); bus().off("live", send); unwatch(); };
       req.signal.addEventListener("abort", () => { cleanup(); try { controller.close(); } catch {} });
     },
     cancel() { cleanup(); },

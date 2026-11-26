@@ -35,7 +35,7 @@ export function pool(): Pool {
     const url = runtimeUrl();
     // Supabase's pooler presents a certificate chain Node does not trust by default; the connection is still encrypted.
     // TODO(security): pin Supabase's CA instead of skipping verification.
-    g.__sapPool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? 4 : 10)), idleTimeoutMillis: 10_000, connectionTimeoutMillis: 15_000 });
+    g.__sapPool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? 2 : 10)), idleTimeoutMillis: 5_000, connectionTimeoutMillis: 8_000, allowExitOnIdle: true });
     g.__sapPool.on("error", (e) => console.error("postgres pool error", e.message));
   }
   return g.__sapPool;
@@ -64,8 +64,8 @@ async function connect(): Promise<PoolClient> {
     try { return await pool().connect(); }
     catch (e) {
       const m = String((e as Error).message ?? e);
-      if (i >= 3 || !/max clients|too many (clients|connections)|EMAXCONN|remaining connection slots|timeout/i.test(m)) throw e;
-      await new Promise((r) => setTimeout(r, 150 * (i + 1) + Math.random() * 100));
+      if (i >= 3 || !/max clients|too many (clients|connections)|EMAXCONN|ECHECKOUTTIMEOUT|remaining connection slots|authentication did not complete|Connection terminated|ECONNRESET|timeout/i.test(m)) throw e;
+      await new Promise((r) => setTimeout(r, 200 * (i + 1) + Math.random() * 200));
     }
   }
 }
@@ -73,6 +73,9 @@ async function connect(): Promise<PoolClient> {
 export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => Promise<T>, opts: { write?: boolean } = {}): Promise<T> {
   const c = await connect();
   let released = false;
+  // An error on a checked-out connection with nobody listening is an uncaught exception that kills the server process (it did, under load).
+  const onError = (e: Error) => console.error("postgres connection error", e.message);
+  c.on("error", onError);
   try {
     // One round trip: begin, who is acting, and (PG_SCHEMA) which copy of the schema to use. PG_SCHEMA points the app at a scratch copy
     // (npm run db:scratch) so tests never touch real data.
@@ -88,6 +91,7 @@ export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => P
     try { await c.query("rollback"); } catch { /* connection already gone */ }
     throw e;
   } finally {
+    c.off("error", onError);
     if (!released) c.release();
   }
 }
