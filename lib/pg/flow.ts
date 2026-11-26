@@ -44,7 +44,7 @@ export async function pgOrderSecrets(customerId: string, reservationId: string):
     const r = await one(c, "select pc.code_enc, pc.qr_token_enc from pickup_codes pc join reservations r on r.id = pc.reservation_id where r.id = $1 and r.customer_id = $2", [U(reservationId), U(customerId)]);
     const code = unseal(r?.code_enc), qrToken = unseal(r?.qr_token_enc);
     return code && qrToken ? { code, qrToken } : null;
-  });
+  }, { write: false });
 }
 
 // ---------------------------------------------------------------- live updates
@@ -202,6 +202,6 @@ let lastSweep = 0;
 export async function pgSweep(force = false) {
   if (!force && Date.now() - lastSweep < 5000) return;
   lastSweep = Date.now();
-  await withTx(null, async (c) => { await c.query("select process_window_end()"); await c.query("select process_p1_jobs()"); await c.query("select process_p2_jobs()"); });
+  await withTx(null, async (c) => { await c.query("select process_window_end()"); await c.query("select process_p1_jobs()"); await c.query("select process_p2_jobs()"); }, { write: false });   // (not counted as a write: it runs every few seconds and would keep emptying the shared snapshot; what it changes is picked up within the snapshot's 2 seconds)
 }
 export { pool };

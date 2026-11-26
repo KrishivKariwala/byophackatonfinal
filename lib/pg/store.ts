@@ -241,7 +241,7 @@ export async function pgTransaction<T>(fn: (tx: TxContext) => T | Promise<T>, bu
 }
 
 /** One consistent snapshot for reading. */
-export const pgRead = () => withTx(null, (c) => loadSnapshot(c));
+export const pgRead = () => withTx(null, (c) => loadSnapshot(c), { write: false });
 
 const emptyDb = (): DB => ({ version: 1, clockOffsetMs: 0, seq: 0, settings: { platformFeeBps: 1000 }, receiptSeq: {}, processedWebhooks: [], ...Object.fromEntries(SPECS.map((s) => [s.coll, []])) } as unknown as DB);
 
@@ -255,7 +255,9 @@ export async function pgReplaceAll(db: DB) {
     const users = (await c.query("select id from profiles")).rows.map((r) => r.id);
     for (const tb of ["pickup_events", ...AUX_TABLES]) await c.query(`delete from ${q(tb)}`);
     for (const s of [...SPECS].reverse()) await c.query(`delete from ${q(s.table)}`);
-    if (users.length) await c.query("delete from auth.users where id = any($1)", [users]);
+    // auth.users is shared by every copy of the schema. Never delete from it on behalf of the scratch copy: the demo people have the
+    // same ids there as in the real schema, and deleting them would cascade into the REAL profiles.
+    if (users.length && !process.env.PG_SCHEMA) await c.query("delete from auth.users where id = any($1)", [users]);
     // The rules in triggers (review window, status log, code release) guard live traffic; a reseed loads history that predates them.
     const guarded = ["reviews", "reservations"];
     for (const tb of guarded) await c.query(`alter table ${q(tb)} disable trigger user`);

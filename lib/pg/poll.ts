@@ -25,7 +25,7 @@ export async function pollOnce(): Promise<void> {
     reservations: (await c.query("select id, status, customer_id, vendor_id from reservations where status in ('Reserved','Ready') or created_at > now() - interval '1 day'")).rows,
     donations: (await c.query("select id, status from donation_batches where status in ('Open','Claimed') or created_at > now() - interval '1 day'")).rows,
     impact: Number((await c.query("select count(*)::int n from impact_events")).rows[0].n),
-  }));
+  }), { write: false });
   const diff = (kind: string, items: { id: string; sig: string; event: Pending }[]) => {
     const seen = s.seen[kind];
     for (const i of items) { if (seen.get(i.id) !== i.sig) { if (!first) out.push(i.event); seen.set(i.id, i.sig); } }

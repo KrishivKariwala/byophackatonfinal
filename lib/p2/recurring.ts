@@ -29,9 +29,9 @@ const parseTime = (s: string): number | null => {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 };
 
-/** The window a schedule would publish for today, or null if it is not scheduled for today. */
-function todaysWindow(s: RecurringSchedule, template: Template, nowMs: number) {
-  const day = istDay(nowMs);
+/** The window a schedule would publish for today (dayOffset 0) or tomorrow (1), or null if it is not scheduled for that day. */
+function windowFor(s: RecurringSchedule, template: Template, nowMs: number, dayOffset = 0) {
+  const day = istDay(nowMs + dayOffset * 86_400_000);
   if (!s.days.includes(day.dow)) return null;
   const startMin = parseTime(s.startTime);
   if (startMin === null) return null;
@@ -40,13 +40,17 @@ function todaysWindow(s: RecurringSchedule, template: Template, nowMs: number) {
 }
 
 export function dueSchedules(db: DB, nowMs: number) {
-  const out: { s: RecurringSchedule; template: Template; w: NonNullable<ReturnType<typeof todaysWindow>> }[] = [];
+  const out: { s: RecurringSchedule; template: Template; w: NonNullable<ReturnType<typeof windowFor>> }[] = [];
   for (const s of db.schedules) {
     if (s.paused) continue;
     const template = db.templates.find((x) => x.id === s.templateId);
     if (!template) continue;
-    const w = todaysWindow(s, template, nowMs);
-    if (w && s.lastPublishedFor !== w.date && nowMs >= w.publishAt && nowMs < w.start) out.push({ s, template, w });
+    // Today's window, and tomorrow's: a window that opens just after midnight (00:30, lead 60) must be published the evening before,
+    // and "today" by then is the day it has already left behind.
+    for (const offset of [0, 1]) {
+      const w = windowFor(s, template, nowMs, offset);
+      if (w && s.lastPublishedFor !== w.date && nowMs >= w.publishAt && nowMs < w.start) { out.push({ s, template, w }); break; }
+    }
   }
   return out;
 }

@@ -94,3 +94,15 @@ describe("recurring listings", () => {
     expect(titles).toContain(tpl.title);
   });
 });
+
+describe("a window that opens just after midnight", () => {
+  it("is published the evening before, not missed", async () => {
+    // 23:20 India time: a window at 00:10 tomorrow with a 60-minute lead is due since 23:10 today.
+    const mid = istDay(store.now()).midnight + 86_400_000 + 10 * 60_000; // 00:10 tomorrow (IST)
+    const { s } = await setup("00:10", 60);
+    const lateTonight = mid - 50 * 60_000; // 23:20 tonight
+    expect(dueSchedules(store.read(), lateTonight).some((d) => d.s.id === s.id)).toBe(true);
+    expect(dueSchedules(store.read(), lateTonight - 2 * 3600_000).some((d) => d.s.id === s.id)).toBe(false); // 21:20: not yet
+    expect(dueSchedules(store.read(), mid + 60_000).some((d) => d.s.id === s.id && d.w.start === mid)).toBe(false); // after it opened: too late for that day
+  });
+});

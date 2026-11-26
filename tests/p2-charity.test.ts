@@ -205,7 +205,7 @@ describe("donation receipts (feature 9)", () => {
   it("date ranges filter; only the donor's owner/managers and the receiving charity can see a receipt", async () => {
     const b = await collectedDonation(3);
     const id = store.read().receipts.find((r) => r.batchId === b.id)!.id;
-    const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+    const today = new Date(store.now() + 5.5 * 3600_000).toISOString().slice(0, 10);   // the store's clock: the helper fast-forwards it, which can cross midnight
     expect((await rc.listReceipts(owner(), { from: today, to: today })).some((r) => r.id === id)).toBe(true);
     expect((await rc.listReceipts(owner(), { to: "2000-01-01" }))).toEqual([]);
     await expect(rc.listReceipts(owner(), { from: "garbage" })).rejects.toThrowError(/valid start date/);

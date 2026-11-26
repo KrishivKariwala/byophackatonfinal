@@ -4,6 +4,7 @@
  * Needs a production build (`npm run build`) and Google Chrome installed (CHROME_CHANNEL=msedge to use Edge).
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import { toUuid } from "../../lib/pg/uuid";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext } from "playwright-core";
@@ -20,6 +21,9 @@ export const SCREENS: Record<string, string[]> = {
   ngo: ["/n", "/n/receipts"],
   admin: ["/admin", "/admin/approvals", "/admin/reports", "/admin/flagged", "/admin/moderation", "/admin/settings"],
 };
+
+// On the database store the demo ids ("l_2", "r_5") are fixed uuids; point the dynamic screens at them.
+if (process.env.STORE === "supabase") for (const g of Object.keys(SCREENS)) SCREENS[g] = SCREENS[g].map((u) => u.replace(/\/([a-z])_(\d+)(?=$|\?)/, (m) => "/" + toUuid(m.slice(1))));
 
 export interface Server { base: string; db: string; stop: () => Promise<void> }
 

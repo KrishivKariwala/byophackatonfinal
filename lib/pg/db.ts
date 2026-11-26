@@ -41,6 +41,10 @@ export function pool(): Pool {
   return g.__sapPool;
 }
 
+/** When this process last committed a change (ms). The shared snapshot (lib/store.ts readDb) is never older than this. */
+let lastWriteAt = 0;
+export const lastWrite = () => lastWriteAt;
+
 /** Whoever caches platform settings is told every time a snapshot is read, so admin changes show up on the next request. */
 const settingsListeners: ((s: Record<string, unknown>) => void)[] = [];
 export const onSettingsSeen = (f: (s: Record<string, unknown>) => void) => { settingsListeners.push(f); };
@@ -66,7 +70,7 @@ async function connect(): Promise<PoolClient> {
   }
 }
 
-export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => Promise<T>): Promise<T> {
+export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => Promise<T>, opts: { write?: boolean } = {}): Promise<T> {
   const c = await connect();
   let released = false;
   try {
@@ -77,6 +81,7 @@ export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => P
     await c.query(`begin; select set_config('request.jwt.claims', ${claims}, true)${path}`);
     const r = await fn(c);
     await c.query("commit");
+    if (opts.write !== false) lastWriteAt = Date.now();
     if (afterCommit && !inHook) { inHook = true; try { c.release(); released = true; await afterCommit(); } finally { inHook = false; } }
     return r;
   } catch (e) {

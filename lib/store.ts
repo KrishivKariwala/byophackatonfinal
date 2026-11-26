@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import type { DB, LiveEvent } from "./types";
 import { buildSeed } from "./seed";
-import { pgEnabled, setAfterCommit } from "./pg/db";
+import { lastWrite, pgEnabled, setAfterCommit } from "./pg/db";
 import { pgRead, pgReplaceAll, pgTransaction } from "./pg/store";
 
 /**
@@ -115,7 +115,30 @@ if (process.env.PG_SYNC_CACHE && pgEnabled()) setAfterCommit(async () => { g.__s
 
 /** A read-only snapshot from whichever store is active. One per request when called from a server component (React `cache`). */
 const memo: <T>(f: () => Promise<T>) => () => Promise<T> = (React as unknown as { cache?: <T>(f: () => Promise<T>) => () => Promise<T> }).cache ?? ((f) => f);
-const snapshotOnce = memo(() => pgRead());
+
+/**
+ * Database store: reading means loading the whole database, which is the expensive part of a request. So one load is SHARED by
+ * every request this server handles for 2 seconds (and concurrent requests wait for the same load instead of each starting one):
+ * twenty visitors in the same moment cost the database one read, not twenty. To keep it honest:
+ *  - a change made by this server empties it at once (lastWrite);
+ *  - a visitor who just changed something carries a `sap_rev` cookie (set in lib/api.ts) with the commit time, and never gets a
+ *    snapshot older than that, even from another server: they always see their own change;
+ *  - other people's changes show within 2 seconds (live updates already arrive sooner through the event stream).
+ */
+const SNAPSHOT_TTL_MS = 2000;
+let shared: { at: number; p: Promise<DB> } | null = null;
+async function revSeen(): Promise<number> {
+  try { const { cookies } = await import("next/headers"); return Number((await cookies()).get("sap_rev")?.value) || 0; } catch { return 0; }   // (no request: scripts, tests)
+}
+async function sharedSnapshot(): Promise<DB> {
+  const need = Math.max(lastWrite(), await revSeen());
+  if (shared && Date.now() - shared.at < SNAPSHOT_TTL_MS && shared.at >= need) return shared.p;
+  const entry = { at: Date.now(), p: pgRead() };
+  shared = entry;
+  entry.p.catch(() => { if (shared === entry) shared = null; });
+  return entry.p;
+}
+const snapshotOnce = memo(() => sharedSnapshot());
 export async function readDb(): Promise<DB> {
   return pgEnabled() ? snapshotOnce() : load();
 }

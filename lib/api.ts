@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { RuleError } from "./rules";
+import { lastWrite, pgEnabled } from "./pg/db";
 import { getLocale } from "./i18n/server";
 import { CATALOG, messagesFor } from "./i18n/catalog";
 import { translate } from "./i18n/locales";
@@ -27,9 +28,13 @@ export async function localizeError(e: unknown): Promise<string> {
 }
 
 export async function handle<T>(fn: () => Promise<T>) {
+  const before = lastWrite();
   try {
     const data = await fn();
-    return NextResponse.json({ ok: true, data });
+    const res = NextResponse.json({ ok: true, data });
+    // Database store: this request changed something. Tell the browser when, so its next page loads never use an older shared snapshot.
+    if (pgEnabled() && lastWrite() !== before) res.cookies.set("sap_rev", String(lastWrite()), { path: "/", maxAge: 30, sameSite: "lax" });
+    return res;
   } catch (e) {
     if (e instanceof RuleError) return NextResponse.json({ ok: false, code: e.code, error: await ruleMessage(e) }, { status: e.status });
     console.error(e);
