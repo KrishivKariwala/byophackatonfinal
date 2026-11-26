@@ -7,6 +7,8 @@ import { audit, emitRes, iso, listingIn, move, notifyT, notifyOutletT, requireRo
 import { cancellationOutcome } from "./cancel";
 import { cfg } from "./p2/settings";
 import { restoreCreditTx } from "./p2/credits";
+import { pgEnabled } from "./pg/db";
+import { pgCancelReservation } from "./pg/flow";
 import { IMPACT, co2eFor, kgFor } from "./impact-config";
 import { refundRazorpayPayment, razorpayConfigured } from "./payments";
 import type { DB, Payment, Profile, Report, ReportReason, ReportTarget, Review, Vendor } from "./types";
@@ -128,6 +130,7 @@ export function issueRefundTx(tx: import("./store").TxContext, p: Payment, reaso
 }
 
 export function cancelReservation(actor: Profile | null, reservationId: string) {
+  if (pgEnabled()) return pgCancelReservation(requireRole(actor, "customer").id, reservationId);
   return write((tx): CancelResult => {
     const me = requireRole(actor, "customer");
     const { db, now } = tx;

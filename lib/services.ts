@@ -13,6 +13,8 @@ import { setPriceSteps } from "./p2/schedule";
 import { priorityOver, setupPriority } from "./p2/priority";
 import { issueReceiptTx } from "./p2/receipts";
 import { creditQuote, restoreCreditTx, rewardReferralTx, spendCreditTx } from "./p2/credits";
+import { pgEnabled } from "./pg/db";
+import { pgAttachGatewayOrder, pgConfirmPayment, pgFailPayment, pgHandover, pgReserve } from "./pg/flow";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
@@ -131,6 +133,7 @@ export type ReserveResult =
   | { kind: "reservation"; reservationId: string };
 
 export function reserve(actor: Profile | null, input: { listingId: string; qty: number; method: PaymentMethod; useCredit?: boolean }): Promise<ReserveResult> {
+  if (pgEnabled()) return pgReserve(requireRole(actor, "customer").id, input); // production store: the database decides (see lib/pg/flow.ts)
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const { db, now } = tx;
@@ -192,6 +195,7 @@ export function reserve(actor: Profile | null, input: { listingId: string; qty: 
 }
 
 export function attachGatewayOrder(holdId: string, gatewayOrderId: string, gateway: Payment["gateway"]) {
+  if (pgEnabled()) return pgAttachGatewayOrder(holdId, gatewayOrderId, gateway);
   return write((tx) => {
     const h = tx.db.holds.find((x) => x.id === holdId);
     if (!h) throw new RuleError("not_found", "Checkout not found.", 404, undefined, "not_found_checkout_not_found");
@@ -211,6 +215,7 @@ export type PaymentOutcome =
  * Idempotent on eventId. A payment for an expired/released hold never resurrects the order.
  */
 export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: string; eventId: string; actorId?: string }): Promise<PaymentOutcome> {
+  if (pgEnabled()) return pgConfirmPayment(input);
   return write((tx) => {
     const { db, now } = tx;
     if (db.processedWebhooks.includes(input.eventId)) {
@@ -254,6 +259,7 @@ export function confirmOnlinePayment(input: { holdId: string; gatewayPaymentId: 
 }
 
 export function failOnlinePayment(actor: Profile | null, holdId: string) {
+  if (pgEnabled()) return pgFailPayment(requireRole(actor, "customer").id, holdId);
   return write((tx) => {
     const me = requireRole(actor, "customer");
     const h = tx.db.holds.find((x) => x.id === holdId && x.customerId === me.id);
@@ -495,6 +501,7 @@ export function markReady(actor: Profile | null, reservationId: string) {
 export type HandoverResult = { ok: true; ref: string; qty: number; title: string; collectAmount: number; method: PaymentMethod };
 
 export function handover(actor: Profile | null, input: { code?: string; token?: string }) {
+  if (pgEnabled()) return pgHandover(requireRole(actor, "vendor").id, input);
   return write((tx): HandoverResult => {
     const me = requireRole(actor, "vendor");
     const ctx = approvedCtx(tx.db, me, "order.fulfil");

@@ -12,6 +12,8 @@ async function credits(db: Db) {
   const owner = await db.profile("Owner", "vendor");
   const v = await db.vendor(owner, "Bakery");
   const o = await db.outlet(v);
+  await db.q("insert into memberships (user_id, vendor_id, role) values ($1,$2,'owner')", [owner, v]);
+  const unlockPayAtPickup = async (u: string, l: string) => { for (let i = 0; i < 3; i++) await q("insert into reservations (ref, listing_id, vendor_id, outlet_id, customer_id, qty, unit_price, amount, method, status, picked_up_at) values ($1,$2,$3,$4,$5,1,100,100,'online','Picked up', now())", ["UP-" + u.slice(0, 6) + i, l, v, o, u]); };
   const bal = async (u: string) => (await one<{ b: number }>("select credit_balance($1) b", [u])).b;
   const remainingOf = async (u: string) => (await q<{ remaining: number }>("select remaining from credit_ledger where user_id = $1 and type = 'earned' order by expires_at", [u])).map((r) => r.remaining);
 
@@ -76,7 +78,9 @@ async function credits(db: Db) {
   const lateCancel = await as(cust, async () => (await one<{ r: any }>("select cancel_reservation($1) r", [c4.reservation_id])).r);
   check("a late cancellation forfeits the credit (balance unchanged)", lateCancel.free === false && lateCancel.credit_back === 0 && (await bal(cust)) === after);
 
-  // pay at pickup with credit: the cash to collect is the rest
+  // pay at pickup with credit: the cash to collect is the rest (pay at pickup unlocks after 3 completed pickups)
+  check("pay at pickup is locked for a customer with fewer than 3 completed pickups", (await fails(() => as(cust, () => q("select reserve_listing($1, 1, 'pay_at_pickup', false)", [lst])))) === "pay_at_pickup_locked");
+  await unlockPayAtPickup(cust, lst);
   const pap = await as(cust, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'pay_at_pickup', true) r", [lst])).r);
   const papRes = await one<{ amount: number; credit_applied: number }>("select amount, credit_applied from reservations where id = $1", [pap.reservation_id]);
   const papPay = await one<{ amount: number }>("select amount from payments where reservation_id = $1", [pap.reservation_id]);
@@ -106,7 +110,8 @@ async function credits(db: Db) {
 
   // reward on first pickup: both people get credit
   const open = await db.listing(v, o, owner, { rescue: 100, startMin: -5, endMin: 60 });
-  const eRes = await as(refE, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'pay_at_pickup', false) r", [open])).r);
+  const eHold = await as(refE, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'online', false) r", [open])).r);
+  const eRes = (await one<{ r: any }>("select confirm_payment($1, 'pay_e', 'evt_e') r", [eHold.hold_id])).r;
   await q("insert into pickup_codes (reservation_id, vendor_id, qr_token_hash, code_hash) values ($1,$2,'qr-e','code-e')", [eRes.reservation_id, v]);
   await as(owner, async () => one("select handover(null, 'code-e')"));
   check("first pickup rewards the friend (₹50 welcome credit)", (await bal(refE)) === 50);
@@ -125,7 +130,8 @@ async function credits(db: Db) {
   }
   const lucky = await db.profile("Lucky Friend", "customer", "9777777777");
   await redeem(lucky, capCode, "dev-L");
-  const lRes = await as(lucky, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'pay_at_pickup', false) r", [open])).r);
+  const lHold = await as(lucky, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'online', false) r", [open])).r);
+  const lRes = (await one<{ r: any }>("select confirm_payment($1, 'pay_l', 'evt_l') r", [lHold.hold_id])).r;
   await q("insert into pickup_codes (reservation_id, vendor_id, qr_token_hash, code_hash) values ($1,$2,'qr-l','code-l')", [lRes.reservation_id, v]);
   await as(owner, async () => one("select handover(null, 'code-l')"));
   check("11th referral: the friend is still rewarded", (await bal(lucky)) === 50);

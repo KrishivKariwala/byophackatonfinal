@@ -324,7 +324,7 @@ Admin → Settings → Feature flags. A flag that is missing counts as **on**; s
 
 | Area | Current state |
 |---|---|
-| Database | The app still runs on the JSON demo store. The six Supabase migrations have been run on a real Postgres 17 (Mumbai) and tested: they apply cleanly, every rollback restores the schema exactly, 14 row-level-security checks pass, and 139 behaviour checks cover every P2 rule in Postgres (`npm run db:roundtrip`, `npm run db:rls`, `npm run db:p2`). The app does not use that database yet (#14) |
+| Database | The app still runs on the JSON demo store. The six Supabase migrations have been run on a real Postgres 17 (Mumbai) and tested: they apply cleanly, every rollback restores the schema exactly, 14 row-level-security checks pass, and 139 behaviour checks cover every P2 rule in Postgres (`npm run db:roundtrip`, `npm run db:rls`, `npm run db:p2`). The app does not use that database yet: #14 is in progress, and only the core customer flow (reserve, pay, collect, cancel) has a Postgres path (`STORE=supabase`, `lib/pg/`, proven by `npm run test:db`) |
 | Sign-in | OTP is simulated (`123456`); Google sign-in shows "not connected" |
 | Payments | Simulated; Razorpay TEST code written but not exercised; no payouts |
 | Messaging | No SMS or email sent (invite links are copied manually); Expo push and SMS are off by default and untested |

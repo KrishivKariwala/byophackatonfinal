@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "tsx scripts/i18n-check.ts && vitest run",
+    "test:db": "vitest run --config vitest.db.config.ts",
     "test:concurrency": "tsx scripts/http-tests.ts",
     "seed": "tsx scripts/seed.ts",
     "test:e2e-http": "tsx scripts/http-tests.ts",

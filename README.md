@@ -182,7 +182,7 @@ Notes for this demo build: Vercel's project folder is read-only, so on Vercel th
 
 ## Database (Supabase)
 
-The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql`, then the P2 rules in three slices: `0004_p2_credits.sql`, `0005_p2_receipts_certificates.sql`, `0006_p2_priority_delivery.sql` (+ `.down.sql` for every one after the first). They have been run on a real Supabase Postgres and tested (see below): every P2 rule now exists in Postgres as well as in the demo adapter. **The app itself still uses the demo store until #14 is done.**
+The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql`, then the P2 rules in three slices: `0004_p2_credits.sql`, `0005_p2_receipts_certificates.sql`, `0006_p2_priority_delivery.sql`, then `0007_pickup_codes.sql` (codes the customer can see again, freed on cancel, staff can scan) and `0008_reserve_parity.sql` (the reserve rules the demo already had) (+ `.down.sql` for every one after the first). They have been run on a real Supabase Postgres and tested (see below): every P2 rule now exists in Postgres as well as in the demo adapter. **The app uses the demo store unless `STORE=supabase` is set, and that setting is not usable end to end yet (#14 is in progress): so far only the core customer flow (reserve, pay, collect, cancel) runs on the database, in `lib/pg/`. Run `npm run test:db` to prove it on the real database, including the 50-people-at-once race for 10 units.**
 
 1. Create a Supabase project and put its values in `.env.local` (names in `.env.example`; never commit them). For `SUPABASE_DB_URL` use the **Session pooler** URI from *Connect*: the "Direct connection" address needs IPv6 and fails on many networks.
 2. Project setting "Grant API access to new tables automatically" stays **off** (new tables are closed to the public API until opened on purpose) and "Enable RLS on new tables automatically" **on**.
@@ -194,6 +194,7 @@ npm run db:rollback -- 0006_p2_priority_delivery   # undo the newest one with it
 npm run db:inspect     # read-only: tables, row-level security, policies, functions
 npm run db:roundtrip   # proves each rollback restores the schema exactly and the migration applies again identically
 npm run db:rls         # row-level-security tests against the real database (data rolled back)
+npm run test:db        # the core flow on the real database: 50 customers race for 10 units, pay, collect, cancel (test data removed afterwards)
 npm run db:p2          # behaviour tests for every P2 rule in Postgres: credits, referrals, receipts, certificates, priority window, delivery (data rolled back)
 ```
 
