@@ -271,7 +271,161 @@ async function receiptsAndCertificates(db: Db) {
     (await denied("select issue_receipt($1)", [b1])) && (await denied("select next_receipt_number()")) && (await denied("select monthly_figures($1, $2)", [vA, prev])) && (await denied("select run_certificate_job()")));
 }
 
+async function priorityAndDelivery(db: Db) {
+  console.log("\n-- slice 3: priority window, delivery sync, and the PostGIS search_path fix");
+  const { one, q, as, fails } = db;
+  await q("grant usage on schema public to authenticated, anon");
+  await q("grant select on all tables in schema public to authenticated, anon");
+  const owner = await db.profile("Owner", "vendor"), other = await db.profile("Other Owner", "vendor"), staff = await db.profile("Staff", "vendor");
+  const v = await db.vendor(owner, "Bakery"), vOther = await db.vendor(other, "Rival");
+  const o = await db.outlet(v, "Koramangala");
+  await q("insert into memberships (user_id, vendor_id, role) values ($1,$2,'owner'), ($3,$4,'owner')", [owner, v, other, vOther]);
+  await q("insert into memberships (user_id, vendor_id, outlet_id, role) values ($1,$2,$3,'staff')", [staff, v, o]);
+  const ngo = async (name: string, lat = 12.93, lng = 77.62, status = "Approved") => {
+    const u = await db.profile(name, "ngo");
+    const r = await one<{ id: string }>("insert into ngos (owner_id, org_name, contact_person, phone, address, neighbourhood, lat, lng, capacity_meals, handling_arrangements, status) values ($1,$2,'p','9','Charity street',$3,$4,$5,50,'van',$6) returning id", [u, name, "K", lat, lng, status]);
+    return { user: u, id: r.id };
+  };
+  const near = await ngo("Near Charity"), far = await ngo("Far Charity", 14.0, 77.62), pending = await ngo("Pending Charity", 12.93, 77.62, "Pending"), near2 = await ngo("Second Near Charity");
+  const customer = await db.profile("Customer", "customer", "9000000010");
+  const told = async (user: string, type: string) => (await one<{ n: number }>("select count(*)::int n from notifications where user_id = $1 and type = $2", [user, type])).n;
+
+  // ---- priority window
+  const lst = await db.listing(v, o, owner, { qty: 10, rescue: 100, startMin: 120, endMin: 240 });
+  const start = (who: string, l: string, m: number) => as(who, async () => (await one<{ r: any }>("select start_priority_window($1, $2) r", [l, m])).r);
+  check("an invalid length (20 min) is refused", (await fails(() => start(owner, lst, 20))) === "priority_invalid");
+  check("staff cannot start a window (owner / manager only)", (await fails(() => start(staff, lst, 30))) === "not_found");
+  check("another vendor cannot touch this listing", (await fails(() => start(other, lst, 30))) === "not_found");
+  const tooShort = await db.listing(v, o, owner, { startMin: 10, endMin: 35 });
+  check("a window must end at least 10 minutes before pickup closes", (await fails(() => start(owner, tooShort, 30))) === "priority_too_long");
+  const donOnly = await db.listing(v, o, owner, { startMin: 120, endMin: 240 });
+  await q("update listings set donation_only = true where id = $1", [donOnly]);
+  check("donation-only listings can't have a priority window", (await fails(() => start(owner, donOnly, 30))) === "priority_donation");
+  const started = await start(owner, lst, 30);
+  check("a 30-minute window starts and the nearby approved charities are told", started.charities_notified >= 2 && (await told(near.user, "priority_listing")) === 1 && (await told(near2.user, "priority_listing")) === 1);
+  check("a charity too far away, and one not yet approved, are not told", (await told(far.user, "priority_listing")) === 0 && (await told(pending.user, "priority_listing")) === 0);
+  check("a window can't be restarted (it could be hidden for ever)", (await fails(() => start(owner, lst, 15))) === "priority_already_set");
+  check("a customer cannot reserve it during the window", (await fails(() => as(customer, () => q("select reserve_listing($1, 1, 'online', false)", [lst])))) === "not_available");
+  check("a customer cannot even see it; an approved charity can", (await as(customer, async () => (await q("select 1 from listings where id = $1", [lst])).length)) === 0 && (await as(near.user, async () => (await q("select 1 from listings where id = $1", [lst])).length)) === 1);
+  const claim = (who: string, l: string, code: string) => as(who, async () => (await one<{ r: any }>("select claim_priority_listing($1, $2) r", [l, code])).r);
+  check("a customer cannot claim", (await fails(() => claim(customer, lst, "c0"))) === "approval_required");
+  check("a charity that is not approved cannot claim", (await fails(() => claim(pending.user, lst, "c0"))) === "approval_required");
+  check("a charity outside its service area cannot claim", (await fails(() => claim(far.user, lst, "c0"))) === "out_of_area");
+  const won = await claim(near.user, lst, "code-pri");
+  check("the first charity takes the WHOLE listing (10 units) as a claimed donation", won.qty === 10 && (await one<any>("select status, origin, from_priority_listing f, qty from donation_batches where id = $1", [won.batch_id])).status === "Claimed");
+  const after = await one<any>("select qty_available, status from listings where id = $1", [lst]);
+  check("the stock left the listing in the same step (customers can't also buy it)", after.qty_available === 0 && after.status === "Sold Out");
+  check("a second charity loses: the listing is gone", (await fails(() => claim(near2.user, lst, "code-2"))) === "not_available");
+  check("the vendor and their staff were told", (await q("select 1 from notifications where user_id in ($1,$2) and text like '%claimed%'", [owner, staff])).length === 2);
+  const handed = await as(owner, async () => (await one<{ r: any }>("select donation_handover($1, 'code-pri') r", [won.batch_id])).r);
+  check("the vendor verifies the charity's code: collected, and a receipt is issued (slices 2 + 3 together)", handed.ok === true && (await q("select 1 from donation_receipts where batch_id = $1", [won.batch_id])).length === 1);
+  await q("select process_window_end()");   // the window-end processor must not create a SECOND batch for a listing a charity already took
+  check("window end does not create a second donation batch for it", (await one<{ n: number }>("select count(*)::int n from donation_batches where listing_id = $1", [lst])).n === 1);
+
+  // an unclaimed window ends: followers told once
+  const lst2 = await db.listing(v, o, owner, { qty: 4, rescue: 100, startMin: 120, endMin: 240 });
+  await start(owner, lst2, 15);
+  await q("update profiles set home_lat = 12.93, home_lng = 77.62 where id = $1", [customer]);
+  const farFan = await db.profile("Far Fan", "customer"), noLoc = await db.profile("No Location Fan", "customer");
+  await q("update profiles set home_lat = 14.0, home_lng = 77.62 where id = $1", [farFan]);
+  for (const f of [customer, farFan, noLoc]) await q("insert into follows (customer_id, vendor_id) values ($1,$2)", [f, v]);
+  await q("select process_p2_jobs()");
+  check("while the window is still open nobody is told", (await told(customer, "new_listing_followed")) === 0);
+  await q("update listings set public_visible_at = now() - interval '1 minute' where id in ($1, $2)", [lst2, lst]);   // time passes: both windows are over (lst was claimed, lst2 was not)
+  await q("select process_p2_jobs()");
+  check("window over, unclaimed: a nearby follower and one with no location are told", (await told(customer, "new_listing_followed")) === 1 && (await told(noLoc, "new_listing_followed")) === 1);
+  check("a follower more than 10 km away is not told", (await told(farFan, "new_listing_followed")) === 0);
+  await q("select process_p2_jobs()");
+  check("followers are told only ONCE", (await told(customer, "new_listing_followed")) === 1);
+  check("a listing a charity already took is never announced to followers", (await one<any>("select public_notified_at from listings where id = $1", [lst])).public_notified_at !== null && (await q("select 1 from notifications where type = 'new_listing_followed' and payload ->> 'listingId' = $1", [lst])).length === 0);
+  const r = await as(customer, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'online', false) r", [lst2])).r);
+  check("once the window is over the customer can reserve it", r.kind === "hold");
+
+  // flag off: nothing stays hidden
+  const lst3 = await db.listing(v, o, owner, { qty: 4, rescue: 100, startMin: 120, endMin: 240 });
+  await start(owner, lst3, 45);
+  await q(`insert into settings (key, value) values ('flags', '{"priorityWindow": false}') on conflict (key) do update set value = excluded.value`);
+  check("switching the feature off makes hidden listings reservable at once", (await as(customer, async () => (await one<{ r: any }>("select reserve_listing($1, 1, 'online', false) r", [lst3])).r)).kind === "hold");
+  const lst4 = await db.listing(v, o, owner, { startMin: 120, endMin: 240 });
+  check("with the feature off a new window is refused", (await fails(() => start(owner, lst4, 30))) === "feature_off");
+  await q("delete from settings where key = 'flags'");
+
+  // admin-hidden listings can't be reserved either
+  const hid = await db.listing(v, o, owner, { startMin: 120, endMin: 240 });
+  await q("update listings set hidden_by_admin = true where id = $1", [hid]);
+  check("a listing hidden by an admin can't be reserved", (await fails(() => as(customer, () => q("select reserve_listing($1, 1, 'online', false)", [hid])))) === "not_available");
+
+  // the bug this slice found: the donation escalation job could not find PostGIS
+  const lEsc = await db.listing(v, o, owner, { startMin: -150, endMin: -30 });
+  const esc = await one<{ id: string }>("insert into donation_batches (ref, listing_id, vendor_id, outlet_id, qty, collect_by, vendor_instruction) values ('DON-ESC', $1, $2, $3, 3, now() + interval '30 minutes', 'x') returning id", [lEsc, v, o]);
+  check("the 'still unclaimed' escalation job runs (it used to fail: PostGIS functions not found)", (await fails(() => q("select process_p1_jobs()"))) === "");
+  check("...and tells nearby approved charities once, not far ones", (await told(near.user, "donation_escalation")) === 1 && (await told(far.user, "donation_escalation")) === 0);
+  await q("select process_p1_jobs()");
+  check("...never twice for the same batch", (await told(near.user, "donation_escalation")) === 1 && (await one<any>("select escalated_at from donation_batches where id = $1", [esc.id])).escalated_at !== null);
+
+  // ---- delivery
+  let n = 0;
+  const claimed = async (who: { id: string }, collectMin = 90, status = "Claimed") => {
+    const l = await db.listing(v, o, owner, { qty: 6, startMin: -150, endMin: -30 });
+    const b = await one<{ id: string }>("insert into donation_batches (ref, listing_id, vendor_id, outlet_id, qty, collect_by, vendor_instruction, status) values ($1,$2,$3,$4,6, now() + ($5 || ' minutes')::interval, 'x', $6) returning id", [`DON-D${++n}`, l, v, o, collectMin, status]);
+    await q("insert into donation_claims (batch_id, ngo_id, collection_code_hash) values ($1,$2,'dh')", [b.id, who.id]);
+    return b.id;
+  };
+  const reqd = (who: string, b: string) => as(who, async () => (await one<{ r: any }>("select request_delivery($1, 'mock') r", [b])).r);
+  const b1 = await claimed(near);
+  check("a charity that doesn't hold the claim can't request a rider", (await fails(() => reqd(near2.user, b1))) === "not_found");
+  const job = await reqd(near.user, b1);
+  const dv = job.delivery_id as string;
+  check("the request is saved FIRST, as 'Requested'", (await one<any>("select status, provider, external_id from delivery_requests where id = $1", [dv])).status === "Requested");
+  check("only business information is handed over (two addresses, item, reference)", JSON.stringify(Object.keys(job.pickup).sort()) === JSON.stringify(["address", "businessName", "lat", "lng", "phone"]) && job.reference.startsWith("DON-") && job.item === "6 × Box" && !JSON.stringify(job).match(/customer|reservation/i));
+  check("a second request while one is active is refused", (await fails(() => reqd(near.user, b1))) === "delivery_active");
+  const expiredBatch = await claimed(near2, -5);
+  check("an expired batch can't be delivered", (await fails(() => reqd(near2.user, expiredBatch))) === "expired");
+  await q("select record_delivery_ack($1, 'ext-1', 40, 'Requested', null)", [dv]);
+  check("the partner's acceptance is recorded (fee ₹40) and the charity told", (await one<any>("select fee, external_id from delivery_requests where id = $1", [dv])).fee === 40 && (await told(near.user, "delivery_update")) === 1);
+  const apply = async (st: string, rider: string | null = null) => (await one<{ a: boolean }>("select apply_delivery_status($1, $2::delivery_status, $3) a", [dv, st, rider])).a;
+  check("'Rider assigned' applies", await apply("Rider assigned", "Ramu") === true);
+  check("a replayed update changes nothing and tells nobody again", await apply("Rider assigned", "Ramu") === false && (await told(near.user, "delivery_update")) === 2);
+  check("a LATE update can't move a status backwards", await apply("Requested") === false);
+  check("the vendor side was told too (with the check-the-code reminder)", (await q("select 1 from notifications where user_id = $1 and type = 'delivery_update' and text like '%Check the collection code%'", [owner])).length === 1);
+  check("'Picked up' then 'Delivered' apply in order", await apply("Picked up") === true && await apply("Delivered") === true);
+  check("nothing moves a finished delivery", await apply("Picked up") === false && await apply("Failed") === false && (await one<any>("select status, rider_name from delivery_requests where id = $1", [dv])).status === "Delivered");
+  check("delivery is informational: the donation is still only claimed until the vendor verifies the code", (await one<any>("select status from donation_batches where id = $1", [b1])).status === "Claimed");
+
+  // a failed booking never cancels the claim
+  const b2 = await claimed(near2);
+  const job2 = await reqd(near2.user, b2);
+  await q("select record_delivery_failure($1, 'Partner is down.')", [job2.delivery_id]);
+  const f = await one<any>("select status, error from delivery_requests where id = $1", [job2.delivery_id]);
+  check("a failed booking is recorded and the claim is kept", f.status === "Failed" && f.error === "Partner is down." && (await one<any>("select status from donation_batches where id = $1", [b2])).status === "Claimed");
+  check("the charity is told it still holds the claim", (await q("select 1 from notifications where user_id = $1 and text like '%still hold the claim%'", [near2.user])).length === 1);
+  check("it can try again after a failure", (await reqd(near2.user, b2)).delivery_id !== job2.delivery_id);
+
+  // cancel
+  const b3 = await claimed(near);
+  const job3 = await reqd(near.user, b3);
+  check("another charity can't cancel it", (await fails(() => as(near2.user, () => q("select cancel_delivery($1)", [job3.delivery_id])))) === "not_found");
+  await q("select record_delivery_ack($1, 'ext-3', 30, 'Rider assigned', 'Sita')", [job3.delivery_id]);
+  const cancelled = await as(near.user, async () => (await one<{ r: any }>("select cancel_delivery($1) r", [job3.delivery_id])).r);
+  check("the owner can cancel while a rider is only assigned (the server then cancels at the partner)", cancelled.external_id === "ext-3" && (await one<any>("select status from delivery_requests where id = $1", [job3.delivery_id])).status === "Cancelled");
+  const job4 = await reqd(near.user, b3);
+  await q("select record_delivery_ack($1, 'ext-4', 30, 'Picked up', 'Sita')", [job4.delivery_id]);
+  check("once the rider has the food it can't be cancelled", (await fails(() => as(near.user, () => q("select cancel_delivery($1)", [job4.delivery_id])))) === "bad_transition");
+
+  // webhook entry point
+  const w = async (ext: string, st: string) => (await one<{ r: any }>("select delivery_webhook($1, $2, null) r", [ext, st])).r;
+  check("a webhook update is applied by external id", (await w("ext-4", "Delivered")).applied === true);
+  check("an unknown delivery is ignored, not an error", (await w("nope", "Delivered")).applied === false);
+  check("a malformed webhook is refused", (await fails(() => w("ext-4", "Teleported"))) === "bad_event" && (await fails(() => w("", "Delivered"))) === "bad_event");
+
+  const denied = async (sql: string, args: unknown[] = []) => /permission denied/.test(await fails(() => as(near.user, () => q(sql, args))));
+  check("clients cannot call the server-only delivery functions or the helpers",
+    (await denied("select apply_delivery_status($1, 'Delivered'::delivery_status)", [dv])) && (await denied("select record_delivery_ack($1, 'x', 1, 'Requested'::delivery_status)", [dv]))
+    && (await denied("select delivery_webhook('ext-1', 'Delivered')")) && (await denied("select ngos_near($1)", [o])) && (await denied("select run_priority_job()")));
+}
+
 run("db:p2", async (db) => {
   await credits(db);
   await receiptsAndCertificates(db);
+  await priorityAndDelivery(db);
 });

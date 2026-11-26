@@ -1,6 +1,6 @@
 # P2 build notes: decisions, deviations, assumptions, limits
 
-All 12 P2 features are built in the demo adapter (service layer + screens + tests), each behind a feature flag. The Postgres side is only **partly** written (see "Not done"). Read that section before relying on the SQL.
+All 12 P2 features are built in the demo adapter (service layer + screens + tests), each behind a feature flag. Every P2 rule also exists in Postgres (`0003` to `0006`, tested on a real database with `npm run db:p2`); the app still runs on the demo adapter until the Supabase adapter (#14) is built. See "Not done".
 
 ## How it is put together
 - New code lives in `lib/p2/*` (settings, org, team, markdown, schedule, credits, eta, certificate, priority, distribution, receipts, delivery, moderation, platform), `lib/delivery/*` (provider interface, mock, stubs), `lib/i18n/*`, `lib/pdf.ts`. Screens are in `app/**` and `components/p2*.tsx`.
@@ -31,7 +31,7 @@ All 12 P2 features are built in the demo adapter (service layer + screens + test
 | Settings ranges | Hold time 2–15 min, free-cancel 0–240, radius 1–25, active reservations 1–10, discount cap 30–90, fee 0–30%, referral credit ₹0–500, credit share 0–100%. The 30% minimum discount is **not** configurable. | The 30% rule is a hard P0 rule. |
 
 ## Not done / limits (be aware)
-1. **The Postgres migration was never run.** `0003_p2.sql` (+ `.down.sql`) is written like 0001/0002 as the production boundary: additive tables and columns, membership-scoped RLS, helper functions, and `process_p2_jobs()` for markdown steps and credit expiry. **Not written in SQL:** the referral/credit RPC changes (spend at checkout, restore on cancel, reward on pickup), receipt issuing, certificate generation, priority follow-up alerts, delivery sync. They exist only in the demo adapter, which is what the tests exercise.
+1. **The app does not use the database yet.** The P2 rules are now written in Postgres and tested there (issue #13): `0004_p2_credits.sql` (credit spend / restore / reward, referral codes and redemption, abuse limits), `0005_p2_receipts_certificates.sql` (the donation hand-off, receipts, certificates, the monthly job), `0006_p2_priority_delivery.sql` (priority window start and claim, follower alerts, delivery request and status sync). 139 checks in `npm run db:p2` run them against the real database. Still demo-adapter only: vendor cancel-listing and admin refund do not have their own SQL functions yet (the `restore_credit` they need exists), and the delivery partner network call stays on the server (the SQL stores the request, records the partner's answer and applies status updates; there is no SQL job that polls a partner). Settings read by the SQL functions: `referral_credit_inr`, `credit_max_pct`, `priority_options` and the `flags` row; `last_certificate_run` is written by the monthly job.
 2. **Translations are a first pass** and unreviewed (`TRANSLATION_REVIEW.md`). Notification text, API error messages and PDFs stay English.
 3. **No real messaging.** Invites show a link to copy; nothing is sent by SMS or email.
 4. **No real delivery partner.** Dunzo/Porter are stubs; their webhook route, signature check and status mapping are real and tested.

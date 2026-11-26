@@ -168,7 +168,7 @@ P1 adds notifications (in-app + optional Expo push/SMS), follows, Surprise Bag, 
 
 ## P2 features
 
-P2 adds referral credits, Hindi and Kannada (globe menu at the top corner), a live "I'm on my way" ETA, auto-markdown schedules, monthly impact certificates with a public verification page, multiple outlets with owner / manager / staff roles, a charity priority window, distribution logs, donation receipts (PDF + zip), a delivery hand-off layer (mock rider by default), an admin moderation queue, and an admin platform-settings screen with an audit trail. **Every P2 feature is behind a feature flag** (Admin → Settings), so any of them can be switched off without a deploy. See `docs/P2_DEMO.md` to try each one, `docs/P2_NOTES.md` for decisions, assumptions and what is *not* done (read it: the Postgres side is only partly written), and `TRANSLATION_REVIEW.md` (the Hindi and Kannada text is an unreviewed first pass). Schema: `supabase/migrations/0003_p2.sql` (+ `.down.sql`, not yet run against a database).
+P2 adds referral credits, Hindi and Kannada (globe menu at the top corner), a live "I'm on my way" ETA, auto-markdown schedules, monthly impact certificates with a public verification page, multiple outlets with owner / manager / staff roles, a charity priority window, distribution logs, donation receipts (PDF + zip), a delivery hand-off layer (mock rider by default), an admin moderation queue, and an admin platform-settings screen with an audit trail. **Every P2 feature is behind a feature flag** (Admin → Settings), so any of them can be switched off without a deploy. See `docs/P2_DEMO.md` to try each one, `docs/P2_NOTES.md` for decisions, assumptions and what is *not* done (read it: the Postgres side is only partly written), and `TRANSLATION_REVIEW.md` (the Hindi and Kannada text is an unreviewed first pass). Schema: `supabase/migrations/0003_p2.sql` (+ `.down.sql`; run on a real database, with the missing P2 rules added in 0004 to 0006).
 
 Extra environment variables: `DELIVERY_PROVIDER` (`mock` default | `dunzo` | `porter`), `DUNZO_API_KEY`, `PORTER_API_KEY`, `DELIVERY_WEBHOOK_SECRET` (see `.env.example`).
 
@@ -182,7 +182,7 @@ Notes for this demo build: Vercel's project folder is read-only, so on Vercel th
 
 ## Database (Supabase)
 
-The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql` (+ `.down.sql` for the last two). They have been run on a real Supabase Postgres and tested (see below). **The app itself still uses the demo store until #14 is done.**
+The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql`, then the P2 rules in three slices: `0004_p2_credits.sql`, `0005_p2_receipts_certificates.sql`, `0006_p2_priority_delivery.sql` (+ `.down.sql` for every one after the first). They have been run on a real Supabase Postgres and tested (see below): every P2 rule now exists in Postgres as well as in the demo adapter. **The app itself still uses the demo store until #14 is done.**
 
 1. Create a Supabase project and put its values in `.env.local` (names in `.env.example`; never commit them). For `SUPABASE_DB_URL` use the **Session pooler** URI from *Connect*: the "Direct connection" address needs IPv6 and fails on many networks.
 2. Project setting "Grant API access to new tables automatically" stays **off** (new tables are closed to the public API until opened on purpose) and "Enable RLS on new tables automatically" **on**.
@@ -190,10 +190,11 @@ The demo runs on a JSON file. The real database lives in `supabase/migrations/`:
 ```bash
 npm run db:migrate     # apply every migration that has not run yet (each file in one transaction, remembered in public.schema_migrations)
 npm run db:status      # what has run
-npm run db:rollback -- 0003_p2   # undo the newest one with its .down.sql
+npm run db:rollback -- 0006_p2_priority_delivery   # undo the newest one with its .down.sql
 npm run db:inspect     # read-only: tables, row-level security, policies, functions
 npm run db:roundtrip   # proves each rollback restores the schema exactly and the migration applies again identically
 npm run db:rls         # row-level-security tests against the real database (data rolled back)
+npm run db:p2          # behaviour tests for every P2 rule in Postgres: credits, referrals, receipts, certificates, priority window, delivery (data rolled back)
 ```
 
 ## Commands

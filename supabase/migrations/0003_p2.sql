@@ -3,8 +3,8 @@
 -- are REPLACED by membership-scoped ones (an owner still sees exactly what they saw before: the backfill below gives every
 -- vendor owner an 'owner' membership). The down migration restores the P0/P1 policies.
 -- Every P2 feature is also behind a feature flag stored in `settings` (key 'flags'); a missing flag means ON.
--- STATUS: written like 0001/0002 as the production boundary; the demo adapter (lib/p2/*.ts) implements the same rules and
--- is what the automated tests exercise. This SQL has NOT been executed against a database.
+-- STATUS: run on a real Supabase Postgres and tested (npm run db:migrate / db:roundtrip / db:rls). The rules this file leaves out are in
+-- 0004 to 0006; the demo adapter (lib/p2/*.ts) implements the same rules and is what the unit tests exercise.
 
 -- ---------------------------------------------------------------- enums
 create type org_role as enum ('owner','manager','staff');
@@ -205,10 +205,8 @@ create policy moderation_admin on moderation_actions for select using (auth_role
 
 -- ---------------------------------------------------------------- jobs (pg_cron; the demo adapter runs the same logic in lib/jobs.ts)
 -- process_p2_jobs() below implements two of the demo adapter's jobs: apply due price steps (only ever LOWERS a price) and expire credit lots.
--- NOT yet written in SQL (they exist only in the demo adapter, lib/p2/*.ts, which the tests exercise): follower alerts when a priority
--- window ends, issuing donation receipts, delivery status sync, the monthly impact certificates, and the credit/referral RPCs
--- (spend at checkout, restore on cancel, reward on first pickup). These must be ported into reserve_listing / handover / cancel_reservation
--- before running on Postgres. Schedule what exists with:
+-- (Follower alerts, receipts, certificates, delivery sync and the credit/referral RPCs were added in 0004 to 0005 / 0006, which also
+-- replace this function with a version that runs them.) Schedule it with:
 --   select cron.schedule('p2-minute', '* * * * *', $$ select process_p2_jobs() $$);
 create or replace function process_p2_jobs() returns void language plpgsql security definer set search_path = public as $$
 begin

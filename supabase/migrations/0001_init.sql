@@ -1,7 +1,6 @@
 -- SAVE A PLATE — Supabase/Postgres schema, RLS and atomic RPCs.
--- STATUS: written as the production integration boundary. NOT executed in this workspace
--- (no Supabase project/credentials were available). The demo adapter in lib/store.ts + lib/services.ts
--- implements the same rules and is what the automated tests exercise.
+-- STATUS: run on a real Supabase Postgres and tested (npm run db:migrate / db:roundtrip / db:rls / db:p2). The demo adapter in
+-- lib/store.ts + lib/services.ts implements the same rules and is what the unit tests exercise.
 
 create extension if not exists pgcrypto;
 
