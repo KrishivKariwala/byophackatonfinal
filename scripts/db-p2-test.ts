@@ -148,6 +148,130 @@ async function credits(db: Db) {
   check("a signed-in client cannot run the job processors", await denied("select process_window_end()") && await denied("select process_p2_jobs()"));
 }
 
+async function receiptsAndCertificates(db: Db) {
+  console.log("\n-- slice 2: donation hand-off, receipts and impact certificates");
+  const { one, q, as, fails } = db;
+  await q("grant usage on schema public to authenticated, anon");
+  await q("grant select on all tables in schema public to authenticated, anon");   // inside this rolled-back test only, so row rules are what get tested
+  const ownerA = await db.profile("Owner A", "vendor"), ownerB = await db.profile("Owner B", "vendor"), staff2 = await db.profile("Staff Two", "vendor");
+  const vA = await db.vendor(ownerA, "Bakery A"), vB = await db.vendor(ownerB, "Cafe B");
+  const o1 = await db.outlet(vA, "Koramangala"), o2 = await db.outlet(vA, "Indiranagar"), oB = await db.outlet(vB, "Jayanagar");
+  await q("insert into memberships (user_id, vendor_id, role) values ($1,$2,'owner'), ($3,$4,'owner')", [ownerA, vA, ownerB, vB]);
+  await q("insert into memberships (user_id, vendor_id, outlet_id, role) values ($1,$2,$3,'staff')", [staff2, vA, o2]);
+  const ngo = async (name: string, g80?: string, validDays?: number) => {
+    const u = await db.profile(name, "ngo");
+    const r = await one<{ id: string }>(
+      `insert into ngos (owner_id, org_name, contact_person, phone, address, neighbourhood, lat, lng, capacity_meals, handling_arrangements, status, eighty_g_number, eighty_g_valid_until)
+       values ($1,$2,'p','9','a','Koramangala',12.9,77.6,100,'van','Approved',$3, case when $4::int is null then null else (now() at time zone 'Asia/Kolkata')::date + $4::int end) returning id`, [u, name, g80 ?? null, validDays ?? null]);
+    return { user: u, id: r.id };
+  };
+  const nValid = await ngo("Charity With 80G", "80G/2026/111", 30), nExpired = await ngo("Charity Expired 80G", "80G/2020/222", -1), nNone = await ngo("Charity No 80G");
+  let seq = 0;
+  /** A donation batch claimed by `n`. */
+  const batch = async (vendor: string, outlet: string, owner: string, n: { id: string }, code: string, qty = 8, status = "Claimed") => {
+    const l = await db.listing(vendor, outlet, owner, { price: 200, rescue: 100, qty, startMin: -150, endMin: -30 });
+    const b = await one<{ id: string }>("insert into donation_batches (ref, listing_id, vendor_id, outlet_id, qty, collect_by, vendor_instruction, status) values ($1,$2,$3,$4,$5, now() + interval '2 hours', 'x', $6) returning id", [`DON-T${++seq}`, l, vendor, outlet, qty, status]);
+    await q("insert into donation_claims (batch_id, ngo_id, collection_code_hash) values ($1,$2,$3)", [b.id, n.id, code]);
+    return b.id;
+  };
+  const handover = (who: string, b: string, code: string) => as(who, async () => (await one<{ r: any }>("select donation_handover($1, $2) r", [b, code])).r);
+
+  const b1 = await batch(vA, o1, ownerA, nValid, "h1");
+  check("a wrong collection code is refused", (await fails(() => handover(ownerA, b1, "wrong"))) === "code_mismatch");
+  check("another vendor cannot see or hand over this batch", (await fails(() => handover(ownerB, b1, "h1"))) === "not_found");
+  check("staff pinned to a different outlet get 'not found' (existence is not confirmed)", (await fails(() => handover(staff2, b1, "h1"))) === "not_found");
+  const done = await handover(ownerA, b1, "h1");
+  check("the owner verifies the code: batch is Collected", done.ok === true && (await one<{ status: string }>("select status from donation_batches where id = $1", [b1])).status === "Collected");
+  const r1 = await one<any>("select * from donation_receipts where batch_id = $1", [b1]);
+  check("a receipt was issued with a number like SAP-DR-<year>-000001", /^SAP-DR-\d{4}-\d{6}$/.test(r1.number), r1.number);
+  check("the receipt records donor, charity and an ESTIMATED value (8 units x ₹200 = 1600)", r1.vendor_id === vA && r1.ngo_id === nValid.id && r1.estimated_value === 1600 && r1.qty === 8 && r1.item === "Box");
+  check("a charity with a CURRENT 80G registration is named on the receipt", r1.eighty_g_number === "80G/2026/111");
+  check("impact was recorded once for the donation (8 meals, 3.2 kg, 8.0 kg CO2e)", (await one<any>("select kg_est::float k, co2e_kg::float c, qty from impact_events where ref_id = $1 and source = 'ngo_collection'", [b1])).k === 3.2);
+  check("the charity was told it was collected", (await q("select 1 from notifications where user_id = $1 and text like 'Collected:%'", [nValid.user])).length === 1);
+  check("codes work once: a second hand-over is refused", (await fails(() => handover(ownerA, b1, "h1"))) === "bad_transition");
+  check("issuing again returns the same receipt (one per donation)", (await one<{ n: number }>("select count(*)::int n from donation_receipts where batch_id = $1", [b1])).n === 1 && (await one<{ id: string }>("select issue_receipt($1) id", [b1])).id === r1.id);
+
+  const b2 = await batch(vA, o1, ownerA, nExpired, "h2", 3);
+  await handover(ownerA, b2, "h2");
+  const r2 = await one<any>("select * from donation_receipts where batch_id = $1", [b2]);
+  check("an EXPIRED 80G registration is not mentioned", r2.eighty_g_number === null && r2.eighty_g_valid_until === null);
+  check("numbers only go up (never reused)", Number(r2.number.slice(-6)) === Number(r1.number.slice(-6)) + 1);
+  const b3 = await batch(vA, o1, ownerA, nNone, "h3", 2);
+  await handover(ownerA, b3, "h3");
+  check("a charity with no 80G gets a plain receipt", (await one<any>("select eighty_g_number n from donation_receipts where batch_id = $1", [b3])).n === null);
+  const seesReceipts = (who: string) => as(who, async () => (await q("select number from donation_receipts")).length);
+  check("the donor owner sees their 3 receipts, another vendor sees none", (await seesReceipts(ownerA)) === 3 && (await seesReceipts(ownerB)) === 0);
+  check("the receiving charity sees only its own receipt", (await seesReceipts(nValid.user)) === 1);
+
+  // switched off: nothing issued; switched back on, the job catches up
+  await q(`insert into settings (key, value) values ('flags', '{"donationReceipts": false}') on conflict (key) do update set value = excluded.value`);
+  const b4 = await batch(vA, o1, ownerA, nValid, "h4", 4);
+  await handover(ownerA, b4, "h4");
+  check("flag off: the donation is collected but no receipt is issued", (await q("select 1 from donation_receipts where batch_id = $1", [b4])).length === 0);
+  await q("delete from settings where key = 'flags'");
+  await q("select process_p2_jobs()");
+  check("flag back on: the catch-up job issues the missing receipt, once", (await q("select 1 from donation_receipts where batch_id = $1", [b4])).length === 1);
+  await q("select process_p2_jobs()");
+  check("running the job again changes nothing", (await one<{ n: number }>("select count(*)::int n from donation_receipts")).n === 4);
+
+  // ---- certificates
+  const prev = (await one<{ m: string }>("select to_char(date_trunc('month', now() at time zone 'Asia/Kolkata') - interval '1 month', 'YYYY-MM') m")).m;
+  const cur = (await one<{ m: string }>("select ist_month(now()) m")).m;
+  const pickup = (vendor: string, outlet: string, owner: string, atExpr: string, qty: number, amount: number) =>
+    db.listing(vendor, outlet, owner, { qty: 5, startMin: -300, endMin: -200 }).then((l) => q(
+      `insert into reservations (ref, listing_id, vendor_id, outlet_id, customer_id, qty, unit_price, amount, method, status, picked_up_at)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,'online','Picked up', ${atExpr})`, [`CT-${++seq}`, l, vendor, outlet, custOf, qty, amount / qty, amount]));
+  const custOf = await db.profile("Customer", "customer");
+  await pickup(vA, o1, ownerA, `month_start('${prev}') + interval '10 days'`, 3, 300);
+  const bPrev = await batch(vA, o1, ownerA, nValid, "hp", 5, "Collected");
+  await q("insert into donation_handovers (batch_id, vendor_user, at) values ($1,$2, month_start($3) + interval '12 days')", [bPrev, ownerA, prev]);
+  await q("insert into distribution_logs (batch_id, ngo_id, vendor_id, servings, beneficiaries, centre_name) values ($1,$2,$3,5,40,'Centre')", [bPrev, nValid.id, vA]);
+  const gen = (who: string, m: string) => as(who, async () => (await one<{ c: any }>("select generate_certificate($1) c", [m])).c);
+  const c1 = await gen(ownerA, prev);
+  check("certificate: 3 sold + 5 donated = 8 meals, 3.2 kg, 8.0 kg CO2e, ₹300, 1 charity, 40 people",
+    c1.meals_sold === 3 && c1.meals_donated === 5 && Number(c1.kg_rescued) === 3.2 && Number(c1.co2e_kg) === 8 && c1.rupees_recovered === 300 && c1.charities_served === 1 && c1.people_served === 40, JSON.stringify(c1));
+  check("a finished month's certificate is final with an unguessable id", c1.partial === false && /^SAP-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c1.id), c1.id);
+  await pickup(vA, o1, ownerA, `month_start('${prev}') + interval '15 days'`, 2, 200);
+  const c1b = await gen(ownerA, prev);
+  check("a final certificate never changes (even if more data appears), the id is kept", c1b.id === c1.id && c1b.meals_sold === 3);
+  await pickup(vA, o1, ownerA, "now()", 1, 100);
+  const c2 = await gen(ownerA, cur);
+  check("the current month's certificate is marked month-to-date", c2.partial === true && c2.meals_sold === 1);
+  await pickup(vA, o1, ownerA, "now()", 2, 200);
+  const c2b = await gen(ownerA, cur);
+  check("a month-to-date certificate is refreshed and keeps its id", c2b.id === c2.id && c2b.meals_sold === 3 && c2b.partial === true);
+  check("a month with no activity: nothing to certify", (await fails(() => gen(ownerA, "2020-01"))) === "no_activity");
+  check("a future month is refused", (await fails(() => gen(ownerA, "2999-01"))) === "month_future");
+  check("a bad month is refused", (await fails(() => gen(ownerA, "March"))) === "month_invalid");
+  check("staff cannot generate certificates (owner / manager only)", (await fails(() => gen(staff2, prev))) === "forbidden_role");
+  check("another vendor with no activity gets nothing, not someone else's certificate", (await fails(() => gen(ownerB, prev))) === "no_activity");
+
+  const verify = (id: string) => as(null, async () => (await one<{ v: any }>("select verify_certificate($1) v", [id])).v);
+  const pub = await verify(c1.id);
+  check("anyone can verify a certificate by id: business and totals", pub?.business === "Bakery A" && pub.mealsSold === 3 && pub.mealsDonated === 5 && pub.peopleServed === 40);
+  check("the public answer carries no vendor id, customer or charity names", !JSON.stringify(pub).match(/vendor|owner|Charity|Customer|address/i) && !("vendorId" in pub));
+  check("a made-up or malformed id verifies as nothing", (await verify("SAP-AAAA-AAAA-AAAA")) === null && (await verify("nope")) === null);
+  check("certificates are listed only to their own organization", (await as(ownerB, async () => (await q("select id from impact_certificates")).length)) === 0 && (await as(ownerA, async () => (await q("select id from impact_certificates")).length)) === 2);
+
+  // the monthly job
+  const vC = await db.vendor(await db.profile("Owner C", "vendor"), "Cafe C"); const oC = await db.outlet(vC);
+  const ownerC = (await one<{ owner_id: string }>("select owner_id from vendors where id = $1", [vC])).owner_id;
+  await pickup(vC, oC, ownerC, `month_start('${prev}') + interval '3 days'`, 2, 160);
+  await q("delete from settings where key = 'last_certificate_run'");   // earlier job runs in this test already marked the month as done
+  await q("select process_p2_jobs()");
+  const certC = await one<any>("select * from impact_certificates where vendor_id = $1 and month = $2", [vC, prev]);
+  check("the monthly job issues last month's certificate for a vendor with activity", certC && certC.meals_sold === 2 && certC.partial === false);
+  check("...and tells the owner", (await q("select 1 from notifications where user_id = $1 and type = 'certificate_ready'", [ownerC])).length === 1);
+  check("...but not again for a vendor who already had a final certificate", (await q("select 1 from notifications where user_id = $1 and type = 'certificate_ready'", [ownerA])).length === 0);
+  await q("select process_p2_jobs()");
+  check("the job runs once a month: a second run changes nothing", (await q("select 1 from notifications where type = 'certificate_ready'")).length === 1 && (await one<{ n: number }>("select count(*)::int n from impact_certificates where month = $1", [prev])).n === 2);
+
+  const denied = async (sql: string, args: unknown[] = []) => /permission denied/.test(await fails(() => as(ownerA, () => q(sql, args))));
+  check("clients cannot call issue_receipt, the number counter, monthly_figures or the jobs",
+    (await denied("select issue_receipt($1)", [b1])) && (await denied("select next_receipt_number()")) && (await denied("select monthly_figures($1, $2)", [vA, prev])) && (await denied("select run_certificate_job()")));
+}
+
 run("db:p2", async (db) => {
   await credits(db);
+  await receiptsAndCertificates(db);
 });
