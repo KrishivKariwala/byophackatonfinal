@@ -19,6 +19,7 @@
     "db:inspect": "tsx scripts/db-inspect.ts",
     "db:roundtrip": "tsx scripts/db-roundtrip.ts",
     "db:rls": "tsx scripts/db-rls-test.ts",
+    "db:p2": "tsx scripts/db-p2-test.ts",
     "i18n:scan": "tsx scripts/i18n-scan.ts",
     "security:check": "tsx scripts/security-check.ts",
     "a11y:audit": "tsx scripts/a11y-audit.ts",
