@@ -6,6 +6,8 @@ import { Logo } from "@/components/Logo";
 import { RoleSignIn } from "@/components/RoleSignIn";
 import { SignInClient } from "./SignInClient";
 import { getT } from "@/lib/i18n/server";
+import { pgEnabled } from "@/lib/pg/db";
+import { toUuid } from "@/lib/pg/uuid";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
@@ -17,6 +19,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   const sp = await searchParams;
   const { t } = await getT();
   const db = await readDb();
+  // the demo people have readable ids ("u_priya"); on the database store the same ids map to fixed uuids
+  const pid = (id: string) => (pgEnabled() ? toUuid(id) : id);
   const label = (id: string) => {
     const p = db.profiles.find((x) => x.id === id);
     const v = db.vendors.find((x) => x.ownerId === id);
@@ -30,12 +34,13 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     const actor = await getActor();
     const next = /^\/join\/[\w-]{10,}$/.test(sp.next ?? "") ? sp.next! : undefined; // only invite links may be returned to
     if (actor && actor.role === role && !sp.switch) redirect(next ?? HOME[role]); // already signed in on this side: go straight there
-    const skip = label(SKIP_PERSONA[role]);
+    const skip = label(pid(SKIP_PERSONA[role]));
     const skipName = skip.org ? `${skip.name.split(" (")[0]} · ${skip.org}` : skip.name.split(" (")[0];
     return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} refCode={/^[A-Za-z0-9]{4,16}$/.test(sp.ref ?? "") ? sp.ref!.toUpperCase() : undefined} />;
   }
 
   const personas = ["u_priya", "u_arjun", "u_sana", "u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
+    .map(pid)
     .filter((id) => db.profiles.some((p) => p.id === id))
     .map(label);
   return (

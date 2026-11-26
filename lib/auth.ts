@@ -1,4 +1,6 @@
 import "server-only";
+import { pgEnabled } from "./pg/db";
+import { toUuid } from "./pg/uuid";
 import { RuleError } from "./rules";
 import { newId } from "./crypto";
 import { write } from "./services";
@@ -64,7 +66,8 @@ export function skipLogin(role: string) {
   return write((tx): { profile: Profile; home: string } => {
     if (role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403, undefined, "forbidden_admin_access_provisioned");
     if (!SELF_ROLES.includes(role as SelfRole)) throw new RuleError("role_invalid", "Choose Customer, Vendor or NGO.");
-    const p = tx.db.profiles.find((x) => x.id === SKIP_PERSONA[role as SelfRole] && x.demo);
+    const wanted = pgEnabled() ? toUuid(SKIP_PERSONA[role as SelfRole]) : SKIP_PERSONA[role as SelfRole];   // (the database store keeps the demo ids as fixed uuids)
+    const p = tx.db.profiles.find((x) => x.id === wanted && x.demo);
     if (!p) throw new RuleError("not_found", "The demo account for this side is missing. Run npm run seed.", 404, undefined, "not_found_demo_account_side");
     audit(tx, p.id, "demo_skip_login", "profile", p.id, `skip button on the ${role} sign-in`);
     return { profile: p, home: homeFor(tx.db, p) };
