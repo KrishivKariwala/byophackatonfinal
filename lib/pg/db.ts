@@ -14,13 +14,28 @@ const g = globalThis as unknown as { __sapPool?: Pool };
 
 export const pgEnabled = () => process.env.STORE === "supabase";
 
+/**
+ * Supabase offers two pooled addresses. The SESSION pooler (port 5432) lets only 15 clients connect in TOTAL, and a serverless host
+ * such as Vercel keeps idle connections open in frozen instances, so a few busy seconds used all 15 and the whole site returned errors
+ * until they timed out. The TRANSACTION pooler (port 6543) hands a connection out per transaction and allows hundreds of clients, and
+ * everything the app does lives inside one transaction (set_config(..., true), advisory xact locks), so it works there. On Vercel the
+ * session address in SUPABASE_DB_URL is switched to 6543 automatically; set PG_KEEP_PORT=1 to opt out.
+ */
+function runtimeUrl(): string {
+  const url = process.env.SUPABASE_DB_URL;
+  if (!url) throw new Error("SUPABASE_DB_URL is not set (needed when STORE=supabase).");
+  if ((process.env.VERCEL || process.env.PG_TRANSACTION_POOLER === "1") && !process.env.PG_KEEP_PORT) {
+    try { const u = new URL(url); if (u.port === "5432" && u.hostname.endsWith(".pooler.supabase.com")) { u.port = "6543"; return u.toString(); } } catch { /* leave it as given */ }
+  }
+  return url;
+}
+
 export function pool(): Pool {
   if (!g.__sapPool) {
-    const url = process.env.SUPABASE_DB_URL;
-    if (!url) throw new Error("SUPABASE_DB_URL is not set (needed when STORE=supabase).");
+    const url = runtimeUrl();
     // Supabase's pooler presents a certificate chain Node does not trust by default; the connection is still encrypted.
     // TODO(security): pin Supabase's CA instead of skipping verification.
-    g.__sapPool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, max: Number(process.env.PG_POOL_MAX ?? 10), idleTimeoutMillis: 20_000, connectionTimeoutMillis: 15_000 });
+    g.__sapPool = new Pool({ connectionString: url, ssl: { rejectUnauthorized: false }, max: Number(process.env.PG_POOL_MAX ?? (process.env.VERCEL ? 4 : 10)), idleTimeoutMillis: 10_000, connectionTimeoutMillis: 15_000 });
     g.__sapPool.on("error", (e) => console.error("postgres pool error", e.message));
   }
   return g.__sapPool;
@@ -39,8 +54,20 @@ let inHook = false;
 export async function closePool() { const p = g.__sapPool; g.__sapPool = undefined; if (p) await p.end(); }
 
 /** Runs `fn` in a transaction as `actorId` (a profile uuid), or as nobody. Commits on success, rolls back on any error. */
+/** A busy database may refuse a connection for a moment ("max clients", "too many connections"): try again shortly instead of failing the request. */
+async function connect(): Promise<PoolClient> {
+  for (let i = 0; ; i++) {
+    try { return await pool().connect(); }
+    catch (e) {
+      const m = String((e as Error).message ?? e);
+      if (i >= 3 || !/max clients|too many (clients|connections)|EMAXCONN|remaining connection slots|timeout/i.test(m)) throw e;
+      await new Promise((r) => setTimeout(r, 150 * (i + 1) + Math.random() * 100));
+    }
+  }
+}
+
 export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => Promise<T>): Promise<T> {
-  const c = await pool().connect();
+  const c = await connect();
   let released = false;
   try {
     // One round trip: begin, who is acting, and (PG_SCHEMA) which copy of the schema to use. PG_SCHEMA points the app at a scratch copy
