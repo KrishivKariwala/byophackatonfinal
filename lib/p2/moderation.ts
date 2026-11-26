@@ -1,5 +1,5 @@
 import "server-only";
-import { read } from "../store";
+import { readDb } from "../store";
 import { RuleError } from "../rules";
 import { newId, sha256 } from "../crypto";
 import { write } from "../services";
@@ -36,7 +36,8 @@ const fingerprint = (texts: string[]) => sha256(texts.join("\u0000"));
 const lastDecision = (db: DB, type: ModerationTarget, id: string) =>
   db.moderationActions.filter((a) => a.targetType === type && a.targetId === id).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
 
-export function moderationQueue(db: DB = read()): QueueItem[] {
+export async function moderationQueue(db?: DB): Promise<QueueItem[]> {
+  db ??= await readDb();
   const kws = cfg(db).moderationKeywords;
   const items: QueueItem[] = [];
   const hist = (type: ModerationTarget, id: string) => db.moderationActions.filter((a) => a.targetType === type && a.targetId === id)
@@ -155,4 +156,4 @@ export function moderate(actor: Profile | null, type: ModerationTarget, id: stri
   });
 }
 
-export const moderationCounts = (db: DB = read()) => { const q = moderationQueue(db); return { open: q.filter((x) => x.state === "open").length, hidden: q.filter((x) => x.state === "hidden").length }; };
+export const moderationCounts = async (db?: DB) => { const q = await moderationQueue(db); return { open: q.filter((x) => x.state === "open").length, hidden: q.filter((x) => x.state === "hidden").length }; };

@@ -13,7 +13,7 @@ export async function generateMetadata() {
 export default async function Join({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const { t } = await getT();
-  const inv = previewInvite(token);
+  const inv = await previewInvite(token);
   const actor = await getActor();
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4 px-4 py-12">

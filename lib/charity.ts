@@ -1,5 +1,5 @@
 import "server-only";
-import { read, now as clockNow } from "./store";
+import { readDb, now as clockNow } from "./store";
 import { RuleError } from "./rules";
 import { randomToken } from "./crypto";
 import { write } from "./services";
@@ -42,8 +42,8 @@ export type VolunteerView =
   | { state: "expired" | "collected" | "not_found" };
 
 /** Public (no login). Matches the unguessable token; the link stops working once the pickup deadline has passed or the batch is closed. */
-export function volunteerView(token: string): VolunteerView {
-  const db = read();
+export async function volunteerView(token: string): Promise<VolunteerView> {
+  const db = await readDb();
   if (!token || token.length < 16) return { state: "not_found" };
   const b = db.donationBatches.find((x) => x.volunteerToken === token);
   if (!b) return { state: "not_found" };

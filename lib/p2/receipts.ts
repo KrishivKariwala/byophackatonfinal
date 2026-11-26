@@ -1,6 +1,6 @@
 import "server-only";
 import { zipSync, strToU8 } from "fflate";
-import { read, type TxContext } from "../store";
+import { readDb, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { newId } from "../crypto";
 import { audit, iso, t, requireRole } from "../core";
@@ -72,8 +72,8 @@ function scope(db: DB, actor: Profile | null): { vendorId?: string; ngoId?: stri
   return { vendorId: org.vendor.id };
 }
 
-export function listReceipts(actor: Profile | null, range?: { from?: string; to?: string }) {
-  const db = read();
+export async function listReceipts(actor: Profile | null, range?: { from?: string; to?: string }) {
+  const db = await readDb();
   const s = scope(db, actor);
   const from = range?.from ? Date.parse(`${range.from}T00:00:00+05:30`) : -Infinity;
   const to = range?.to ? Date.parse(`${range.to}T23:59:59.999+05:30`) : Infinity;
@@ -89,8 +89,8 @@ const view = (db: DB, r: DonationReceipt) => ({
   collectedAt: db.donationBatches.find((b) => b.id === r.batchId)?.collectedAt ?? r.createdAt,
 });
 
-export function receiptForActor(actor: Profile | null, id: string) {
-  const db = read();
+export async function receiptForActor(actor: Profile | null, id: string) {
+  const db = await readDb();
   const s = scope(db, actor);
   const r = db.receipts.find((x) => x.id === id && (s.vendorId ? x.vendorId === s.vendorId : x.ngoId === s.ngoId));
   if (!r) throw new RuleError("not_found", "Receipt not found.", 404, undefined, "not_found_receipt_not_found");
@@ -130,10 +130,10 @@ export async function receiptPdf(db: DB, r: DonationReceipt): Promise<Uint8Array
 
 /** A zip of PDFs for a date range (one file per receipt) plus an index.csv. */
 export async function receiptsZip(actor: Profile | null, range: { from?: string; to?: string }): Promise<{ data: Uint8Array; count: number }> {
-  const list = listReceipts(actor, range);
+  const list = await listReceipts(actor, range);
   if (list.length === 0) throw new RuleError("no_receipts", "No receipts in that date range.", 404);
   if (list.length > 500) throw new RuleError("range_too_large", "That is more than 500 receipts. Choose a shorter date range.", 413);
-  const db = read();
+  const db = await readDb();
   const files: Record<string, Uint8Array> = {};
   const csv = ["number,date,donor,charity,item,quantity,estimated_value_inr,80g"];
   for (const r of list) {

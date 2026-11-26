@@ -9,7 +9,7 @@ import { vendorScope } from "@/lib/p2/scope";
 import { OutletSwitcher, CertificatesPanel } from "@/components/p2";
 import { listCertificates, monthOf } from "@/lib/p2/certificate";
 import { isFlagOn } from "@/lib/p2/platform";
-import { now, read } from "@/lib/store";
+import { now, readDb } from "@/lib/store";
 import { orgOverview } from "@/lib/p2/team";
 import { getT } from "@/lib/i18n/server";
 
@@ -26,11 +26,12 @@ export default async function Analytics({ searchParams }: { searchParams: Promis
   const scope = await vendorScope(me);
   let a;
   let why = t("vanalytics.whyOnboard");
-  try { a = analyticsFor(me, range, scope.selected !== "all" ? scope.selected : undefined); } catch (e) { a = null; if ((e as { code?: string }).code === "forbidden_role") why = t("vanalytics.whyRole"); }
+  try { a = await analyticsFor(me, range, scope.selected !== "all" ? scope.selected : undefined); } catch (e) { a = null; if ((e as { code?: string }).code === "forbidden_role") why = t("vanalytics.whyRole"); }
   if (!a) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("vanalytics.title")}</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
-  const byOutlet = scope.outlets.length > 1 && scope.selected === "all" ? orgOverview(me, range) : null;
-  const certs = isFlagOn("impactCertificate") && scope.can("certificate.view") ? listCertificates(me) : null;
-  const months = Array.from({ length: 6 }, (_, k) => { const [y, m] = monthOf(now(read())).split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 - k, 1)); return d.toISOString().slice(0, 7); });
+  const byOutlet = scope.outlets.length > 1 && scope.selected === "all" ? await orgOverview(me, range) : null;
+  const certs = isFlagOn("impactCertificate") && scope.can("certificate.view") ? await listCertificates(me) : null;
+  const nowMonth = monthOf(now(await readDb()));
+  const months = Array.from({ length: 6 }, (_, k) => { const [y, m] = nowMonth.split("-").map(Number); const d = new Date(Date.UTC(y, m - 1 - k, 1)); return d.toISOString().slice(0, 7); });
   const empty = a.orders === 0 && a.unitsDonated === 0 && a.unitsExpired === 0;
   const hr = (h: number) => `${h % 12 || 12}${h < 12 ? "am" : "pm"}`;
   return (

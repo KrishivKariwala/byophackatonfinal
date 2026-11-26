@@ -16,7 +16,7 @@ export default async function Moderation() {
   await requirePage("admin");
   if (!isFlagOn("moderation")) notFound();
   const { t } = await getT();
-  const items = moderationQueue();
+  const items = await moderationQueue();
   const open = items.filter((i) => i.state === "open").length;
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">

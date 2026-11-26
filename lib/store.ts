@@ -1,10 +1,13 @@
 import "server-only";
 import { EventEmitter } from "node:events";
+import * as React from "react";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { DB, LiveEvent } from "./types";
 import { buildSeed } from "./seed";
+import { pgEnabled, setAfterCommit } from "./pg/db";
+import { pgRead, pgReplaceAll, pgTransaction } from "./pg/store";
 
 /**
  * Demo-mode data store.
@@ -24,6 +27,7 @@ type G = {
   __sapLock?: Promise<unknown>;
   __sapBus?: EventEmitter;
   __sapDbPath?: string;
+  __sapPgSync?: DB;
 };
 const g = globalThis as unknown as G;
 
@@ -98,9 +102,22 @@ export function bus(): EventEmitter {
   return g.__sapBus;
 }
 
-/** Read-only snapshot. Never mutate the returned object. */
+/** Read-only snapshot. Never mutate the returned object. (Demo store only: with STORE=supabase use `await readDb()`.) */
 export function read(): DB {
+  if (pgEnabled()) {
+    // Only for the tests that run the unit suite against Postgres: PG_SYNC_CACHE=1 keeps a synchronous copy fresh after every commit.
+    if (process.env.PG_SYNC_CACHE && g.__sapPgSync) return g.__sapPgSync;
+    throw new Error("read() is the demo store; with STORE=supabase use `await readDb()`.");
+  }
   return load();
+}
+if (process.env.PG_SYNC_CACHE && pgEnabled()) setAfterCommit(async () => { g.__sapPgSync = await pgRead(); });
+
+/** A read-only snapshot from whichever store is active. One per request when called from a server component (React `cache`). */
+const memo: <T>(f: () => Promise<T>) => () => Promise<T> = (React as unknown as { cache?: <T>(f: () => Promise<T>) => () => Promise<T> }).cache ?? ((f) => f);
+const snapshotOnce = memo(() => pgRead());
+export async function readDb(): Promise<DB> {
+  return pgEnabled() ? snapshotOnce() : load();
 }
 
 /** Server/database clock. Client clocks are never trusted. Demo fast-forward adds an offset. */
@@ -118,6 +135,7 @@ export interface TxContext {
 }
 
 export async function transaction<T>(fn: (tx: TxContext) => T | Promise<T>): Promise<T> {
+  if (pgEnabled()) return pgTransaction(fn, (e) => bus().emit("live", e));
   const prev = g.__sapLock ?? Promise.resolve();
   let release!: () => void;
   const mine = new Promise<void>((r) => (release = r));
@@ -154,6 +172,7 @@ export const storeEpoch = () => epochN;
 
 export async function resetStore(db?: DB) {
   epochN++;
+  if (pgEnabled()) return pgReplaceAll(db ?? buildSeed(Date.now()));
   await transaction((tx) => {
     const fresh = db ?? buildSeed(Date.now());
     Object.assign(tx.db, fresh);

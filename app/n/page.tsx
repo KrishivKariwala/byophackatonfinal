@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { distanceKm, directionsUrl } from "@/lib/geo";
 import { DietTag, StatusPill, Photo } from "@/components/bits";
 import { ActionButton } from "@/components/client";
@@ -23,7 +23,7 @@ export async function generateMetadata() {
 export default async function NgoFeed({ searchParams }: { searchParams: Promise<{ all?: string }> }) {
   const me = await requirePage("ngo");
   const sp = await searchParams;
-  const db = read();
+  const db = await readDb();
   const n = now(db);
   const ngo = db.ngos.find((x) => x.ownerId === me.id);
   const { t, fmt } = await getT();

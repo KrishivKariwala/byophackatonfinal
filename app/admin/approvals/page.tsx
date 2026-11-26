@@ -14,7 +14,7 @@ export async function generateMetadata() {
 export default async function Approvals() {
   await requirePage("admin");
   const { t, fmt } = await getT();
-  const q = approvalsQueue();
+  const q = await approvalsQueue();
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">
       <div><h1 className="page-title">{t("admin.approvalsTitle")}</h1><p className="text-sm text-muted">{t("admin.approvalsHelp")}</p></div>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { completedPickups, enrichListing, isCustomerVisible } from "@/lib/services";
 import { isFollowing, vendorReviews } from "@/lib/p1";
 import { FollowButton, Rating, ReportButton, SurpriseBadge, VerifiedBadge } from "@/components/p1";
@@ -22,7 +22,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const me = await requirePage("customer");
   const { t, fmt } = await getT();
   const { id } = await params;
-  const db = read();
+  const db = await readDb();
   const raw = db.listings.find((l) => l.id === id);
   if (!raw) notFound();
   const l = enrichListing(db, raw);
@@ -33,7 +33,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   const payOk = l.outlet.payAtPickup && picks >= RULES.PAY_AT_PICKUP_MIN_PICKUPS;
   const vendorRow = db.vendors.find((v) => v.id === raw.vendorId)!;
   const unitCap = Math.max(RULES.MAX_UNITS_PER_ORDER, vendorRow.maxUnitsPerOrder ?? 0);
-  const reviews = vendorReviews(raw.vendorId).slice(0, 3);
+  const reviews = (await vendorReviews(raw.vendorId)).slice(0, 3);
   const active = db.reservations.filter((r) => r.customerId === me.id && (r.status === "Reserved" || r.status === "Ready")).length +
     db.holds.filter((h) => h.customerId === me.id && h.status === "Active").length;
 
@@ -64,7 +64,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           {l.storageNote && <> {t("listing.storage", { note: l.storageNote })}</>}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <FollowButton vendorId={l.vendor.id} initial={isFollowing(me.id, l.vendor.id)} lat={l.outlet.lat} lng={l.outlet.lng} />
+          <FollowButton vendorId={l.vendor.id} initial={await isFollowing(me.id, l.vendor.id)} lat={l.outlet.lat} lng={l.outlet.lng} />
           <span className="text-xs text-muted">{t("follow.hint")}</span>
         </div>
         {reviews.length > 0 && (

@@ -14,7 +14,7 @@ export default async function Payouts() {
   const { t } = await getT();
   let p;
   let why = t("payouts.whyOnboard");
-  try { p = payoutsFor(me); } catch (e) { p = null; if ((e as { code?: string }).code === "forbidden_role") why = t("payouts.whyOwner"); }
+  try { p = await payoutsFor(me); } catch (e) { p = null; if ((e as { code?: string }).code === "forbidden_role") why = t("payouts.whyOwner"); }
   if (!p) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("payouts.title")}</h1><p role="status" className="mt-2 text-sm text-muted">{why}</p></div>;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-6 sm:px-6">

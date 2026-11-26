@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { hmac, safeEqual } from "./crypto";
-import { read } from "./store";
+import { readDb } from "./store";
 import type { Profile } from "./types";
 
 export const SESSION_COOKIE = "sap_session";
@@ -36,7 +36,7 @@ export async function getActor(): Promise<Profile | null> {
   const jar = await cookies();
   const uid = verifySession(jar.get(SESSION_COOKIE)?.value);
   if (!uid) return null;
-  return read().profiles.find((p) => p.id === uid) ?? null;
+  return (await readDb()).profiles.find((p) => p.id === uid) ?? null;
 }
 
 export async function setSession(userId: string) {

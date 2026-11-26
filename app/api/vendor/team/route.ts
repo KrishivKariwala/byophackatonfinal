@@ -5,7 +5,7 @@ import { getActor } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return handle(async () => teamOverview(await getActor()));
+  return handle(async () => await teamOverview(await getActor()));
 }
 export async function POST(req: Request) {
   return handle(async () => {

@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
-    const { cert, vendor } = certificateForVendor(await getActor(), id);
+    const { cert, vendor } = await certificateForVendor(await getActor(), id);
     const pdf = await certificatePdf(cert, vendor, new URL(req.url).origin);
     return new NextResponse(Buffer.from(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="impact-certificate-${cert.month}.pdf"`, "Cache-Control": "private, no-store" } });
   } catch (e) {

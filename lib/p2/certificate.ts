@@ -1,6 +1,6 @@
 import "server-only";
 import crypto from "node:crypto";
-import { read, type TxContext } from "../store";
+import { readDb, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { write } from "../services";
 import { audit, iso, notifyT, requireRole, t } from "../core";
@@ -101,16 +101,16 @@ export function generateCertificate(actor: Profile | null, month: string) {
   });
 }
 
-export function listCertificates(actor: Profile | null) {
-  const db = read();
+export async function listCertificates(actor: Profile | null) {
+  const db = await readDb();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "certificate.view");
   return db.certificates.filter((c) => c.vendorId === ctx.vendor.id).sort((a, b) => (a.month < b.month ? 1 : -1));
 }
 
 /** What the public verification page may show: the organization's name and the totals. Nothing about customers, charities' names or addresses. */
-export function verifyCertificate(id: string) {
+export async function verifyCertificate(id: string) {
   if (!/^SAP-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(id)) return null;
-  const db = read();
+  const db = await readDb();
   const c = db.certificates.find((x) => x.id === id);
   if (!c) return null;
   const v = db.vendors.find((x) => x.id === c.vendorId);
@@ -118,8 +118,8 @@ export function verifyCertificate(id: string) {
     kgRescued: c.kgRescued, co2eKg: c.co2eKg, rupeesRecovered: c.rupeesRecovered, charitiesServed: c.charitiesServed, peopleServed: c.peopleServed };
 }
 
-export function certificateForVendor(actor: Profile | null, id: string): { cert: ImpactCertificate; vendor: Vendor } {
-  const db = read();
+export async function certificateForVendor(actor: Profile | null, id: string): Promise<{ cert: ImpactCertificate; vendor: Vendor }> {
+  const db = await readDb();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "certificate.view");
   const cert = db.certificates.find((c) => c.id === id && c.vendorId === ctx.vendor.id);
   if (!cert) throw new RuleError("not_found", "Certificate not found.", 404, undefined, "not_found_certificate_not_found");

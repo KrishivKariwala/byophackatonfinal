@@ -1,5 +1,5 @@
 import "server-only";
-import { read, now as clockNow } from "./store";
+import { readDb, now as clockNow } from "./store";
 import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { write, completedPickups } from "./services";
@@ -59,8 +59,8 @@ export function unfollowVendor(actor: Profile | null, vendorId: string) {
     return { following: false };
   });
 }
-export function followingList(customerId: string) {
-  const db = read();
+export async function followingList(customerId: string) {
+  const db = await readDb();
   const n = clockNow(db);
   return db.follows.filter((f) => f.customerId === customerId).map((f) => {
     const v = db.vendors.find((x) => x.id === f.vendorId)!;
@@ -69,8 +69,8 @@ export function followingList(customerId: string) {
     return { vendorId: v.id, businessName: v.businessName, neighbourhood: o?.neighbourhood ?? "", ratingAvg: v.ratingAvg, ratingCount: v.ratingCount ?? 0, verified: v.status === "Approved", liveListings: live };
   });
 }
-export function isFollowing(customerId: string, vendorId: string) {
-  return read().follows.some((f) => f.customerId === customerId && f.vendorId === vendorId);
+export async function isFollowing(customerId: string, vendorId: string) {
+  return (await readDb()).follows.some((f) => f.customerId === customerId && f.vendorId === vendorId);
 }
 
 // ---------------------------------------------------------------- reviews
@@ -108,8 +108,8 @@ export function submitReview(actor: Profile | null, i: { reservationId: string; 
   });
 }
 
-export function vendorReviews(vendorId: string) {
-  const db = read();
+export async function vendorReviews(vendorId: string) {
+  const db = await readDb();
   return db.reviews.filter((r) => r.vendorId === vendorId && !r.hidden).sort((a, b) => t(b.createdAt) - t(a.createdAt)).slice(0, 20).map((r) => ({
     id: r.id, rating: r.rating, text: r.text, createdAt: r.createdAt,
     reviewer: (db.profiles.find((p) => p.id === r.customerId)?.name ?? "Customer").split(" ")[0],
@@ -226,8 +226,8 @@ export function weeklyStreaks(pickupMs: number[], nowMs: number) {
   return { current, best };
 }
 
-export function customerImpact(customerId: string) {
-  const db = read();
+export async function customerImpact(customerId: string) {
+  const db = await readDb();
   const picked = db.reservations.filter((r) => r.customerId === customerId && r.status === "Picked up");
   const meals = picked.reduce((s, r) => s + r.qty, 0);
   const rupeesSaved = picked.reduce((s, r) => s + Math.max(0, (db.listings.find((l) => l.id === r.listingId)?.originalPrice ?? r.unitPrice) - r.unitPrice) * r.qty, 0);

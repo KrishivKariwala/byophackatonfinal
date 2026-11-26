@@ -12,7 +12,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     return NextResponse.json({ ok: false, code: "rate_limited", error: "Too many requests." }, { status: 429 });
   }
   const { token } = await ctx.params;
-  const v = volunteerView(token);
+  const v = await volunteerView(token);
   const status = v.state === "ok" ? 200 : v.state === "not_found" ? 404 : 410;
   return NextResponse.json({ ok: v.state === "ok", data: v }, { status, headers: { "Cache-Control": "no-store" } });
 }

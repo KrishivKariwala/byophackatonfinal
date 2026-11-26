@@ -1,5 +1,5 @@
 import { requirePage } from "@/lib/guard";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 import { impactSummary } from "@/lib/services";
 import { StatusPill } from "@/components/bits";
 import { ApprovalActions } from "./ApprovalActions";
@@ -14,8 +14,8 @@ export async function generateMetadata() {
 export default async function Admin() {
   await requirePage("admin");
   const { t, fmt } = await getT();
-  const s = impactSummary();
-  const db = read();
+  const s = await impactSummary();
+  const db = await readDb();
   const queue = [
     ...db.vendors.filter((v) => v.status !== "Approved").map((v) => ({ kind: "vendor" as const, id: v.id, name: v.businessName, status: v.status, detail: t("admin.queueVendor", { fssai: v.fssaiNumber, docs: v.documents.join(", ") || t("admin.noDocs") }), reason: v.rejectionReason })),
     ...db.ngos.filter((n) => n.status !== "Approved").map((n) => ({ kind: "ngo" as const, id: n.id, name: n.orgName, status: n.status, detail: t("admin.queueNgo", { n: n.capacityMeals, docs: n.registrationDocs.join(", ") }), reason: n.rejectionReason })),

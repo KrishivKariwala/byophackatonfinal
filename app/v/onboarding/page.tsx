@@ -1,5 +1,5 @@
 import { requirePage } from "@/lib/guard";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 import { StatusPill } from "@/components/bits";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { resolveOrg } from "@/lib/p2/org";
@@ -14,7 +14,7 @@ export async function generateMetadata() {
 export default async function VendorOnboarding() {
   const me = await requirePage("vendor");
   const { t } = await getT();
-  const db = read();
+  const db = await readDb();
   const org = resolveOrg(db, me);
   if (org && org.role !== "owner")
     return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("onb.outletProfile")}</h1><p role="status" className="mt-2 text-sm text-muted">{t("onb.ownerOnly", { business: org.vendor.businessName })}</p></div>;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus, ScanLine } from "lucide-react";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { StatusPill, DietTag, Price } from "@/components/bits";
 import { ActionButton } from "@/components/client";
 import { LiveCount } from "@/components/LiveProvider";
@@ -28,7 +28,7 @@ export async function generateMetadata() {
 
 export default async function VendorHome() {
   const me = await requirePage("vendor");
-  const db = read();
+  const db = await readDb();
   const n = now(db);
   const { t, fmt } = await getT();
   const scope = await vendorScope(me);

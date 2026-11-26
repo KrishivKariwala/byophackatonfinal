@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
-    const { receipt, db } = receiptForActor(await getActor(), (await ctx.params).id);
+    const { receipt, db } = await receiptForActor(await getActor(), (await ctx.params).id);
     const pdf = await receiptPdf(db, receipt);
     return new NextResponse(Buffer.from(pdf), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${receipt.number}.pdf"`, "Cache-Control": "private, no-store" } });
   } catch (e) {

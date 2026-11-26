@@ -182,7 +182,11 @@ Notes for this demo build: Vercel's project folder is read-only, so on Vercel th
 
 ## Database (Supabase)
 
-The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql`, then the P2 rules in three slices: `0004_p2_credits.sql`, `0005_p2_receipts_certificates.sql`, `0006_p2_priority_delivery.sql`, then `0007_pickup_codes.sql` (codes the customer can see again, freed on cancel, staff can scan) and `0008_reserve_parity.sql` (the reserve rules the demo already had) (+ `.down.sql` for every one after the first). They have been run on a real Supabase Postgres and tested (see below): every P2 rule now exists in Postgres as well as in the demo adapter. **The app uses the demo store unless `STORE=supabase` is set, and that setting is not usable end to end yet (#14 is in progress): so far only the core customer flow (reserve, pay, collect, cancel) runs on the database, in `lib/pg/`. Run `npm run test:db` to prove it on the real database, including the 50-people-at-once race for 10 units.**
+The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql`, then the P2 rules in three slices: `0004_p2_credits.sql`, `0005_p2_receipts_certificates.sql`, `0006_p2_priority_delivery.sql`, then `0007_pickup_codes.sql` (codes the customer can see again, freed on cancel, staff can scan) and `0008_reserve_parity.sql` (the reserve rules the demo already had), `0009_store_parity.sql` (columns the app's data model needed) and `0010_app_clock.sql` (one clock, so the demo fast-forward works on the database too) (+ `.down.sql` for every one after the first). They have been run on a real Supabase Postgres and tested (see below): every P2 rule now exists in Postgres as well as in the demo adapter. **The app runs on the demo store unless `STORE=supabase` is set. With it set, the WHOLE app runs on this database** (sign-in, listings, orders, vendor / charity / admin screens): the 9-step browser test passes on it, and so do the 50-customers-for-10-units race and the services tests (see "Proving it" below).
+
+How it works, in one paragraph: the hot paths (reserve, pay, collect, cancel) call the database's own functions, which lock single rows, so many customers never queue behind each other (`lib/pg/flow.ts`). Everything else keeps its business logic in the app: `lib/pg/store.ts` loads the tables as the same data object the demo store uses, hands a draft to that logic, and writes back only what changed, inside one transaction under a database-wide write lock (`lib/pg/spec.ts` says how each collection maps to tables). Live updates (stock counts, order status) reach other server instances through a one-query-a-second check of the database (`lib/pg/poll.ts`), feeding the same event stream as before.
+
+**Known limits (be aware):** every page load and every non-hot write reads the whole database (fine for a demo or pilot, the first thing to replace with scoped reads before real scale); generic writes happen one at a time; each write costs roughly 0.3 to 0.7 s to a database in another city; the scheduled jobs run from the app (every few seconds while it is used), `pg_cron` is not set up; the connection encrypts but does not yet verify Supabase's certificate (TODO in `lib/pg/db.ts`); Realtime push straight to the browser is not used.
 
 1. Create a Supabase project and put its values in `.env.local` (names in `.env.example`; never commit them). For `SUPABASE_DB_URL` use the **Session pooler** URI from *Connect*: the "Direct connection" address needs IPv6 and fails on many networks.
 2. Project setting "Grant API access to new tables automatically" stays **off** (new tables are closed to the public API until opened on purpose) and "Enable RLS on new tables automatically" **on**.
@@ -194,9 +198,21 @@ npm run db:rollback -- 0006_p2_priority_delivery   # undo the newest one with it
 npm run db:inspect     # read-only: tables, row-level security, policies, functions
 npm run db:roundtrip   # proves each rollback restores the schema exactly and the migration applies again identically
 npm run db:rls         # row-level-security tests against the real database (data rolled back)
+npm run db:scratch      # a throw-away copy of the whole schema (schema sap_scratch) for tests; `-- drop` removes it
+npm run db:seed         # fill the scratch copy with the demo data (`-- --public` fills the REAL schema and DELETES what is there: demo databases only)
+npm run test:parity     # the same unit tests as `npm test`, run on Postgres (slow: minutes)
 npm run test:db        # the core flow on the real database: 50 customers race for 10 units, pay, collect, cancel (test data removed afterwards)
 npm run db:p2          # behaviour tests for every P2 rule in Postgres: credits, referrals, receipts, certificates, priority window, delivery (data rolled back)
 ```
+
+### Proving it
+```bash
+npm run test:db                        # 50-way race, pay, collect, cancel, rules, seed round trip, live update across instances
+npm run db:scratch && npm run db:seed  # then:  STORE=supabase PG_SCHEMA=sap_scratch npm run test:e2e-browser   (after a production build)
+npm run test:parity                    # tests/services.test.ts on Postgres
+```
+### Switching a deployment to the database
+On Vercel add: `STORE=supabase`, `SUPABASE_DB_URL` (the Session pooler address), `SESSION_SECRET` (a long random text), and keep `DATA_MODE=demo` for a public demo (or `production` for real use). Then fill an EMPTY database once with `npm run db:seed -- --public` (demo people and listings). Do not set `STORE` on a deployment before that.
 
 ## Commands
 

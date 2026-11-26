@@ -2,7 +2,7 @@ import { handle, body } from "@/lib/api";
 import { RuleError } from "@/lib/rules";
 import { cancelListing, setPaused, settleRefund, updateListing, type ListingInput } from "@/lib/services";
 import { getActor } from "@/lib/session";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 import { razorpayConfigured, refundRazorpayPayment } from "@/lib/payments";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -26,7 +26,7 @@ export async function POST(req: Request, ctx: Ctx) {
       const out = await cancelListing(actor, id, b.reason || "");
       // Razorpay test mode: settle pending refunds via the refund API after the commit.
       if (razorpayConfigured()) {
-        const db = read();
+        const db = await readDb();
         for (const rf of db.refunds.filter((r) => r.status === "Refund Pending")) {
           const p = db.payments.find((x) => x.id === rf.paymentId);
           if (p?.gateway === "razorpay_test" && p.gatewayPaymentId) {

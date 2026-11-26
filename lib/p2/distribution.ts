@@ -1,5 +1,5 @@
 import "server-only";
-import { read } from "../store";
+import { readDb } from "../store";
 import { RuleError } from "../rules";
 import { newId } from "../crypto";
 import { write } from "../services";
@@ -59,8 +59,8 @@ export function distributionSummaryFor(db: DB, vendorId: string, outletIds: stri
 }
 
 /** Who may open an uploaded file besides its uploader: the donating vendor's owner/managers and the filing charity, for photos attached to a log. */
-export function canReadLogPhoto(actor: Profile, name: string): boolean {
-  const db = read();
+export async function canReadLogPhoto(actor: Profile, name: string): Promise<boolean> {
+  const db = await readDb();
   const url = `/api/uploads/${name}`;
   const log = db.distributionLogs.find((l) => l.photoUrls.includes(url));
   if (!log) return false;

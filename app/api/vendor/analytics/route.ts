@@ -6,5 +6,5 @@ import { getActor } from "@/lib/session";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  return handle(async () => analyticsFor(await getActor(), parseRange(new URL(req.url).searchParams.get("range"))));
+  return handle(async () => await analyticsFor(await getActor(), parseRange(new URL(req.url).searchParams.get("range"))));
 }

@@ -15,7 +15,7 @@ export async function generateMetadata() {
 export default async function Following() {
   const me = await requirePage("customer");
   const { t } = await getT();
-  const list = followingList(me.id);
+  const list = await followingList(me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
       <h1 className="page-title">{t("follow.title")}</h1>

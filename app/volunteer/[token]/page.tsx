@@ -12,7 +12,7 @@ export async function generateMetadata() {
 export default async function Volunteer({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const { t, fmt } = await getT();
-  const v = volunteerView(token);
+  const v = await volunteerView(token);
   if (v.state !== "ok") {
     const msg = v.state === "collected" ? [t("volunteer.allDone"), t("volunteer.collectedMsg")] : v.state === "expired" ? [t("volunteer.expired"), t("volunteer.expiredMsg")] : [t("volunteer.notFound"), t("volunteer.notFoundMsg")];
     return <div className="mx-auto max-w-md px-4 py-16 text-center"><h1 className="page-title">{msg[0].toUpperCase()}</h1><p className="mt-2 text-sm text-muted">{msg[1]}</p></div>;

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 import { Check } from "lucide-react";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { directionsUrl, NEIGHBOURHOODS } from "@/lib/geo";
 import { StatusPill } from "@/components/bits";
 import { Countdown } from "@/components/client";
@@ -36,7 +36,7 @@ export default async function OrderPass({ params }: { params: Promise<{ id: stri
   const me = await requirePage("customer");
   const { t, fmt } = await getT();
   const { id } = await params;
-  const db = read();
+  const db = await readDb();
   const r = db.reservations.find((x) => x.id === id && x.customerId === me.id); // owner-only
   if (!r) notFound();
   const l = db.listings.find((x) => x.id === r.listingId)!;

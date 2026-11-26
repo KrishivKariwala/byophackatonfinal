@@ -5,7 +5,7 @@ import { getT } from "@/lib/i18n/server";
 import { myReferral } from "@/lib/p2/credits";
 import { deviceId } from "@/lib/p2/device";
 import { isFlagOn } from "@/lib/p2/platform";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
@@ -18,7 +18,7 @@ export default async function Referrals() {
   if (!isFlagOn("referrals")) notFound();
   const { t } = await getT();
   const data = await myReferral(me, await deviceId(false));
-  const db = read();
+  const db = await readDb();
   const canRedeem = !data.referredBy && !db.reservations.some((r) => r.customerId === me.id) && !db.holds.some((h) => h.customerId === me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-6 sm:px-6">

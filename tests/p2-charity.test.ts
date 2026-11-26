@@ -10,7 +10,7 @@ const disc = svc.discover;
 const owner = () => P("u_ravi");
 const ngo = () => P("u_joseph"); // approved, near Koramangala
 const here = { lat: 12.9352, lng: 77.6245, radiusKm: 25 };
-const visibleToCustomers = (id: string) => disc(here).some((l) => l.id === id);
+const visibleToCustomers = async (id: string) => (await disc(here)).some((l) => l.id === id);
 const prio = (m: number, extra: Record<string, unknown> = {}) => freshListing({ qty: 6, startMin: 10, endMin: 180, extra: { priorityMinutes: m, ...extra } });
 
 describe("charity priority window (feature 7)", () => {
@@ -18,11 +18,11 @@ describe("charity priority window (feature 7)", () => {
     const l = await prio(30);
     expect(l.publicVisibleAt).toBeTruthy();
     expect(Math.abs(Date.parse(l.publicVisibleAt!) - store.now() - 30 * 60_000)).toBeLessThan(2000);
-    expect(visibleToCustomers(l.id)).toBe(false);
+    expect((await visibleToCustomers(l.id))).toBe(false);
     await ff(29);
-    expect(visibleToCustomers(l.id)).toBe(false);
+    expect((await visibleToCustomers(l.id))).toBe(false);
     await ff(2);
-    expect(visibleToCustomers(l.id)).toBe(true);
+    expect((await visibleToCustomers(l.id))).toBe(true);
   });
 
   it("customers cannot reserve it before the window ends, even by direct id", async () => {
@@ -49,7 +49,7 @@ describe("charity priority window (feature 7)", () => {
     const after = store.read().listings.find((x) => x.id === l.id)!;
     expect(after.qtyAvailable).toBe(0);
     await ff(40); // window over
-    expect(visibleToCustomers(l.id)).toBe(false);
+    expect((await visibleToCustomers(l.id))).toBe(false);
     expect(store.read().donationBatches.filter((b) => b.listingId === l.id)).toHaveLength(1); // no second batch at window end
     await expect(svc.reserve(await customer(2, 0), { listingId: l.id, qty: 1, method: "online" })).rejects.toBeTruthy();
     expect(store.read().notifications.some((n) => n.userId === "u_ravi" && /claimed/i.test(n.text))).toBe(true);
@@ -96,12 +96,12 @@ describe("charity priority window (feature 7)", () => {
 
   it("switching the feature off makes hidden priority listings public immediately", async () => {
     const l = await prio(45);
-    expect(visibleToCustomers(l.id)).toBe(false);
+    expect((await visibleToCustomers(l.id))).toBe(false);
     const w = await plat.updatePlatformSettings(P("u_admin"), { flags: { priorityWindow: false } });
     expect(w.applied).toBe(false);
     expect(w.warnings.join(" ")).toMatch(/priority window/);
     await plat.updatePlatformSettings(P("u_admin"), { flags: { priorityWindow: false }, confirm: true });
-    expect(visibleToCustomers(l.id)).toBe(true);
+    expect((await visibleToCustomers(l.id))).toBe(true);
   });
 });
 
@@ -188,7 +188,7 @@ describe("donation receipts (feature 9)", () => {
 
   it("PDFs are real PDFs; the no-80G wording is present; the zip holds one PDF per receipt plus an index", async () => {
     const b = await collectedDonation(3);
-    const { receipt, db } = rc.receiptForActor(owner(), store.read().receipts.find((r) => r.batchId === b.id)!.id);
+    const { receipt, db } = (await rc.receiptForActor(owner(), store.read().receipts.find((r) => r.batchId === b.id)!.id));
     const pdf = await rc.receiptPdf(db, receipt);
     expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
     expect(pdf.byteLength).toBeGreaterThan(2000);
@@ -206,22 +206,22 @@ describe("donation receipts (feature 9)", () => {
     const b = await collectedDonation(3);
     const id = store.read().receipts.find((r) => r.batchId === b.id)!.id;
     const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
-    expect(rc.listReceipts(owner(), { from: today, to: today }).some((r) => r.id === id)).toBe(true);
-    expect(rc.listReceipts(owner(), { to: "2000-01-01" })).toEqual([]);
-    expect(() => rc.listReceipts(owner(), { from: "garbage" })).toThrowError(/valid start date/);
-    expect(rc.listReceipts(ngo()).some((r) => r.id === id)).toBe(true); // the charity sees its own
-    expect(rc.listReceipts(P("u_ngo2")).some((r) => r.id === id)).toBe(false);
-    expect(rc.listReceipts(P("u_vendor2")).some((r) => r.id === id)).toBe(false);
-    expect(() => rc.receiptForActor(P("u_vendor2"), id)).toThrowError(/not found/i);
-    expect(() => rc.receiptForActor(P("u_ngo2"), id)).toThrowError(/not found/i);
-    expect(() => rc.listReceipts(P("u_priya"))).toThrowError();
+    expect((await rc.listReceipts(owner(), { from: today, to: today })).some((r) => r.id === id)).toBe(true);
+    expect((await rc.listReceipts(owner(), { to: "2000-01-01" }))).toEqual([]);
+    await expect(rc.listReceipts(owner(), { from: "garbage" })).rejects.toThrowError(/valid start date/);
+    expect((await rc.listReceipts(ngo())).some((r) => r.id === id)).toBe(true); // the charity sees its own
+    expect((await rc.listReceipts(P("u_ngo2"))).some((r) => r.id === id)).toBe(false);
+    expect((await rc.listReceipts(P("u_vendor2"))).some((r) => r.id === id)).toBe(false);
+    await expect(rc.receiptForActor(P("u_vendor2"), id)).rejects.toThrowError(/not found/i);
+    await expect(rc.receiptForActor(P("u_ngo2"), id)).rejects.toThrowError(/not found/i);
+    await expect(rc.listReceipts(P("u_priya"))).rejects.toThrowError();
   });
 
   it("the feature flag turns receipts off without touching donations", async () => {
     await plat.updatePlatformSettings(P("u_admin"), { flags: { donationReceipts: false }, confirm: true });
     const b = await collectedDonation(2);
     expect(store.read().receipts.some((r) => r.batchId === b.id)).toBe(false);
-    expect(() => rc.listReceipts(owner())).toThrowError(/switched off/);
+    await expect(rc.listReceipts(owner())).rejects.toThrowError(/switched off/);
   });
 });
 

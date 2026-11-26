@@ -14,7 +14,7 @@ export async function generateMetadata() {
 export default async function Impact() {
   const me = await requirePage("customer");
   const { t } = await getT();
-  const m = customerImpact(me.id);
+  const m = await customerImpact(me.id);
   const Tile = ({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) => (
     <div className="card flex flex-col gap-1 p-5"><span className="text-tomato" aria-hidden="true">{icon}</span><p className="page-title">{value}</p><p className="text-sm text-muted">{label}</p></div>
   );

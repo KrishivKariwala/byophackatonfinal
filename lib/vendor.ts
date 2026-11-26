@@ -1,5 +1,5 @@
 import "server-only";
-import { read, now as clockNow } from "./store";
+import { readDb, now as clockNow } from "./store";
 import { RULES, RuleError } from "./rules";
 import { newId } from "./crypto";
 import { write, createListing, CATEGORIES } from "./services";
@@ -49,7 +49,7 @@ export function deleteTemplate(actor: Profile | null, id: string) {
 
 /** One-tap repost: fresh pickup times (next quarter-hour at least 30 min away, same length), prepared now. Re-confirms the safety declaration. */
 export async function repostTemplate(actor: Profile | null, id: string, opts: { declaration: boolean; startInMinutes?: number; outletId?: string }) {
-  const db = read();
+  const db = await readDb();
   const me = requireRole(actor, "vendor");
   const v = vendorOf(db, me, "listing.write");
   const tpl = db.templates.find((x) => x.id === id && x.vendorId === v.id);
@@ -93,8 +93,8 @@ export function updateVendorSettings(actor: Profile | null, i: { payAtPickup?: b
 }
 
 // ---------------------------------------------------------------- price suggestion (B2)
-export function priceSuggestion(actor: Profile | null, q: { listingId?: string; original?: number; category?: string; hoursLeft?: number }) {
-  const db = read();
+export async function priceSuggestion(actor: Profile | null, q: { listingId?: string; original?: number; category?: string; hoursLeft?: number }) {
+  const db = await readDb();
   const me = requireRole(actor, "vendor");
   const ctx = vendorCtx(db, me, "listing.write");
   const v = ctx.vendor;
@@ -117,8 +117,8 @@ export function priceSuggestion(actor: Profile | null, q: { listingId?: string; 
 }
 
 /** "Use suggested schedule": up to 3 steps from the P1 price function, shaped to the pickup window and the vendor's sell-through. */
-export function scheduleSuggestion(actor: Profile | null, q: { original: number; rescue: number; windowStart: string; windowEnd: string; category?: string; listingId?: string }) {
-  const db = read();
+export async function scheduleSuggestion(actor: Profile | null, q: { original: number; rescue: number; windowStart: string; windowEnd: string; category?: string; listingId?: string }) {
+  const db = await readDb();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "listing.write");
   if (!cfg(db).flags.autoMarkdown) throw new RuleError("feature_off", "Auto-markdown is switched off by the platform.", 403, undefined, "feature_off_auto_markdown_switched");
   const n = clockNow(db);
@@ -147,8 +147,8 @@ export function profileCompleteness(v: Vendor, o?: Outlet) {
 
 // ---------------------------------------------------------------- analytics + payouts (B4, B5)
 /** `outletId` narrows to one outlet; without it an owner / all-outlets manager sees every outlet combined, staff-pinned roles only their own. */
-export function analyticsFor(actor: Profile | null, range: Range, outletId?: string) {
-  const db = read();
+export async function analyticsFor(actor: Profile | null, range: Range, outletId?: string) {
+  const db = await readDb();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "analytics.view");
   let ids = outletsFor(db, ctx).map((o) => o.id);
   if (outletId) {
@@ -157,8 +157,8 @@ export function analyticsFor(actor: Profile | null, range: Range, outletId?: str
   }
   return vendorAnalytics(db, ctx.vendor.id, range, clockNow(db), ids);
 }
-export function payoutsFor(actor: Profile | null) {
-  const db: DB = read();
+export async function payoutsFor(actor: Profile | null) {
+  const db: DB = await readDb();
   const v = vendorOf(db, requireRole(actor, "vendor"), "payouts.view");
   return vendorPayouts(db, v.id);
 }

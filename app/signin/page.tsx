@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 import { getActor } from "@/lib/session";
 import { HOME, SELF_ROLES, SKIP_PERSONA, type SelfRole } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
@@ -16,7 +16,7 @@ export async function generateMetadata() {
 export default async function SignIn({ searchParams }: { searchParams: Promise<{ role?: string; all?: string; switch?: string; next?: string; ref?: string }> }) {
   const sp = await searchParams;
   const { t } = await getT();
-  const db = read();
+  const db = await readDb();
   const label = (id: string) => {
     const p = db.profiles.find((x) => x.id === id);
     const v = db.vendors.find((x) => x.ownerId === id);

@@ -46,12 +46,12 @@ describe("vendor reliability score", () => {
     // two vendors, one listing each, the low one's window starts earlier so it would normally come first
     const a = await freshListing({ vendor: "u_ravi", startMin: 30, endMin: 120 });
     const b = await freshListing({ vendor: "u_vendor2", startMin: 10, endMin: 120 });
-    const idx = (id: string) => svc.discover({ ...filters }).findIndex((l) => l.id === id);
-    expect(idx(b.id)).toBeLessThan(idx(a.id)); // earlier window first when both are fine
+    const idx = async (id: string) => (await svc.discover({ ...filters })).findIndex((l) => l.id === id);
+    expect((await idx(b.id))).toBeLessThan((await idx(a.id))); // earlier window first when both are fine
     await store.transaction((tx) => { const v = tx.db.vendors.find((x) => x.ownerId === "u_vendor2")!; v.ratingAvg = 1; v.ratingCount = 30;
       for (let i = 0; i < 4; i++) tx.db.reports.push({ id: `rp_x${i}`, reporterId: "u_priya", targetType: "vendor", targetId: v.id, reason: "other", status: "Open", createdAt: new Date(tx.now).toISOString() } as never); });
     expect(reliability(store.read(), store.read().vendors.find((x) => x.ownerId === "u_vendor2")!, store.now()).low).toBe(true);
-    expect(idx(b.id)).toBeGreaterThan(idx(a.id)); // now it is listed after the reliable vendor
+    expect((await idx(b.id))).toBeGreaterThan((await idx(a.id))); // now it is listed after the reliable vendor
     await ff(0);
   });
 

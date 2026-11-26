@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { razorpayConfigured } from "@/lib/payments";
 import { Countdown } from "@/components/client";
 import { CheckoutClient } from "./CheckoutClient";
@@ -17,7 +17,7 @@ export default async function Checkout({ params }: { params: Promise<{ holdId: s
   const me = await requirePage("customer");
   const { t } = await getT();
   const { holdId } = await params;
-  const db = read();
+  const db = await readDb();
   const h = db.holds.find((x) => x.id === holdId && x.customerId === me.id);
   if (!h) notFound();
   if (h.status === "Converted") {

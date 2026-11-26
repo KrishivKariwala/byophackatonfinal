@@ -1,5 +1,5 @@
 import { requirePage } from "@/lib/guard";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 import { StatusPill } from "@/components/bits";
 import { OnboardingForm } from "@/components/OnboardingForm";
 import { getT } from "@/lib/i18n/server";
@@ -13,7 +13,7 @@ export async function generateMetadata() {
 export default async function NgoOnboarding() {
   const me = await requirePage("ngo");
   const { t } = await getT();
-  const n = read().ngos.find((x) => x.ownerId === me.id);
+  const n = (await readDb()).ngos.find((x) => x.ownerId === me.id);
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-8">
       <h1 className="page-title">{t("onb.ngoTitle")}</h1>

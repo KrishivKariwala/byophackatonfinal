@@ -19,9 +19,9 @@ export default async function Receipts({ searchParams }: { searchParams: Promise
   const sp = await searchParams;
   const ok = (v?: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
   const from = ok(sp.from), to = ok(sp.to);
-  let rows: ReturnType<typeof listReceipts> = [];
+  let rows: Awaited<ReturnType<typeof listReceipts>> = [];
   let denied: string | null = null;
-  try { rows = listReceipts(me, { from, to }); } catch (e) { denied = await localizeError(e); }
+  try { rows = await listReceipts(me, { from, to }); } catch (e) { denied = await localizeError(e); }
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-6 sm:px-6">
       <h1 className="page-title">{t("rcpt.title").toUpperCase()}</h1>

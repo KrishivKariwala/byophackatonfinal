@@ -82,13 +82,13 @@ describe("impact certificate (feature 5)", () => {
     await ff(2);
     await svc.handover(owner(), { code: r.code });
     const c = await cert.generateCertificate(owner(), cert.monthOf(store.now()));
-    const pub = cert.verifyCertificate(c.id)!;
+    const pub = (await cert.verifyCertificate(c.id))!;
     expect(pub.business).toMatch(/Crumb/);
     expect(Object.keys(pub).sort()).toEqual(["business", "charitiesServed", "co2eKg", "id", "issuedAt", "kgRescued", "mealsDonated", "mealsSold", "month", "partial", "peopleServed", "rupeesRecovered"]);
     expect(JSON.stringify(pub)).not.toMatch(/u_priya|phone|customer/i);
-    expect(cert.verifyCertificate("SAP-AAAA-BBBB-CCCC")).toBeNull();
-    expect(cert.verifyCertificate("not an id")).toBeNull();
-    expect(cert.verifyCertificate("'; drop table")).toBeNull();
+    expect((await cert.verifyCertificate("SAP-AAAA-BBBB-CCCC"))).toBeNull();
+    expect((await cert.verifyCertificate("not an id"))).toBeNull();
+    expect((await cert.verifyCertificate("'; drop table"))).toBeNull();
     await plat.updatePlatformSettings(P("u_admin"), { flags: { impactCertificate: false }, confirm: true });
     await expect(cert.generateCertificate(owner(), cert.monthOf(store.now()))).rejects.toMatchObject({ code: "feature_off" });
   });
@@ -99,8 +99,8 @@ describe("impact certificate (feature 5)", () => {
     await ff(2);
     await svc.handover(owner(), { code: r.code });
     const c = await cert.generateCertificate(owner(), cert.monthOf(store.now()));
-    expect(() => cert.certificateForVendor(P("u_vendor2"), c.id)).toThrowError(/not found/i);
-    const { cert: mine, vendor } = cert.certificateForVendor(owner(), c.id);
+    await expect(cert.certificateForVendor(P("u_vendor2"), c.id)).rejects.toThrowError(/not found/i);
+    const { cert: mine, vendor } = (await cert.certificateForVendor(owner(), c.id));
     const pdf = await cert.certificatePdf(mine, vendor, "http://localhost:3000");
     expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
     expect(pdf.byteLength).toBeGreaterThan(2000);

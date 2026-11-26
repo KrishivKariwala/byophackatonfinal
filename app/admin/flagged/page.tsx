@@ -1,6 +1,6 @@
 import { requirePage } from "@/lib/guard";
 import { flaggedLists } from "@/lib/admin";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { reliability } from "@/lib/reliability";
 import { Rating } from "@/components/p1";
 
@@ -15,8 +15,8 @@ export async function generateMetadata() {
 export default async function Flagged() {
   await requirePage("admin");
   const { t, fmt } = await getT();
-  const f = flaggedLists();
-  const db = read();
+  const f = await flaggedLists();
+  const db = await readDb();
   const rel = db.vendors.map((v) => ({ v, r: reliability(db, v, now(db)) })).sort((a, b) => a.r.score - b.r.score);
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6">

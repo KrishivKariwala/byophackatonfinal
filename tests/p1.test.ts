@@ -90,7 +90,7 @@ describe("dynamic price suggestion (FR-2.3)", () => {
     expect(sellThroughRate(ls, rs, "v", "Desserts", now)).toBeNull();
   });
   it("price suggestion endpoint logic works for a new listing", async () => {
-    const out = vend.priceSuggestion(P("u_ravi"), { original: 200, category: "Bakery", hoursLeft: 2 });
+    const out = (await vend.priceSuggestion(P("u_ravi"), { original: 200, category: "Bakery", hoursLeft: 2 }));
     expect(out.price).toBeGreaterThan(0);
     expect(out.price).toBeLessThanOrEqual(140);
   });
@@ -163,8 +163,8 @@ describe("rating aggregate and flags (FR-9.1, FR-9.3)", () => {
     expect(p1.isLowRated(3.0, 50)).toBe(false);
     expect(p1.isLowRated(undefined, 50)).toBe(false);
   });
-  it("the seeded low-rated vendor appears in the admin flagged list", () => {
-    expect(admin.flaggedLists().vendors.some((v) => v.id === "v_8" && v.reasons.some((r) => r.startsWith("Rating")))).toBe(true);
+  it("the seeded low-rated vendor appears in the admin flagged list", async () => {
+    expect((await admin.flaggedLists()).vendors.some((v) => v.id === "v_8" && v.reasons.some((r) => r.startsWith("Rating")))).toBe(true);
   });
 });
 
@@ -207,7 +207,7 @@ describe("no-shows and suspension (FR-5.4)", () => {
     expect(days).toBeLessThanOrEqual(7);
     await expect(svc.reserve(c, { listingId: (await freshListing()).id, qty: 1, method: "online" })).rejects.toMatchObject({ code: "suspended" });
     expect(store.read().notifications.some((n) => n.userId === c.id && n.type === "suspension")).toBe(true);
-    expect(admin.flaggedLists().customers.some((x) => x.id === c.id && x.suspendedUntil)).toBe(true);
+    expect((await admin.flaggedLists()).customers.some((x) => x.id === c.id && x.suspendedUntil)).toBe(true);
   });
 });
 
@@ -340,7 +340,7 @@ describe("customer features", () => {
     expect(n.some((x) => x.userId === near.id && x.type === "new_listing_followed")).toBe(true);
     expect(n.some((x) => x.userId === far.id && x.type === "new_listing_followed")).toBe(false);
     await p1.unfollowVendor(near, "v_1");
-    expect(p1.followingList(near.id)).toHaveLength(0);
+    expect((await p1.followingList(near.id))).toHaveLength(0);
   });
 
   it("push tokens are stored per device and notifications are typed", async () => {
@@ -376,7 +376,7 @@ describe("customer features", () => {
     const r = await onlineOrder(c, l.id, 3);
     await ff(10);
     await svc.handover(P("u_ravi"), { code: r.code });
-    const m = p1.customerImpact(c.id);
+    const m = (await p1.customerImpact(c.id));
     expect(m).toMatchObject({ meals: 3, rupeesSaved: 300, kgFood: 1.2, co2eKg: 3, orders: 1 });
     expect(m.badges.find((b) => b.id === "first_rescue")!.earned).toBe(true);
     expect(m.badges.find((b) => b.id === "five_rescues")!.earned).toBe(false);
@@ -391,7 +391,7 @@ describe("customer features", () => {
     await expect(p1.createReport(c, { targetType: "listing", targetId: l.id, reason: "other", photoUrl: "http://evil/x.png" })).rejects.toMatchObject({ code: "photo_invalid" });
     const rep = await p1.createReport(c, { targetType: "listing", targetId: l.id, reason: "food_safety", text: "smelled off" });
     await expect(p1.createReport(c, { targetType: "listing", targetId: l.id, reason: "food_safety" })).rejects.toMatchObject({ code: "already_reported" });
-    expect(admin.reportsQueue().some((x) => x.id === rep.id && x.status === "Open")).toBe(true);
+    expect((await admin.reportsQueue()).some((x) => x.id === rep.id && x.status === "Open")).toBe(true);
   });
 });
 
@@ -414,7 +414,7 @@ describe("vendor features", () => {
     expect(db.donationBatches.find((b) => b.listingId === l.id)).toMatchObject({ qty: 6, origin: "donation_only", status: "Open" });
     const c = await customer(21);
     await expect(svc.reserve(c, { listingId: l.id, qty: 1, method: "online" })).rejects.toBeTruthy();
-    expect(svc.discover({ lat: 12.9352, lng: 77.6245, radiusKm: 25 }).some((x) => x.id === l.id)).toBe(false);
+    expect((await svc.discover({ lat: 12.9352, lng: 77.6245, radiusKm: 25 })).some((x) => x.id === l.id)).toBe(false);
   });
 
   it("high-risk items are capped at a 2-hour window", async () => {
@@ -458,21 +458,21 @@ describe("charity features", () => {
     await expect(charity.scheduleDonation(P("u_joseph"), b.id, { slot, volunteerName: "A", volunteerPhone: "123" })).rejects.toBeTruthy();
     await expect(charity.scheduleDonation(P("u_joseph"), b.id, { slot: iso(Date.parse(b.collectBy) + min(5)), volunteerName: "Asha", volunteerPhone: "+91 98765 43210" })).rejects.toMatchObject({ code: "slot_late" });
     const out = await charity.scheduleDonation(P("u_joseph"), b.id, { slot, volunteerName: "Asha", volunteerPhone: "+91 98765 43210" });
-    const view = charity.volunteerView(out.token);
+    const view = (await charity.volunteerView(out.token));
     expect(view).toMatchObject({ state: "ok", vendorName: "Crumb & Co. Bakery (Demo)", volunteerName: "Asha" });
     if (view.state === "ok") { expect(view.code).toMatch(/^\d{4}$/); expect(view.address).toContain("Koramangala"); }
     expect(store.read().notifications.some((n) => n.userId === "u_ravi" && /Asha/.test(n.text))).toBe(true);
     // another NGO cannot schedule it
     await expect(charity.scheduleDonation(P("u_ngo2"), b.id, { slot, volunteerName: "Zed", volunteerPhone: "+91 98765 43211" })).rejects.toBeTruthy();
     await ff(180);
-    expect(charity.volunteerView(out.token).state).toBe("expired");
-    expect(charity.volunteerView("short").state).toBe("not_found");
+    expect((await charity.volunteerView(out.token)).state).toBe("expired");
+    expect((await charity.volunteerView("short")).state).toBe("not_found");
   });
   it("releasing a claim kills the volunteer link", async () => {
     const b = await claimedBatch();
     const out = await charity.scheduleDonation(P("u_joseph"), b.id, { slot: iso(store.now() + min(20)), volunteerName: "Asha", volunteerPhone: "+91 98765 43210" });
     await svc.releaseClaim(P("u_joseph"), b.id);
-    expect(charity.volunteerView(out.token).state).toBe("not_found");
+    expect((await charity.volunteerView(out.token)).state).toBe("not_found");
   });
   it("unclaimed batches escalate 60 minutes before the deadline to verified charities within 10 km, once", async () => {
     const l = await freshListing({ startMin: 5, endMin: 65, donateRest: true, qty: 4 });
@@ -505,8 +505,8 @@ describe("admin console", () => {
     await expect(admin.decideApproval(P("u_ravi"), `vendor:${v.id}`, "Approved")).rejects.toMatchObject({ code: "forbidden" });
     await admin.decideApproval(P("u_admin"), `vendor:${v.id}`, "Approved");
     expect(store.read().notifications.some((n) => n.userId === v.ownerId && n.type === "approval_decision")).toBe(true);
-    expect(admin.approvalsQueue().some((a) => a.id === v.id)).toBe(false);
-    expect(admin.approvalsQueue().filter((a) => a.status === "Pending").length).toBeGreaterThanOrEqual(2);
+    expect((await admin.approvalsQueue()).some((a) => a.id === v.id)).toBe(false);
+    expect((await admin.approvalsQueue()).filter((a) => a.status === "Pending").length).toBeGreaterThanOrEqual(2);
   });
   it("report actions: hide listing, suspend, refund, dismiss are logged with the admin and time", async () => {
     // hide listing

@@ -4,7 +4,7 @@ import { TeamClient } from "@/components/p2";
 import { getT } from "@/lib/i18n/server";
 import { teamOverview } from "@/lib/p2/team";
 import { resolveOrg } from "@/lib/p2/org";
-import { read } from "@/lib/store";
+import { readDb } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
@@ -15,9 +15,9 @@ export async function generateMetadata() {
 export default async function Team() {
   const me = await requirePage("vendor");
   const { t } = await getT();
-  const ctx = resolveOrg(read(), me);
+  const ctx = resolveOrg((await readDb()), me);
   if (!ctx) return <div className="mx-auto max-w-xl px-4 py-12"><p className="text-sm">{t("org.noAccess")} <Link className="font-semibold text-tomato underline" href="/v/onboarding">{t("nav.verification")}</Link></p></div>;
-  const o = teamOverview(me);
+  const o = await teamOverview(me);
   if (!o.canManage) return <div className="mx-auto max-w-xl px-4 py-12"><h1 className="page-title">{t("nav.team")}</h1><p role="status" className="mt-2 text-sm text-muted">{t("org.noAccess")}</p></div>;
   const label = (x: { name?: string; address: string }) => x.name ?? x.address;
   return (

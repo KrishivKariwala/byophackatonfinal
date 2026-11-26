@@ -1,5 +1,6 @@
 import "server-only";
-import { read, storeEpoch } from "./../store";
+import { read, readDb, storeEpoch } from "./../store";
+import { onSettingsSeen, pgEnabled } from "../pg/db";
 import { RuleError } from "../rules";
 import { write } from "../services";
 import { audit, iso, requireRole, t } from "../core";
@@ -15,15 +16,19 @@ import type { DB, FlagName, Profile, Settings } from "../types";
 
 const TTL_MS = 60_000;
 let cache: { at: number; epoch: number; value: Cfg } | null = null;
-export const invalidateSettingsCache = () => { cache = null; };
+export const invalidateSettingsCache = () => { if (!pgEnabled()) cache = null; };   // (database store: the next snapshot read refreshes it)
 
 export function getSettings(): Cfg {
   const nowMs = Date.now();
   if (cache && nowMs - cache.at < TTL_MS && cache.epoch === storeEpoch()) return cache.value;
+  // On the database store the cache is refreshed by every snapshot read (see below); before the first read the defaults apply.
+  if (pgEnabled()) return cache?.value ?? resolveSettings(undefined);
   const value = resolveSettings(read().settings);
   cache = { at: nowMs, epoch: storeEpoch(), value };
   return value;
 }
+// Database store: every snapshot that is read refreshes the cached settings, so an admin's change shows on the next request.
+if (pgEnabled()) onSettingsSeen((s) => { cache = { at: Date.now(), epoch: storeEpoch(), value: resolveSettings(s as unknown as Settings) }; });
 export const isFlagOn = (f: FlagName): boolean => getSettings().flags[f];
 
 export interface SettingsPatch {
@@ -124,5 +129,5 @@ export function updatePlatformSettings(actor: Profile | null, patch: SettingsPat
   });
 }
 
-export const settingsAuditTrail = (db: DB = read()) => [...db.settingsAudit].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 100)
-  .map((c) => ({ ...c, admin: db.profiles.find((p) => p.id === c.adminId)?.name ?? c.adminId }));
+export const settingsAuditTrail = async (db?: DB) => { db ??= await readDb(); return [...db.settingsAudit].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 100)
+  .map((c) => ({ ...c, admin: db!.profiles.find((p) => p.id === c.adminId)?.name ?? c.adminId })); };

@@ -8,6 +8,6 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   return handle(async () => {
     const u = new URL(req.url).searchParams;
-    return listReceipts(await getActor(), { from: u.get("from") || undefined, to: u.get("to") || undefined });
+    return await listReceipts(await getActor(), { from: u.get("from") || undefined, to: u.get("to") || undefined });
   });
 }

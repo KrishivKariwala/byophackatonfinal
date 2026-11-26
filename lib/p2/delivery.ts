@@ -1,5 +1,5 @@
 import "server-only";
-import { read, transaction, now as clockNow, type TxContext } from "../store";
+import { readDb, transaction, now as clockNow, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { newId, hmac, safeEqual } from "../crypto";
 import { write } from "../services";
@@ -58,7 +58,7 @@ export async function requestDelivery(actor: Profile | null, batchId: string, pr
   // 2. call the provider (no transaction held)
   let ack: Awaited<ReturnType<DeliveryProvider["request"]>> | null = null;
   let error: string | null = null;
-  try { ack = await provider.request(created.job, clockNow(read())); }
+  try { ack = await provider.request(created.job, clockNow((await readDb()))); }
   catch (e) { error = e instanceof DeliveryError ? e.message : "The delivery partner could not be reached."; if (!(e instanceof DeliveryError)) console.error("delivery provider error", e); }
 
   // 3. record the outcome

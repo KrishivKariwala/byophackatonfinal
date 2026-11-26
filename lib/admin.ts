@@ -1,5 +1,5 @@
 import "server-only";
-import { read, now as clockNow } from "./store";
+import { readDb, now as clockNow } from "./store";
 import { RULES, RuleError } from "./rules";
 import { write, setApproval } from "./services";
 import { audit, emitRes, iso, move, notifyT, requireRole, setResStatus, t } from "./core";
@@ -14,7 +14,8 @@ import type { Vars } from "./i18n/locales";
 
 // ---------------------------------------------------------------- approvals (E1)
 export interface ApprovalRow { key: string; value: string; valueKey?: string; vars?: Vars }
-export function approvalsQueue(db: DB = read()) {
+export async function approvalsQueue(db?: DB) {
+  db ??= await readDb();
   const vendors = db.vendors.filter((v) => v.status !== "Approved").map((v) => {
     const o = db.outlets.find((x) => x.vendorId === v.id);
     return { key: `vendor:${v.id}`, kind: "vendor" as const, id: v.id, name: v.businessName, status: v.status, reason: v.rejectionReason, submittedAt: v.createdAt,
@@ -58,7 +59,8 @@ function resolveTarget(db: DB, r: Report): { vendor?: Vendor; listingId?: string
   return { reservation: res, listingId: res?.listingId, vendor: db.vendors.find((v) => v.id === res?.vendorId) };
 }
 
-export function reportsQueue(db: DB = read()) {
+export async function reportsQueue(db?: DB) {
+  db ??= await readDb();
   return [...db.reports].sort((a, b) => (a.status === "Open" ? 0 : 1) - (b.status === "Open" ? 0 : 1) || (a.createdAt < b.createdAt ? 1 : -1)).map((r) => {
     const tg = resolveTarget(db, r);
     const listing = db.listings.find((l) => l.id === tg.listingId);
@@ -136,7 +138,8 @@ export function actOnReport(actor: Profile | null, reportId: string, action: Rep
 }
 
 // ---------------------------------------------------------------- flagged (E3)
-export function flaggedLists(db: DB = read()) {
+export async function flaggedLists(db?: DB) {
+  db ??= await readDb();
   const n = clockNow(db);
   const vendors = db.vendors.map((v) => ({ v, f: vendorFlags(db, v) })).filter((x) => x.f.lowRating || x.f.repeatedReports).map(({ v, f }) => ({
     id: v.id, name: v.businessName, ratingAvg: v.ratingAvg, ratingCount: v.ratingCount ?? 0, openReports: f.openReports,

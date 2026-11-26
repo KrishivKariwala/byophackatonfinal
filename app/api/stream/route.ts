@@ -1,6 +1,8 @@
 import { bus } from "@/lib/store";
 import { sweep } from "@/lib/services";
 import type { LiveEvent } from "@/lib/types";
+import { pgEnabled } from "@/lib/pg/db";
+import { watchDatabase } from "@/lib/pg/poll";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,13 +22,14 @@ export async function GET(req: Request) {
         controller.enqueue(enc.encode(`data: ${JSON.stringify(safe)}\n\n`));
       };
       bus().on("live", send);
+      const unwatch = pgEnabled() ? watchDatabase() : () => {};   // other server instances' changes arrive through the database
       controller.enqueue(enc.encode(`: connected\n\n`));
       // Keep-alive and a lightweight window-end tick (expires holds and closes windows on time).
       const ka = setInterval(() => {
         controller.enqueue(enc.encode(`: ping\n\n`));
         sweep().catch(() => undefined);
       }, 5000);
-      cleanup = () => { clearInterval(ka); bus().off("live", send); };
+      cleanup = () => { clearInterval(ka); bus().off("live", send); unwatch(); };
       req.signal.addEventListener("abort", () => { cleanup(); try { controller.close(); } catch {} });
     },
     cancel() { cleanup(); },

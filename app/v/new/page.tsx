@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { ListingForm, type FormInit } from "../ListingForm";
 import { vendorScope } from "@/lib/p2/scope";
 import { cfg } from "@/lib/p2/settings";
@@ -16,7 +16,7 @@ export async function generateMetadata() {
 export default async function NewListing({ searchParams }: { searchParams: Promise<{ from?: string }> }) {
   const me = await requirePage("vendor");
   const { t } = await getT();
-  const db = read();
+  const db = await readDb();
   const scope = await vendorScope(me);
   const v = scope.ctx?.vendor;
   if (v && !scope.can("listing.write")) {

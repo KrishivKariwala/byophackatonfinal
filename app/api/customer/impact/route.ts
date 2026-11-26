@@ -9,6 +9,6 @@ export async function GET() {
   return handle(async () => {
     const a = await getActor();
     if (!a || a.role !== "customer") throw new RuleError("forbidden", "Customers only.", 403, undefined, "forbidden_customers_only");
-    return customerImpact(a.id);
+    return await customerImpact(a.id);
   });
 }

@@ -8,6 +8,6 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try { rateLimit(`verify:${req.headers.get("x-forwarded-for") ?? "local"}`, 60, 60_000); }
   catch { return NextResponse.json({ ok: false, error: "Too many requests." }, { status: 429 }); }
-  const c = verifyCertificate((await ctx.params).id.toUpperCase());
+  const c = await verifyCertificate((await ctx.params).id.toUpperCase());
   return c ? NextResponse.json({ ok: true, data: c }) : NextResponse.json({ ok: false, error: "No certificate with this ID." }, { status: 404 });
 }

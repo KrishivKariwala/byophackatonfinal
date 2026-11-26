@@ -1,5 +1,5 @@
 import "server-only";
-import { read, now as clockNow } from "../store";
+import { readDb, now as clockNow } from "../store";
 import { RuleError } from "../rules";
 import { newId, randomToken, sha256 } from "../crypto";
 import { write } from "../services";
@@ -107,8 +107,8 @@ export function inviteMember(actor: Profile | null, i: { contact: string; role: 
 }
 
 /** Public preview of an invite (so the join page can say who invited you). Never reveals the contact. */
-export function previewInvite(rawToken: string) {
-  const db = read();
+export async function previewInvite(rawToken: string) {
+  const db = await readDb();
   const inv = db.invites.find((x) => x.token === sha256(String(rawToken)));
   if (!inv) return null;
   const v = db.vendors.find((x) => x.id === inv.vendorId);
@@ -196,8 +196,8 @@ export function changeMemberRole(actor: Profile | null, membershipId: string, ro
 }
 
 // ---------------------------------------------------------------- read models
-export function teamOverview(actor: Profile | null) {
-  const db = read();
+export async function teamOverview(actor: Profile | null) {
+  const db = await readDb();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"));
   const outlets = db.outlets.filter((o) => o.vendorId === ctx.vendor.id);
   const label = (id?: string): string | null => { const o = outlets.find((x) => x.id === id); return o ? (o.name ?? o.address) : null; }; // null = all outlets (translated by the page)
@@ -217,8 +217,8 @@ export function teamOverview(actor: Profile | null) {
 }
 
 /** All-outlets analytics: one row per outlet plus the combined total (owner / all-outlet manager). */
-export function orgOverview(actor: Profile | null, range: Range) {
-  const db = read();
+export async function orgOverview(actor: Profile | null, range: Range) {
+  const db = await readDb();
   const ctx = vendorCtx(db, requireRole(actor, "vendor"), "analytics.view");
   const nowMs = clockNow(db);
   const rows = outletsFor(db, ctx).map((o) => {

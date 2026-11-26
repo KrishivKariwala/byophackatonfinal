@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   return handle(async () => {
     const u = new URL(req.url).searchParams;
     const num = (k: string) => (u.get(k) !== null && u.get(k) !== "" ? Number(u.get(k)) : undefined);
-    return priceSuggestion(await getActor(), {
+    return await priceSuggestion(await getActor(), {
       listingId: u.get("listing_id") || undefined, original: num("original_price"), category: u.get("category") || undefined, hoursLeft: num("hours_left"),
     });
   });

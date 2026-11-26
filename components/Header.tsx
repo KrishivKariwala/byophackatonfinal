@@ -1,5 +1,5 @@
 import { getActor } from "@/lib/session";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { AccountMenu, BellMenu, HeaderShell, LanguageMenu } from "./HeaderBar";
 import { getT } from "@/lib/i18n/server";
 import { isFlagOn } from "@/lib/p2/platform";
@@ -40,7 +40,7 @@ const NAV: Record<string, { href: string; label: string }[]> = {
 export async function Header() {
   const actor = await getActor();
   const { t, fmt, locale } = await getT();
-  const db = read();
+  const db = await readDb();
   const offsetMin = Math.round((db.clockOffsetMs || 0) / 60000);
   const org = actor?.role === "vendor" ? resolveOrg(db, actor) : null;
   const navItems = (NAV[actor?.role ?? ""] || []).filter((n) => {

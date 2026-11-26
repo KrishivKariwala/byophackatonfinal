@@ -43,17 +43,17 @@ describe("P2 demo seed", () => {
     expect(db.creditLedger.some((e) => e.type === "expired")).toBe(true);
   });
 
-  it("price-step listings (one already applied) and a priority listing hidden from customers but offered to charities", () => {
+  it("price-step listings (one already applied) and a priority listing hidden from customers but offered to charities", async () => {
     const db = store.read();
     expect(new Set(db.priceSteps.map((s) => s.listingId)).size).toBeGreaterThanOrEqual(3);
     expect(db.priceSteps.some((s) => s.appliedAt)).toBe(true);
     const l = db.listings.find((x) => x.id === "l_7")!;
-    expect(svc.discover({ lat: 12.93, lng: 77.58, radiusKm: 50 }).some((x) => x.id === "l_7")).toBe(false);
+    expect((await svc.discover({ lat: 12.93, lng: 77.58, radiusKm: 50 })).some((x) => x.id === "l_7")).toBe(false);
     const ngo = db.ngos.find((n) => n.status === "Approved" && pr.priorityOffersFor(db, n, store.now()).some((o) => o.l.id === l.id));
     expect(ngo).toBeTruthy();
   });
 
-  it("5 receipts with unique numbers (one with 80G), 3 distribution logs, 2 delivery requests", () => {
+  it("5 receipts with unique numbers (one with 80G), 3 distribution logs, 2 delivery requests", async () => {
     const db = store.read();
     expect(db.receipts).toHaveLength(5);
     expect(new Set(db.receipts.map((r) => r.number)).size).toBe(5);
@@ -63,11 +63,11 @@ describe("P2 demo seed", () => {
     expect(db.distributionLogs).toHaveLength(3);
     expect(db.deliveryRequests).toHaveLength(2);
     expect(new Set(db.deliveryRequests.map((d) => d.status))).toEqual(new Set(["Rider assigned", "Delivered"]));
-    expect(rc.listReceipts(P("u_ravi")).length).toBeGreaterThan(0);
+    expect((await rc.listReceipts(P("u_ravi"))).length).toBeGreaterThan(0);
   });
 
-  it("moderation: flagged items in the queue, a hidden listing, and a dismissed one that stays dismissed", () => {
-    const q = mod.moderationQueue(store.read());
+  it("moderation: flagged items in the queue, a hidden listing, and a dismissed one that stays dismissed", async () => {
+    const q = (await mod.moderationQueue(store.read()));
     const open = q.filter((i) => i.state === "open");
     expect(open.some((i) => i.targetType === "listing" && i.targetId === "l_11")).toBe(true); // keyword
     expect(open.some((i) => i.targetType === "listing" && i.targetId === "l_4")).toBe(true); // 3 reports

@@ -26,22 +26,37 @@ export function pool(): Pool {
   return g.__sapPool;
 }
 
+/** Whoever caches platform settings is told every time a snapshot is read, so admin changes show up on the next request. */
+const settingsListeners: ((s: Record<string, unknown>) => void)[] = [];
+export const onSettingsSeen = (f: (s: Record<string, unknown>) => void) => { settingsListeners.push(f); };
+export const notifySettings = (s: Record<string, unknown>) => { for (const f of settingsListeners) f(s); };
+
+/** Test support: runs after every committed transaction so a synchronous snapshot can be refreshed (PG_SYNC_CACHE=1). */
+let afterCommit: (() => Promise<void>) | null = null;
+export const setAfterCommit = (f: (() => Promise<void>) | null) => { afterCommit = f; };
+let inHook = false;
+
 export async function closePool() { const p = g.__sapPool; g.__sapPool = undefined; if (p) await p.end(); }
 
 /** Runs `fn` in a transaction as `actorId` (a profile uuid), or as nobody. Commits on success, rolls back on any error. */
 export async function withTx<T>(actorId: string | null, fn: (c: PoolClient) => Promise<T>): Promise<T> {
   const c = await pool().connect();
+  let released = false;
   try {
-    await c.query("begin");
-    await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(actorId ? { sub: actorId, role: "authenticated" } : {})]);
+    // One round trip: begin, who is acting, and (PG_SCHEMA) which copy of the schema to use. PG_SCHEMA points the app at a scratch copy
+    // (npm run db:scratch) so tests never touch real data.
+    const claims = c.escapeLiteral(JSON.stringify(actorId ? { sub: actorId, role: "authenticated" } : {}));
+    const path = process.env.PG_SCHEMA ? `, set_config('search_path', ${c.escapeLiteral(`${process.env.PG_SCHEMA}, extensions`)}, true)` : "";
+    await c.query(`begin; select set_config('request.jwt.claims', ${claims}, true)${path}`);
     const r = await fn(c);
     await c.query("commit");
+    if (afterCommit && !inHook) { inHook = true; try { c.release(); released = true; await afterCommit(); } finally { inHook = false; } }
     return r;
   } catch (e) {
     try { await c.query("rollback"); } catch { /* connection already gone */ }
     throw e;
   } finally {
-    c.release();
+    if (!released) c.release();
   }
 }
 

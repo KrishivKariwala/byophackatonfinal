@@ -14,7 +14,7 @@ export async function generateMetadata() {
 export default async function Orders() {
   const me = await requirePage("customer");
   const { t, fmt } = await getT();
-  const orders = customerOrders(me.id);
+  const orders = await customerOrders(me.id);
   const active = orders.filter((o) => o.status === "Reserved" || o.status === "Ready");
   const past = orders.filter((o) => !(o.status === "Reserved" || o.status === "Ready"));
   const Row = ({ o }: { o: (typeof orders)[number] }) => (

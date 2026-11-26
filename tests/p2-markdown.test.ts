@@ -115,14 +115,14 @@ describe("auto-markdown job (integration)", () => {
     await expect(withSteps([{ effectiveAt: iso(n + min(20)), discountPct: 70 }])).rejects.toMatchObject({ code: "step_discount_cap" });
     await plat.updatePlatformSettings(P("u_admin"), { flags: { autoMarkdown: false }, confirm: true });
     await expect(withSteps([{ effectiveAt: iso(n + min(20)), discountPct: 55 }])).rejects.toMatchObject({ code: "feature_off" });
-    expect(() => vend.scheduleSuggestion(P("u_ravi"), { original: 200, rescue: 100, windowStart: iso(n + min(10)), windowEnd: iso(n + min(180)) })).toThrowError(/switched off/);
+    await expect(vend.scheduleSuggestion(P("u_ravi"), { original: 200, rescue: 100, windowStart: iso(n + min(10)), windowEnd: iso(n + min(180)) })).rejects.toThrowError(/switched off/);
     const l = await freshListing(); // listings without a schedule still work with the flag off
     expect(l.status).toBe("Live");
   });
 
   it("scheduleSuggestion returns a valid schedule for a real window", async () => {
     const n = store.now();
-    const s = vend.scheduleSuggestion(P("u_ravi"), { original: 200, rescue: 130, windowStart: iso(n + min(30)), windowEnd: iso(n + min(240)), category: "Bakery" });
+    const s = (await vend.scheduleSuggestion(P("u_ravi"), { original: 200, rescue: 130, windowStart: iso(n + min(30)), windowEnd: iso(n + min(240)), category: "Bakery" }));
     expect(s.steps.length).toBeGreaterThan(0);
     const l = await freshListing({ original: 200, rescue: 130, startMin: 30, endMin: 240, extra: { priceSteps: s.steps } });
     expect(store.read().priceSteps.filter((x) => x.listingId === l.id)).toHaveLength(s.steps.length);

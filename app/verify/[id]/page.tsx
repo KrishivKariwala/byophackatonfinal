@@ -13,7 +13,7 @@ export async function generateMetadata() {
 export default async function Verify({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { t, fmt } = await getT();
-  const c = isFlagOn("impactCertificate") ? verifyCertificate(id.toUpperCase()) : null;
+  const c = isFlagOn("impactCertificate") ? await verifyCertificate(id.toUpperCase()) : null;
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-10">
       <Logo width={120} />

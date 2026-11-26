@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   return handle(async () => {
     if ((await getActor())?.role !== "admin") throw new RuleError("forbidden", "Admins only.", 403);
-    return moderationQueue();
+    return await moderationQueue();
   });
 }
 export async function POST(req: Request) {

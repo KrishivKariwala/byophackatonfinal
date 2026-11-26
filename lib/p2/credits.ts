@@ -1,5 +1,5 @@
 import "server-only";
-import { read, type TxContext } from "../store";
+import { readDb, type TxContext } from "../store";
 import { RuleError } from "../rules";
 import { newId } from "../crypto";
 import { write } from "../services";
@@ -193,4 +193,4 @@ export function rewardReferralTx(tx: TxContext, r: Reservation) {
   audit(tx, "system", "referral_rewarded", "referral", ref.id, `₹${amount} each${ref.rejectReason ? `; ${ref.rejectReason}` : ""}`);
 }
 
-export const referralSummaryFor = (userId: string) => { const db = read(); return referralView(db, userId, Date.now() + (db.clockOffsetMs || 0), db.referralCodes.find((c) => c.userId === userId)?.code ?? ""); };
+export const referralSummaryFor = async (userId: string) => { const db = await readDb(); return referralView(db, userId, Date.now() + (db.clockOffsetMs || 0), db.referralCodes.find((c) => c.userId === userId)?.code ?? ""); };

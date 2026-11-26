@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   return handle(async () => {
     const a = await getActor();
-    return a ? followingList(a.id) : [];
+    return a ? await followingList(a.id) : [];
   });
 }
 export async function POST(req: Request) {

@@ -1,5 +1,5 @@
 import "server-only";
-import { transaction, read, now as clockNow, type TxContext } from "./store";
+import { transaction, readDb, now as clockNow, type TxContext } from "./store";
 import {
   iso, t, requireRole, approvedCtx, ngoOf, outletOf, listingIn, audit, notifyT, notifyOutletT, move, emitRes, setResStatus,
   logNewReservation, createDonationBatchTx, recordImpact, openBatch,
@@ -14,7 +14,7 @@ import { priorityOver, setupPriority } from "./p2/priority";
 import { issueReceiptTx } from "./p2/receipts";
 import { creditQuote, restoreCreditTx, rewardReferralTx, spendCreditTx } from "./p2/credits";
 import { pgEnabled } from "./pg/db";
-import { pgAttachGatewayOrder, pgConfirmPayment, pgFailPayment, pgHandover, pgReserve } from "./pg/flow";
+import { pgAttachGatewayOrder, pgConfirmPayment, pgFailPayment, pgHandover, pgReserve, pgSweep } from "./pg/flow";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
 import { co2eFor, kgFor } from "./impact-config";
@@ -101,7 +101,8 @@ export function sweepTx(tx: TxContext) {
 }
 
 export async function sweep() {
-  const db = read();
+  if (pgEnabled()) return pgSweep();   // the database's own jobs (pg_cron later) do this work
+  const db = await readDb();
   const n = clockNow(db);
   const needs =
     db.holds.some((h) => h.status === "Active" && t(h.expiresAt) <= n) ||
@@ -112,7 +113,8 @@ export async function sweep() {
 }
 
 /** All writes go through here so the processor always runs first. */
-export function write<T>(fn: (tx: TxContext) => T): Promise<T> {
+export async function write<T>(fn: (tx: TxContext) => T): Promise<T> {
+  if (pgEnabled()) { await pgSweep(); return transaction(fn); }
   return transaction((tx) => {
     sweepTx(tx);
     return fn(tx);
@@ -755,9 +757,9 @@ export interface DiscoverFilters {
  * The feed is the busiest read, so identical requests inside the same second share one result. The cache is keyed by the store object
  * itself: every committed write replaces that object, so a reservation, a cancellation or a clock change can never show stale stock.
  */
-const discoverCache = new WeakMap<object, { second: number; byKey: Map<string, ReturnType<typeof discoverUncached>> }>();
-export function discover(f: DiscoverFilters) {
-  const db = read();
+const discoverCache = new WeakMap<object, { second: number; byKey: Map<string, Awaited<ReturnType<typeof discoverUncached>>> }>();
+export async function discover(f: DiscoverFilters) {
+  const db = await readDb();
   const second = Math.floor(clockNow(db) / 1000);
   let entry = discoverCache.get(db);
   if (!entry || entry.second !== second) { entry = { second, byKey: new Map() }; discoverCache.set(db, entry); }
@@ -765,14 +767,14 @@ export function discover(f: DiscoverFilters) {
   let hit = entry.byKey.get(key);
   if (!hit) {
     if (entry.byKey.size > 200) entry.byKey.clear(); // distinct searches are unbounded; keep the memory bounded
-    hit = discoverUncached(f);
+    hit = await discoverUncached(f);
     entry.byKey.set(key, hit);
   }
   return hit;
 }
 
-function discoverUncached(f: DiscoverFilters) {
-  const db = read();
+async function discoverUncached(f: DiscoverFilters) {
+  const db = await readDb();
   const n = clockNow(db);
   const q = (f.q || "").trim().toLowerCase();
   const origin = { lat: f.lat, lng: f.lng };
@@ -795,8 +797,8 @@ export function hm(isoStr: string) {
   return new Date(isoStr).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
 }
 
-export function customerOrders(customerId: string) {
-  const db = read();
+export async function customerOrders(customerId: string) {
+  const db = await readDb();
   return db.reservations
     .filter((r) => r.customerId === customerId)
     .map((r) => {
@@ -813,8 +815,8 @@ export function customerOrders(customerId: string) {
     .sort((a, b) => t(b.createdAt) - t(a.createdAt));
 }
 
-export function impactSummary() {
-  const db = read();
+export async function impactSummary() {
+  const db = await readDb();
   const rescued = db.impact.filter((e) => e.source !== "expired");
   const sum = (src?: string) => rescued.filter((e) => !src || e.source === src).reduce((s, e) => s + e.units, 0);
   const n = clockNow(db);

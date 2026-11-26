@@ -44,6 +44,10 @@ async function makeCustomers(count: number) {
   }
   return out;
 }
+// (these three used to be skipped on the database store: they jump the clock, which the database rules now share through app_now())
+const itDemo = it;
+// this one builds a pickup code by hashing the readable demo vendor id, which the database store (uuids) never does
+const itDemoHash = process.env.STORE === "supabase" ? it.skip : it;
 const codeOf = (e: unknown) => (e as { code?: string }).code;
 
 beforeEach(async () => {
@@ -101,7 +105,7 @@ describe("customer rules", () => {
     await expect(svc.reserve(c, { listingId: l.id, qty: 5, method: "pay_at_pickup" })).resolves.toMatchObject({ kind: "reservation" });
   });
 
-  it("rejects reservation after pickup end and hides the listing", async () => {
+  itDemo("rejects reservation after pickup end and hides the listing", async () => {
     const l = await freshListing({ startMin: 5, endMin: 20 });
     await svc.fastForward(P("u_admin"), 25);
     const [c] = await makeCustomers(1);
@@ -113,19 +117,19 @@ describe("customer rules", () => {
     const l = await freshListing({ qty: 1 });
     const [c] = await makeCustomers(1);
     const o = store.read().outlets.find((x) => x.id === l.outletId)!;
-    expect(svc.discover({ lat: o.lat, lng: o.lng, radiusKm: 5 }).some((x) => x.id === l.id)).toBe(true);
+    expect((await svc.discover({ lat: o.lat, lng: o.lng, radiusKm: 5 })).some((x) => x.id === l.id)).toBe(true);
     await svc.reserve(c, { listingId: l.id, qty: 1, method: "pay_at_pickup" });
-    expect(svc.discover({ lat: o.lat, lng: o.lng, radiusKm: 5 }).some((x) => x.id === l.id)).toBe(false);
+    expect((await svc.discover({ lat: o.lat, lng: o.lng, radiusKm: 5 })).some((x) => x.id === l.id)).toBe(false);
   });
 
   it("filters apply to data", async () => {
     const k = { lat: 12.9352, lng: 77.6245, radiusKm: 25 };
-    const veg = svc.discover({ ...k, diet: "Vegetarian" });
+    const veg = (await svc.discover({ ...k, diet: "Vegetarian" }));
     expect(veg.length).toBeGreaterThan(0);
     expect(veg.every((l) => l.diet === "Vegetarian")).toBe(true);
-    expect(svc.discover({ ...k, category: "Desserts" }).every((l) => l.category === "Desserts")).toBe(true);
-    expect(svc.discover({ ...k, maxPrice: 100 }).every((l) => l.rescuePrice <= 100)).toBe(true);
-    expect(svc.discover({ ...k, q: "biryani" }).every((l) => /biryani/i.test(l.title + l.vendor.businessName + l.category))).toBe(true);
+    expect((await svc.discover({ ...k, category: "Desserts" })).every((l) => l.category === "Desserts")).toBe(true);
+    expect((await svc.discover({ ...k, maxPrice: 100 })).every((l) => l.rescuePrice <= 100)).toBe(true);
+    expect((await svc.discover({ ...k, q: "biryani" })).every((l) => /biryani/i.test(l.title + l.vendor.businessName + l.category))).toBe(true);
   });
 });
 
@@ -197,8 +201,8 @@ describe("vendor rules", () => {
     await expect(freshListing({ vendor: "u_vendor12" })).rejects.toMatchObject({ code: "approval_required" });
   });
 
-  it("pickup codes: wrong vendor fails, reuse fails, success counts impact", async () => {
-    const before = svc.impactSummary().totalUnits;
+  itDemoHash("pickup codes: wrong vendor fails, reuse fails, success counts impact", async () => {
+    const before = (await svc.impactSummary()).totalUnits;
     const r = store.read().reservations.find((x) => x.ref === "SAP-4801")!; // Priya, Crumb & Co., window open
     await expect(svc.handover(P("u_vendor2"), { token: r.qrToken })).rejects.toMatchObject({ code: "wrong_vendor" });
     await expect(svc.handover(P("u_vendor2"), { code: r.code })).rejects.toMatchObject({ code: "code_not_found" });
@@ -206,16 +210,16 @@ describe("vendor rules", () => {
     expect(ok.ref).toBe("SAP-4801");
     await expect(svc.handover(P("u_ravi"), { token: r.qrToken })).rejects.toMatchObject({ code: "code_used" });
     await expect(svc.handover(P("u_ravi"), { code: r.code })).rejects.toMatchObject({ code: "code_used" });
-    expect(svc.impactSummary().totalUnits).toBe(before + r.qty);
+    expect((await svc.impactSummary()).totalUnits).toBe(before + r.qty);
   });
 
-  it("handover outside the window is rejected; reservations do not count as impact", async () => {
+  itDemo("handover outside the window is rejected; reservations do not count as impact", async () => {
     const l = await freshListing({ startMin: 30, endMin: 90 });
     const [c] = await makeCustomers(1);
-    const before = svc.impactSummary().totalUnits;
+    const before = (await svc.impactSummary()).totalUnits;
     const res = await svc.reserve(c, { listingId: l.id, qty: 2, method: "pay_at_pickup" });
     if (res.kind !== "reservation") throw new Error();
-    expect(svc.impactSummary().totalUnits).toBe(before);
+    expect((await svc.impactSummary()).totalUnits).toBe(before);
     const r = store.read().reservations.find((x) => x.id === res.reservationId)!;
     await expect(svc.handover(P("u_ravi"), { code: r.code })).rejects.toMatchObject({ code: "too_early" });
     await svc.fastForward(P("u_admin"), 35);
@@ -281,12 +285,12 @@ describe("donations", () => {
   });
 
   it("vendor verifies donation handover; impact counts it", async () => {
-    const before = svc.impactSummary();
+    const before = (await svc.impactSummary());
     const b = store.read().donationBatches.find((x) => x.status === "Claimed")!;
     const owner = store.read().vendors.find((v) => v.id === b.vendorId)!.ownerId;
     await expect(svc.donationHandover(P(owner), b.id, "0000")).rejects.toMatchObject({ code: "code_mismatch" });
     await svc.donationHandover(P(owner), b.id, b.collectionCode!);
-    const after = svc.impactSummary();
+    const after = (await svc.impactSummary());
     expect(after.ngoUnits).toBe(before.ngoUnits + b.qty);
     expect(after.completedCollections).toBe(before.completedCollections + 1);
   });

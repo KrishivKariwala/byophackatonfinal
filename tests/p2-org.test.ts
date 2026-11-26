@@ -81,8 +81,8 @@ describe("staff and outlet isolation (integration)", () => {
     await expect(svc.setPaused(staffA, la.id, true)).rejects.toMatchObject({ code: "forbidden_role" });
     await expect(svc.cancelListing(staffA, la.id, "no")).rejects.toMatchObject({ code: "forbidden_role" });
     await expect(freshListing({ vendor: staffA.id })).rejects.toMatchObject({ code: "forbidden_role" });
-    expect(() => vend.analyticsFor(staffA, 7)).toThrowError(/role can't/);
-    expect(() => vend.payoutsFor(staffA)).toThrowError(/role can't/);
+    await expect(vend.analyticsFor(staffA, 7)).rejects.toThrowError(/role can't/);
+    await expect(vend.payoutsFor(staffA)).rejects.toThrowError(/role can't/);
     await expect(team.inviteMember(staffA, { contact: "+91 98000 11111", role: "staff", outletId: A.id })).rejects.toMatchObject({ code: "forbidden_role" });
   });
 
@@ -91,7 +91,7 @@ describe("staff and outlet isolation (integration)", () => {
     const lb = await freshListing({ vendor: manager.id, extra: { outletId: B.id } });
     expect(lb.outletId).toBe(B.id);
     await svc.setPaused(manager, lb.id, true);
-    expect(() => vend.payoutsFor(manager)).toThrowError(/role can't/);
+    await expect(vend.payoutsFor(manager)).rejects.toThrowError(/role can't/);
     await expect(team.addOutlet(manager, { address: "x", neighbourhood: "y", lat: 12.9, lng: 77.6 })).rejects.toMatchObject({ code: "forbidden_role" });
     await expect(team.inviteMember(manager, { contact: "mgr2@example.com", role: "manager" })).rejects.toMatchObject({ code: "forbidden_role" });
     await expect(team.inviteMember(manager, { contact: "newstaff@example.com", role: "staff", outletId: A.id })).resolves.toMatchObject({ role: "staff" });
@@ -125,19 +125,19 @@ describe("staff and outlet isolation (integration)", () => {
     const la = await freshListing({ qty: 5, startMin: 1, endMin: 120, extra: { outletId: A.id } });
     const lb = await freshListing({ qty: 5, startMin: 1, endMin: 120, extra: { outletId: B.id } });
     const c = await customer(3); // (its fixture history is already outlet-A pickups, so measure after creating it)
-    const before = team.orgOverview(owner(), 7).rows.find((r) => r.outlet.id === A.id)!.unitsSold;
+    const before = (await team.orgOverview(owner(), 7)).rows.find((r) => r.outlet.id === A.id)!.unitsSold;
     const ra = await onlineOrder(c, la.id);
     const rb = await onlineOrder(c, lb.id, 2);
     await ff(2);
     await svc.handover(owner(), { code: ra.code });
     await svc.handover(owner(), { code: rb.code });
-    const o = team.orgOverview(owner(), 7);
+    const o = (await team.orgOverview(owner(), 7));
     const rowA = o.rows.find((r) => r.outlet.id === A.id)!;
     const rowB = o.rows.find((r) => r.outlet.id === B.id)!;
     expect([rowA.unitsSold - before, rowB.unitsSold]).toEqual([1, 2]);
     expect(o.total.unitsSold).toBe(before + 3);
-    expect(vend.analyticsFor(owner(), 7, B.id).unitsSold).toBe(2);
-    expect(vend.analyticsFor(owner(), 7).unitsSold).toBe(before + 3);
+    expect((await vend.analyticsFor(owner(), 7, B.id)).unitsSold).toBe(2);
+    expect((await vend.analyticsFor(owner(), 7)).unitsSold).toBe(before + 3);
   });
 });
 
@@ -148,7 +148,7 @@ describe("staff invites", () => {
     const stranger = await svc.createAccount({ name: "Stranger Two", phone: "+91 90000 79999", role: "vendor" });
     const right = await svc.createAccount({ name: "Right Person", phone, role: "vendor" });
     const inv = await team.inviteMember(owner(), { contact: phone, role: "staff", outletId: A.id });
-    expect(team.previewInvite(inv.token)).toMatchObject({ business: expect.any(String), role: "staff", state: "open" });
+    expect((await team.previewInvite(inv.token))).toMatchObject({ business: expect.any(String), role: "staff", state: "open" });
     await expect(team.acceptInvite(P(stranger.id), inv.token)).rejects.toMatchObject({ code: "invite_wrong_number" });
     await expect(team.acceptInvite(P(right.id), "not-a-token")).rejects.toMatchObject({ code: "invite_invalid" });
     await team.acceptInvite(P(right.id), inv.token);

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requirePage } from "@/lib/guard";
-import { read, now } from "@/lib/store";
+import { readDb, now } from "@/lib/store";
 import { ListingForm } from "../../ListingForm";
 import { vendorScope } from "@/lib/p2/scope";
 import { cfg } from "@/lib/p2/settings";
@@ -16,7 +16,7 @@ export default async function EditListing({ params }: { params: Promise<{ id: st
   const me = await requirePage("vendor");
   const { t } = await getT();
   const { id } = await params;
-  const db = read();
+  const db = await readDb();
   const scope = await vendorScope(me);
   const l = db.listings.find((x) => x.id === id && x.vendorId === scope.ctx?.vendor.id && scope.scopeIds.includes(x.outletId));
   if (!l || !scope.can("listing.write")) notFound();

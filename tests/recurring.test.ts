@@ -89,7 +89,7 @@ describe("recurring listings", () => {
     const now = store.now();
     await setup(hhmm(now + 40 * 60_000), 60);
     await ff(0);
-    const titles = svc.discover({ lat: 12.9352, lng: 77.6245, radiusKm: 25 }).map((l) => l.title);
+    const titles = (await svc.discover({ lat: 12.9352, lng: 77.6245, radiusKm: 25 })).map((l) => l.title);
     const tpl = store.read().templates.find((x) => x.vendorId === "v_1")!;
     expect(titles).toContain(tpl.title);
   });
