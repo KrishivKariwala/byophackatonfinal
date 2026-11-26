@@ -180,6 +180,22 @@ Extra environment variables: `DELIVERY_PROVIDER` (`mock` default | `dunzo` | `po
 
 Notes for this demo build: Vercel's project folder is read-only, so on Vercel the demo data is kept in the temp directory. It is seeded on first request and **resets whenever Vercel starts a fresh instance**, and different instances do not share data. That is fine for a demo and not for real use: production needs the Supabase adapter (see the issue backlog). If `SESSION_SECRET` is missing the demo still runs on a public fallback and logs a warning.
 
+## Database (Supabase)
+
+The demo runs on a JSON file. The real database lives in `supabase/migrations/`: `0001_init.sql`, `0002_p1.sql`, `0003_p2.sql` (+ `.down.sql` for the last two). They have been run on a real Supabase Postgres and tested (see below). **The app itself still uses the demo store until #14 is done.**
+
+1. Create a Supabase project and put its values in `.env.local` (names in `.env.example`; never commit them). For `SUPABASE_DB_URL` use the **Session pooler** URI from *Connect*: the "Direct connection" address needs IPv6 and fails on many networks.
+2. Project setting "Grant API access to new tables automatically" stays **off** (new tables are closed to the public API until opened on purpose) and "Enable RLS on new tables automatically" **on**.
+
+```bash
+npm run db:migrate     # apply every migration that has not run yet (each file in one transaction, remembered in public.schema_migrations)
+npm run db:status      # what has run
+npm run db:rollback -- 0003_p2   # undo the newest one with its .down.sql
+npm run db:inspect     # read-only: tables, row-level security, policies, functions
+npm run db:roundtrip   # proves each rollback restores the schema exactly and the migration applies again identically
+npm run db:rls         # row-level-security tests against the real database (data rolled back)
+```
+
 ## Commands
 
 ```bash

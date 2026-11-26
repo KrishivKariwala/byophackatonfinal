@@ -1,6 +1,5 @@
 -- Reverses 0003_p2.sql. Run only after exporting any data you want to keep: every P2 table is dropped.
 -- Restores the P0/P1 owner-scoped vendor policies. Enum types are dropped with their tables.
-drop function if exists process_p2_jobs(), next_receipt_number(), flag_on(text), is_org_admin(uuid), my_outlet_ids(), my_vendor_ids();
 
 drop policy if exists outlet_org_write on outlets;
 drop policy if exists listings_member_read on listings;
@@ -23,8 +22,11 @@ alter table reviews drop column hidden;
 alter table reservations drop column credit_applied, drop column eta_minutes, drop column eta_updated_at;
 alter table checkout_holds drop column credit_applied;
 alter table listing_templates drop column priority_minutes;
-alter table listings drop column priority_minutes, drop column public_visible_at, drop column initial_rescue_price, drop column moderation_note;
+alter table listings drop column priority_minutes, drop column public_visible_at, drop column public_notified_at, drop column initial_rescue_price, drop column moderation_note;
 alter table ngos drop column registration_number, drop column eighty_g_number, drop column eighty_g_valid_until;
 alter table outlets drop column name, drop column hours;
+
+-- the helper functions go last: the policies that use them are dropped above (and with the tables)
+drop function if exists process_p2_jobs(), next_receipt_number(), flag_on(text), is_org_admin(uuid), my_outlet_ids(), my_vendor_ids();
 
 drop type if exists moderation_action_type, moderation_target, delivery_status, credit_entry_type, referral_status, org_role;

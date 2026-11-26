@@ -6,7 +6,9 @@
 -- STATUS: written like 0001 as the production boundary; the demo adapter (lib/services.ts, lib/p1.ts, lib/jobs.ts)
 -- implements the same rules and is what the automated tests exercise.
 
-create extension if not exists postgis;
+-- Supabase keeps extensions out of the public schema (a PostGIS table there would be reachable through the API). The default
+-- search_path includes `extensions`, so st_* and geography resolve without a prefix.
+create extension if not exists postgis with schema extensions;
 
 -- ---------------------------------------------------------------- enums
 alter type reservation_status add value if not exists 'No-show';
