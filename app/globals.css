@@ -18,11 +18,17 @@
    falls through to these (see fontFamily in tailwind.config.ts). Fontsource splits them by unicode-range, so they are only
    downloaded when a page actually contains Hindi or Kannada text. */
 @import "@fontsource/noto-sans-devanagari/400.css";
+@import "@fontsource/noto-sans-devanagari/500.css";
 @import "@fontsource/noto-sans-devanagari/600.css";
 @import "@fontsource/noto-sans-devanagari/700.css";
+@import "@fontsource/noto-sans-devanagari/800.css";
+@import "@fontsource/noto-sans-devanagari/900.css";
 @import "@fontsource/noto-sans-kannada/400.css";
+@import "@fontsource/noto-sans-kannada/500.css";
 @import "@fontsource/noto-sans-kannada/600.css";
 @import "@fontsource/noto-sans-kannada/700.css";
+@import "@fontsource/noto-sans-kannada/800.css";
+@import "@fontsource/noto-sans-kannada/900.css";
 
 @tailwind base;
 @tailwind components;
@@ -33,6 +39,23 @@
   body { @apply bg-canvas text-ink font-sans antialiased; }
   :focus-visible { outline: 3px solid #CB0001; outline-offset: 2px; }
 }
+
+/*
+ * Hindi and Kannada. In English the weight comes from Inter (600 to 800) and, for the big headings, Bagel Fat One, a very heavy
+ * face. Neither has Hindi or Kannada letters, so the browser used Noto Sans for them, and that looks much lighter at the same weight
+ * number (and the display headings fell back to REGULAR, because they ask for weight 400 and Bagel itself does the bolding). So in
+ * these two languages: every weight goes one step up, the display headings use Black, the taller scripts get more line height (the
+ * headline used 0.95 and each word sits in a box that hides overflow, which cut off the tops of the letters and the dots and commas),
+ * and letter-spacing is switched off (spacing the letters of an Indic script breaks the joins between them).
+ */
+:is(:lang(hi), :lang(kn)) .font-medium, :is(:lang(hi), :lang(kn)) .input { font-weight: 600; }
+:is(:lang(hi), :lang(kn)) .font-semibold, :is(:lang(hi), :lang(kn)) .btn, :is(:lang(hi), :lang(kn)) .chip,
+:is(:lang(hi), :lang(kn)) .label, :is(:lang(hi), :lang(kn)) .eyebrow { font-weight: 700; }
+:is(:lang(hi), :lang(kn)) .font-bold, :is(:lang(hi), :lang(kn)) .editorial, :is(:lang(hi), :lang(kn)) b, :is(:lang(hi), :lang(kn)) strong { font-weight: 800; }
+:is(:lang(hi), :lang(kn)) .font-extrabold, :is(:lang(hi), :lang(kn)) .page-title, :is(:lang(hi), :lang(kn)) .stat-num, :is(:lang(hi), :lang(kn)) .display { font-weight: 900; }
+:is(:lang(hi), :lang(kn)) .display { line-height: 1.3; }
+:is(:lang(hi), :lang(kn)) :where(h1, h2, h3, h4, .page-title, .editorial) { line-height: 1.3; }
+:is(:lang(hi), :lang(kn)) * { letter-spacing: 0 !important; }
 
 @layer components {
   .tile { transition: transform .25s cubic-bezier(.2,.9,.3,1.3), box-shadow .25s ease; }
