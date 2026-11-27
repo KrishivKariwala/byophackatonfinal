@@ -77,6 +77,7 @@ export default async function VendorHome() {
           {approved ? (
             <>
               {canList && <Link href="/v/new" className="btn-primary !px-6 !py-4 text-base"><Plus size={20} aria-hidden="true" />{t("nav.quickList")}</Link>}
+              {canList && (process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV !== "production") && <Link href="/v/kitchen" className="btn-outline !px-6 !py-4 text-base">3D kitchen (test)</Link>}
               <Link href="/v/scan" className="btn-outline !px-6 !py-4 text-base"><ScanLine size={20} aria-hidden="true" />{t("nav.scan")}</Link>
             </>
           ) : null}
