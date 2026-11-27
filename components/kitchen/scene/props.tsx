@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { COUNTER_OUT, COUNTER_TOP, DEG, DISH_R, DISH_TH, polar } from "./constants";
 import { useMats } from "./materials";
+import { useFx } from "./quality";
 
 /** Props with a purpose: the ingredients of each dish stand behind it, and the kitchen is busy (fire, steam, a turning spit, a ticking clock). */
 const at = (r: number, th: number, y: number): [number, number, number] => { const [x, z] = polar(r, th); return [x, y, z]; };
@@ -68,7 +69,9 @@ function Pot({ p, r = 0.15, h = 0.2, copper = true, content = "#6b3a1e", steam =
 }
 
 /** the soft white puffs that rise from hot things */
-export function Puffs({ origin, count, height, size, spread = 0.08, opacity = 0.22 }: { origin: [number, number, number]; count: number; height: number; size: number; spread?: number; opacity?: number }) {
+type PuffsProps = { origin: [number, number, number]; count: number; height: number; size: number; spread?: number; opacity?: number };
+export function Puffs(p: PuffsProps) { return useFx() ? <PuffsImpl {...p} /> : null; }
+function PuffsImpl({ origin, count, height, size, spread = 0.08, opacity = 0.22 }: PuffsProps) {
   const m = useMats();
   const geo = useMemo(() => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(count * 3), 3)); return g; }, [count]);
   useFrame(({ clock }) => {
@@ -84,7 +87,8 @@ export function Puffs({ origin, count, height, size, spread = 0.08, opacity = 0.
 }
 
 /** orange sparks jumping off the hot grill */
-export function Sparks({ origin, width }: { origin: [number, number, number]; width: number }) {
+export function Sparks(p: { origin: [number, number, number]; width: number }) { return useFx() ? <SparksImpl {...p} /> : null; }
+function SparksImpl({ origin, width }: { origin: [number, number, number]; width: number }) {
   const geo = useMemo(() => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(18 * 3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(18 * 3), 3)); return g; }, []);
   useFrame(({ clock }) => {
     const t = clock.elapsedTime, pos = geo.attributes.position as THREE.BufferAttribute, col = geo.attributes.color as THREE.BufferAttribute;
@@ -99,7 +103,8 @@ export function Sparks({ origin, width }: { origin: [number, number, number]; wi
 }
 
 /** dust floating in the light */
-export function Dust() {
+export function Dust() { return useFx() ? <DustImpl /> : null; }
+function DustImpl() {
   const geo = useMemo(() => { const g = new THREE.BufferGeometry(); const n = 70; const a = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const r = 1.6 + ((i * 53) % 37) / 10; const th = ((i * 97) % 360) * DEG; a[i * 3] = Math.sin(th) * r; a[i * 3 + 1] = 0.7 + ((i * 31) % 20) / 9; a[i * 3 + 2] = -Math.cos(th) * r; } g.setAttribute("position", new THREE.BufferAttribute(a, 3)); return g; }, []);
   const base = useMemo(() => Float32Array.from(geo.attributes.position.array as Float32Array), [geo]);
   useFrame(({ clock }) => {
@@ -111,7 +116,9 @@ export function Dust() {
 }
 
 /** a soft cone of light under a lamp */
-export function LightCone({ p, h = 1.6, r = 0.8, color = "#ffc875", opacity = 0.12 }: { p: [number, number, number]; h?: number; r?: number; color?: string; opacity?: number }) {
+type ConeProps = { p: [number, number, number]; h?: number; r?: number; color?: string; opacity?: number };
+export function LightCone(c: ConeProps) { return useFx() ? <LightConeImpl {...c} /> : null; }
+function LightConeImpl({ p, h = 1.6, r = 0.8, color = "#ffc875", opacity = 0.12 }: ConeProps) {
   const tex = useMemo(() => { const c = document.createElement("canvas"); c.width = 4; c.height = 64; const g = c.getContext("2d")!; const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillRect(0, 0, 4, 64); return new THREE.CanvasTexture(c); }, []);
   return <mesh position={[p[0], p[1] - h / 2, p[2]]}><cylinderGeometry args={[0.12, r, h, 24, 1, true]} /><meshBasicMaterial map={tex} color={color} transparent opacity={opacity} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} /></mesh>;
 }

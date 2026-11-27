@@ -3,10 +3,11 @@ import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { PerformanceMonitor, useTexture } from "@react-three/drei";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, memo, useEffect, useMemo, useRef, useState } from "react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { AISLE_R, COUNTER_IN, COUNTER_OUT, COUNTER_TOP, DEG, DISH_R, DISH_TH, DOOR_TH, EYE, FOCUS_LEAD, FOCUS_R, ISLAND_R, ROOM_R, WALL_H, lerp, lerpAngle, pForDish, pathTheta, polar, smoothstep, type WalkApi } from "./constants";
 import * as TX from "./textures";
+import { QualityCtx, pickDpr, useFx } from "./quality";
 import { MatsProvider, useBuildMats, useMats } from "./materials";
 import { Dust, Fan, HangingStrings, LightCone, Oven, Press, Puffs, Sparks, Stations, WallClock } from "./props";
 
@@ -264,7 +265,9 @@ function Dish({ index, dish, focused, onTap, onPlate, onHover }: { index: number
 }
 
 // ---------------------------------------------------------------- steam: a few soft puffs rising and fading
-function Steam({ count, height, spread, size, opacity, origin, axis = "y" }: { count: number; height: number; spread: number; size: number; opacity: number; origin: [number, number, number]; axis?: "y" | "z" }) {
+type SteamProps = { count: number; height: number; spread: number; size: number; opacity: number; origin: [number, number, number]; axis?: "y" | "z" };
+function Steam(p: SteamProps) { return useFx() ? <SteamImpl {...p} /> : null; }
+function SteamImpl({ count, height, spread, size, opacity, origin, axis = "y" }: SteamProps) {
   const soft = useMemo(() => TX.softTexture(), []);
   const geo = useMemo(() => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(count * 3), 3)); return g; }, [count]);
   const seeds = useMemo(() => Array.from({ length: count }, (_, i) => ({ o: i / count, a: (i * 2.399) % 6.283, s: 0.7 + ((i * 37) % 10) / 22 })), [count]);
@@ -440,27 +443,79 @@ function World(p: SceneProps) {
   );
 }
 
-function Ready({ onReady }: { onReady: () => void }) { useEffect(() => { onReady(); }, [onReady]); return null; }
+/**
+ * Warm-up. WebGL does its first-time work lazily: compiling a shader, decoding and uploading a texture, sending a model to the graphics card,
+ * all the first time something comes into view. Each is a freeze of 50 to 150 ms in the middle of the walk. So do it all now, while the door is
+ * still closed: compile every shader, then draw the whole kitchen once, ignoring what is in view. Only then is the kitchen "ready".
+ */
+function Warmup({ onDone }: { onDone: () => void }) {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      try { await gl.compileAsync(scene, camera); } catch { gl.compile(scene, camera); }
+      if (off) return;
+      const culled: THREE.Object3D[] = [];
+      scene.traverse((o) => { if (o.frustumCulled) { culled.push(o); o.frustumCulled = false; } });
+      gl.render(scene, camera);
+      culled.forEach((o) => { o.frustumCulled = true; });
+      onDone();
+    })();
+    return () => { off = true; };
+  }, [gl, scene, camera, onDone]);
+  return null;
+}
 
-export default function KitchenScene(p: SceneProps) {
+/** numbers for the measuring script (scripts/perf-kitchen.ts): draw calls, triangles, textures, the sharpness in use */
+function PerfProbe({ info }: { info: { dpr: number; fx: boolean } }) {
+  const gl = useThree((s) => s.gl);
+  const uploads = useRef(0);
+  useEffect(() => {
+    const ctx = gl.getContext() as WebGL2RenderingContext;
+    const wrap = (name: "texImage2D" | "texSubImage2D" | "texStorage2D") => { const orig = (ctx[name] as (...a: unknown[]) => unknown).bind(ctx); (ctx as unknown as Record<string, unknown>)[name] = (...a: unknown[]) => { uploads.current++; return orig(...a); }; };
+    wrap("texImage2D"); wrap("texSubImage2D");
+    (window as unknown as { __kitchen?: unknown }).__kitchen = () => ({ uploads: uploads.current, calls: gl.info.render.calls, triangles: gl.info.render.triangles, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, programs: gl.info.programs?.length ?? 0, pixelRatio: gl.getPixelRatio(), canvas: [gl.domElement.width, gl.domElement.height], dpr: info.dpr, fx: info.fx, renderer: (gl.getContext().getParameter(gl.getContext().RENDERER) as string) });
+  }, [gl, info]);
+  return null;
+}
+
+function KitchenSceneInner(p: SceneProps) {
   const { theme, api } = p;
-  // sharpness follows the device: start high, step down when frames get slow, step back up when there is room (?dpr=0.5 forces it, for testing)
-  const forced = typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("dpr")) || 0 : 0;
-  const [dpr, setDpr] = useState(forced || Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1));
+  // The page around the scene re-renders often (hover, scroll hints, the cart). The scene must not: hand it handlers that never change.
+  const live = useRef(p); live.current = p;
+  const stable = useMemo(() => ({
+    onTap: (i: number) => live.current.onTap(i), onPlate: (i: number) => live.current.onPlate(i), onAutoFocus: (i: number) => live.current.onAutoFocus(i),
+    onUnfocus: () => live.current.onUnfocus(), onHover: (i: number | null) => live.current.onHover(i), onReady: () => live.current.onReady(),
+  }), []);
+  const sceneProps = useMemo(() => ({ theme: p.theme, api: p.api, tags: p.tags, fontsReady: p.fontsReady, portrait: p.portrait, paused: p.paused, eventSource: p.eventSource, ...stable }), [p.theme, p.api, p.tags, p.fontsReady, p.portrait, p.paused, p.eventSource, stable]);
+  // Sharpness follows the device. The start is a pixel budget (a Retina laptop screen at full sharpness is four times the work for little gain
+  // in a moving scene); when frames still run slow, step the sharpness down, and then switch the see-through effects off.
+  // ?dpr=1 and ?fx=0 force a setting, for testing.
+  const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const forcedDpr = Number(q?.get("dpr")) || 0, forcedFx = q?.get("fx");
+  const base = useMemo(() => forcedDpr || (typeof window === "undefined" ? 1 : pickDpr(window.innerWidth, window.innerHeight, window.matchMedia("(pointer: coarse)").matches)), [forcedDpr]);
+  const [dpr, setDpr] = useState(base);
+  const [fx, setFx] = useState(forcedFx !== "0");
+  const adapt = !forcedDpr && forcedFx == null;
+  const probe = useMemo(() => ({ dpr, fx }), [dpr, fx]);
   return (
     <Canvas frameloop={p.paused ? "never" : "always"} dpr={dpr} camera={{ fov: 58, near: 0.08, far: 40, position: [0, EYE, 0] }} gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
-      style={{ position: "absolute", inset: 0 }} eventSource={p.eventSource as React.RefObject<HTMLElement>} eventPrefix="client" aria-hidden="true">
-      <color attach="background" args={[theme.colors.ink]} />
-      <fogExp2 attach="fog" args={[theme.colors.ink, 0.05]} />
-      {!forced && <PerformanceMonitor flipflops={3} onDecline={() => setDpr((d) => Math.max(1, d - 0.25))} onIncline={() => setDpr((d) => Math.min(2, d + 0.25))} />}
-      <Env />
-      <Lights api={api} />
-      <TapPosition />
-      <Suspense fallback={null}>
-        <World {...p} />
-        <Ready onReady={p.onReady} />
-      </Suspense>
-    </Canvas>
+        style={{ position: "absolute", inset: 0 }} eventSource={p.eventSource as React.RefObject<HTMLElement>} eventPrefix="client" aria-hidden="true">
+        <QualityCtx.Provider value={{ fx }}>
+        <color attach="background" args={[theme.colors.ink]} />
+        <fogExp2 attach="fog" args={[theme.colors.ink, 0.05]} />
+        {adapt && <PerformanceMonitor flipflops={4} bounds={(hz) => [hz * 0.7, hz * 0.93]} onDecline={() => { if (dpr > 1.01) setDpr((d) => Math.max(1, d - 0.25)); else setFx(false); }} onIncline={() => { if (!fx) setFx(true); else setDpr((d) => Math.min(base, d + 0.25)); }} />}
+        <PerfProbe info={probe} />
+        <Env />
+        <Lights api={api} />
+        <TapPosition />
+        <Suspense fallback={null}>
+          <World {...sceneProps} />
+          <Warmup onDone={stable.onReady} />
+        </Suspense>
+        </QualityCtx.Provider>
+      </Canvas>
   );
 }
 
+export default memo(KitchenSceneInner, (a, b) => a.theme === b.theme && a.api === b.api && a.tags === b.tags && a.fontsReady === b.fontsReady && a.portrait === b.portrait && a.paused === b.paused && a.eventSource === b.eventSource);

@@ -36,6 +36,9 @@ export function useBuildMats(theme: KitchenTheme): Mats {
     stC: `${T}steel-c.webp`, stN: `${T}steel-n.webp`, stR: `${T}steel-r.webp`,
     muA: "/kitchen/paris-panini/mural-a.webp", muB: "/kitchen/paris-panini/mural-b.webp",
   });
+  // useTexture hands back a NEW object on every render; depending on that object rebuilt every material (and re-uploaded every texture) on each
+  // re-render of the page, e.g. whenever the pointer moved onto a dish. Depend on the textures themselves instead.
+  const loaded = Object.values(tex);
   return useMemo(() => {
     const { brand, brandDark, cream } = theme.colors;
     const floor = new THREE.MeshStandardMaterial({ map: prep(tex.tzC, [7, 7], true), normalMap: prep(tex.tzN, [7, 7], false), roughnessMap: prep(tex.tzR, [7, 7], false), roughness: 0.55, metalness: 0.0 });
@@ -56,5 +59,6 @@ export function useBuildMats(theme: KitchenTheme): Mats {
     const copper = new THREE.MeshStandardMaterial({ color: "#b8683a", metalness: 0.9, roughness: 0.32 });
     const murals = [tex.muA, tex.muB].map((m) => new THREE.MeshStandardMaterial({ map: prep(m, [1, 1], true, 0, true), roughness: 0.95, side: THREE.BackSide }));
     return { floor, marble, pine, pineWall, counter, steel, steelDark, brick, blueTile, ceiling, plaster, copper, murals, rattan: TX.caneTexture(), bread: TX.breadTexture(), soft: TX.softTexture() };
-  }, [tex, theme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, ...loaded]);
 }

@@ -65,7 +65,7 @@ export function CartSheet({ theme, cart, outlet, outlets, serverNow, t0, onQty, 
   };
 
   return (
-    <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/50 backdrop-blur-[2px] sm:items-center sm:p-4 k-pop" role="dialog" aria-modal="true" aria-label={t("kitchen.cart.title")}>
+    <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/50 sm:items-center sm:p-4 k-pop" role="dialog" aria-modal="true" aria-label={t("kitchen.cart.title")}>
       <section className="k-rise relative flex max-h-[94svh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] border-[3px] sm:rounded-[28px]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>
         <header className="flex items-center justify-between gap-3 px-5 pb-2 pt-4">
           <div><h2 className="k-display text-[1.7rem] leading-none" style={{ color: "var(--k-brand)" }}>{done ? t("kitchen.done") : t("kitchen.cart.title")}</h2>

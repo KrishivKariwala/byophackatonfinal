@@ -243,7 +243,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
         </div>
       )}
       {(phase === "walk" || phase === "list") && (
-        <button type="button" onClick={() => setCredits(true)} className="absolute bottom-[84px] right-3 z-20 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-bold text-white/85 backdrop-blur hover:bg-black/55 sm:bottom-4">{t("kitchen.credits")}</button>
+        <button type="button" onClick={() => setCredits(true)} className="absolute bottom-[84px] right-3 z-20 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-bold text-white/85 hover:bg-black/55 sm:bottom-4">{t("kitchen.credits")}</button>
       )}
       {toast && <p role="status" className="k-pop absolute left-1/2 top-20 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-xl" style={{ background: "#1a8f3c" }}><Check size={16} aria-hidden="true" />{toast}</p>}
 

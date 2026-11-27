@@ -176,7 +176,7 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
         </div>
       </div>
 
-      <button type="button" className="k-skip rounded-full bg-black/40 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white/90 backdrop-blur hover:bg-black/55" onClick={onSkip}>{t("kitchen.door.skip")}</button>
+      <button type="button" className="k-skip rounded-full bg-black/40 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white/90 hover:bg-black/55" onClick={onSkip}>{t("kitchen.door.skip")}</button>
       <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <button ref={btn} type="button" onClick={pushOpen} className="k-plate k-display pointer-events-auto relative inline-flex min-h-[56px] items-center gap-3 whitespace-nowrap rounded-full px-7 text-[clamp(1.1rem,4.4vw,1.5rem)] leading-none" style={{ willChange: "transform, opacity" }}>
           <ArrowUp size={22} strokeWidth={3} aria-hidden="true" className="k-push-arrow" />{t("kitchen.door.enter")}
