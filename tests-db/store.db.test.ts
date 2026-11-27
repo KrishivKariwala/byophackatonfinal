@@ -47,4 +47,14 @@ describe("the Postgres store holds the same data the demo store does", () => {
     }
     expect(problems).toEqual([]);
   });
+  it("a donation-only listing (rescue price 0, never sold) can be saved and read back", async () => {
+    // Live bug: the database refused these with listings_rescue_price_check, so Publish on a donation-only listing said "Something went wrong".
+    const seed = buildSeed(Date.now());
+    const l = seed.listings[0];
+    seed.listings.push({ ...l, id: "l_donation_only", title: "Donation tray", rescuePrice: 0, donationOnly: true, qtyAvailable: 0, status: "Sold Out" } as any);
+    await resetStore(seed);
+    const back = (await readDb()).listings.find((x) => x.title === "Donation tray");
+    expect(back?.donationOnly).toBe(true);
+    expect(back?.rescuePrice).toBe(0);
+  });
 });
