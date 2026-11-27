@@ -16,6 +16,7 @@ import { OutletSwitcher } from "@/components/p2";
 import { getT } from "@/lib/i18n/server";
 import { boardEta } from "@/lib/p2/eta";
 import { statusLabel, tOr } from "@/components/i18n-helpers";
+import { kitchenEnabled } from "@/lib/kitchen-themes";
 
 // profileCompleteness() returns English field names; map them to catalog keys for display.
 const MISSING_KEYS: Record<string, string> = { "FSSAI number": "fssai", Address: "address", "Map location (lat/lng)": "map", "Operating hours": "hours", "Payout UPI": "upi", Logo: "logo" };
@@ -77,7 +78,7 @@ export default async function VendorHome() {
           {approved ? (
             <>
               {canList && <Link href="/v/new" className="btn-primary !px-6 !py-4 text-base"><Plus size={20} aria-hidden="true" />{t("nav.quickList")}</Link>}
-              {canList && (process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV !== "production") && <Link href="/v/kitchen" className="btn-outline !px-6 !py-4 text-base">3D kitchen (test)</Link>}
+              {canList && kitchenEnabled() && <Link href="/v/kitchen" className="btn-outline !px-6 !py-4 text-base">3D kitchen (test)</Link>}
               <Link href="/v/scan" className="btn-outline !px-6 !py-4 text-base"><ScanLine size={20} aria-hidden="true" />{t("nav.scan")}</Link>
             </>
           ) : null}

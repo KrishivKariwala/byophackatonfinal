@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { readDb } from "@/lib/store";
 import { getActor } from "@/lib/session";
-import { HOME, SELF_ROLES, SKIP_PERSONA, type SelfRole } from "@/lib/auth";
+import { SELF_ROLES, SKIP_PERSONA, homeFor, type SelfRole } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { RoleSignIn } from "@/components/RoleSignIn";
 import { SignInClient } from "./SignInClient";
@@ -33,7 +33,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   if (role) {
     const actor = await getActor();
     const next = /^\/join\/[\w-]{10,}$/.test(sp.next ?? "") ? sp.next! : undefined; // only invite links may be returned to
-    if (actor && actor.role === role && !sp.switch) redirect(next ?? HOME[role]); // already signed in on this side: go straight there
+    if (actor && actor.role === role && !sp.switch) redirect(next ?? homeFor(db, actor)); // already signed in on this side: go straight there
     const skip = label(pid(SKIP_PERSONA[role]));
     const skipName = skip.org ? `${skip.name.split(" (")[0]} · ${skip.org}` : skip.name.split(" (")[0];
     return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} refCode={/^[A-Za-z0-9]{4,16}$/.test(sp.ref ?? "") ? sp.ref!.toUpperCase() : undefined} />;

@@ -1,64 +1,98 @@
 /**
- * A restaurant "kitchen theme": the colours, signage, outlets and a starter menu that dress the 3D kitchen walk-through for one brand.
- * The walk-through itself (components/kitchen) is generic; a new restaurant is a new entry here. Prototype data: the menu below is a
- * demo subset (five dishes per station) and the brand is shown as a DEMO.
+ * A restaurant "kitchen theme": the look, the dishes and the outlets that dress the 3D kitchen for one brand. The experience itself
+ * (components/kitchen) is generic; a new restaurant is a new entry here. Every restaurant brings its OWN look (colours, fonts, door,
+ * cursor), kept apart from the marketplace's look on purpose.
+ *
+ * DEMO DATA: the dishes below are real items from the Paris Panini menu, but the photos are representative stock photos from
+ * Wikimedia Commons (CC0 / CC BY / CC BY-SA, credited in the app), NOT photos of this restaurant's own food. The brand is shown as a DEMO.
  */
-export interface KitchenItem { id: string; name: string; about: string; veg: boolean; half?: number; full: number; mustTry?: boolean }
-export interface KitchenStation { id: string; title: string; subtitle: string; items: KitchenItem[] }
-export interface KitchenOutlet { id: string; name: string; address: string }
+export interface KitchenPhoto { src: string; title: string; author: string; license: string; licenseUrl: string; source: string }
+export interface KitchenDish {
+  id: string;
+  /** i18n keys under "kitchen.dish.*" (names of the wraps are translated; the French first names are kept as they are) */
+  nameKey: string; aboutKey: string;
+  veg: boolean;
+  /** menu price in whole rupees (full portion): the "original price" of the listing */
+  full: number; half?: number;
+  mustTry?: boolean;
+  category: "Meals" | "Snacks" | "Bakery" | "Desserts";
+  /** allergens that this recipe normally contains (the vendor can change them before listing) */
+  allergens: string[];
+  /** square, plate-shaped crop of photos[0], used on the 3D plate in the kitchen */
+  plate: string;
+  /** every reference photo; the viewer lets people click through them */
+  photos: KitchenPhoto[];
+}
+export interface KitchenOutlet { id: string; name: string }
 export interface KitchenTheme {
   id: string; brand: string; tagline: string;
-  colors: { brand: string; brandDark: string; accent: string; cream: string; wood: string; ink: string };
+  colors: { brand: string; brandDark: string; accent: string; cream: string; wood: string; ink: string; brass: string };
   outlets: KitchenOutlet[];
-  stations: KitchenStation[];
+  dishes: KitchenDish[];
 }
+
+const CC0 = "http://creativecommons.org/publicdomain/zero/1.0/deed.en";
+const BY2 = "https://creativecommons.org/licenses/by/2.0";
+const BYSA2 = "https://creativecommons.org/licenses/by-sa/2.0";
+const BYSA4 = "https://creativecommons.org/licenses/by-sa/4.0";
+const W = "https://commons.wikimedia.org/wiki/File:";
+const D = "/kitchen/paris-panini";
+const photo = (id: string, title: string, author: string, license: string, licenseUrl: string, file: string): KitchenPhoto => ({ src: `${D}/${id}.webp`, title, author, license, licenseUrl, source: W + file });
 
 export const PARIS_PANINI: KitchenTheme = {
   id: "paris-panini",
   brand: "Paris Panini (Demo)",
   tagline: "gourmet sandwiches & wraps",
-  colors: { brand: "#2a3a9e", brandDark: "#1b2670", accent: "#d92b2b", cream: "#f6efe0", wood: "#d6a566", ink: "#12163a" },
+  colors: { brand: "#2a3a9e", brandDark: "#141c52", accent: "#d92b2b", cream: "#f6efe0", wood: "#d6a566", ink: "#0d1033", brass: "#c9a24b" },
   outlets: [
-    { id: "indiranagar", name: "Indiranagar", address: "12th Main, HAL 2nd Stage, Indiranagar, Bengaluru" },
-    { id: "sanjay-nagar", name: "Sanjay Nagar", address: "4th Cross, 80 Feet Rd, RMV 2nd Stage, Bengaluru" },
+    { id: "indiranagar", name: "Indiranagar" },
+    { id: "sanjay-nagar", name: "Sanjay Nagar" },
   ],
-  stations: [
-    { id: "veg-paninis", title: "Panini, vegetarian", subtitle: "Baked daily in our kitchen · classic or multigrain", items: [
-      { id: "laura", name: "Laura", about: "Fresh mozzarella, sun-dried tomatoes, fresh and creamy basil pesto", veg: true, half: 195, full: 300 },
-      { id: "julie", name: "Julie", about: "Herbed paneer, bell pepper, mozzarella, creamy pesto, onion rings", veg: true, half: 225, full: 380 },
-      { id: "estelle", name: "Estelle", about: "Ratatouille, fresh mozzarella, jalapeno, olive tapenade", veg: true, half: 205, full: 320 },
-      { id: "colette", name: "Colette", about: "Roasted mushrooms, ratatouille, fresh basil pesto", veg: true, half: 195, full: 300 },
-      { id: "sophie", name: "Sophie", about: "Marinated olives, feta, cucumber, fried onions, sriracha aioli", veg: true, half: 195, full: 300 },
-    ] },
-    { id: "nonveg-paninis", title: "Panini, non veg", subtitle: "Every panini comes half or full", items: [
-      { id: "mathieu", name: "Mathieu", about: "Chicken dipped in a french gravy sauce, onion rings, lettuce, sliced onions, garlic aioli", veg: false, half: 235, full: 390, mustTry: true },
-      { id: "hugo", name: "Hugo", about: "Fried chicken, fresh mozzarella, sun-dried tomatoes, basil and sriracha aioli", veg: false, half: 235, full: 390 },
-      { id: "michel", name: "Michel", about: "Peri peri chicken, fresh mozzarella, sliced onions, garlic aioli", veg: false, half: 225, full: 350 },
-      { id: "aime", name: "Aimé", about: "Peri peri chicken, red paprika, chunky chilli, onions, garlic aioli", veg: false, half: 225, full: 350 },
-      { id: "patrick", name: "Patrick", about: "Mustard chicken, hard boiled egg, fried onions, basil aioli", veg: false, half: 225, full: 350 },
-    ] },
-    { id: "wraps", title: "Grilled wraps", subtitle: "Veg and non veg, pressed to order", items: [
-      { id: "roasted-veggies", name: "Roasted Veggies & Mozzarella", about: "Ratatouille, mozzarella, jalapeno, lettuce, olive tapenade", veg: true, full: 250 },
-      { id: "herbed-paneer", name: "Herbed Paneer & Bell Pepper", about: "Herbed paneer, bell pepper, mozzarella, creamy pesto, onion rings", veg: true, full: 250 },
-      { id: "french-dipped", name: "French Dipped Chicken", about: "Chicken dipped in a french roast gravy, onion rings, lettuce, garlic aioli", veg: false, full: 270, mustTry: true },
-      { id: "peri-peri", name: "Peri-Peri Chicken & Mozzarella", about: "Peri peri chicken, fresh mozzarella, sliced onions, lettuce, garlic aioli", veg: false, full: 260 },
-      { id: "lamb-aioli", name: "Lamb & Aioli", about: "Crumbled lamb, red paprika, onion, jalapeno, lettuce, garlic aioli", veg: false, full: 320 },
-    ] },
-    { id: "dips", title: "Homemade dips", subtitle: "Made fresh, in tubs of the kitchen", items: [
-      { id: "garlic-aioli", name: "Garlic Aioli", about: "Our signature dip", veg: true, full: 40 },
-      { id: "basil-mayo", name: "Basil Mayo", about: "Fresh basil, creamy mayo", veg: true, full: 40 },
-      { id: "ketchup", name: "Homemade Ketchup", about: "Slow cooked tomato", veg: true, full: 40 },
-      { id: "chunky-chilli", name: "Chunky Chilli", about: "Smoky and bold", veg: true, full: 60 },
-      { id: "french-dip", name: "French Dip", about: "Homemade dipping sauce made from a flavorful chicken jus", veg: false, full: 80, mustTry: true },
-    ] },
-    { id: "combos", title: "Make it a meal", subtitle: "Pick a combo with any panini or wrap", items: [
-      { id: "fries", name: "French Fries + Ketchup", about: "Salted or Cajun, homemade ketchup", veg: true, full: 0 },
-      { id: "onion-rings", name: "Onion Rings + Garlic Dip", about: "Crisp rings, spiced garlic dip", veg: true, full: 0 },
-      { id: "poppers", name: "Jalapeño & Cheese Poppers", about: "With spiced garlic dip", veg: true, full: 160 },
-      { id: "soup", name: "Truffled Mushroom Soup", about: "Or minestrone soup", veg: true, full: 0 },
-      { id: "chicken-strips", name: "Chicken Strips + Garlic Dip", about: "Crunchy strips, spiced garlic dip", veg: false, full: 190 },
-    ] },
+  dishes: [
+    {
+      id: "laura", nameKey: "kitchen.dish.laura.name", aboutKey: "kitchen.dish.laura.about", veg: true, half: 195, full: 300, category: "Meals", allergens: ["Gluten", "Milk", "Nuts"], plate: `${D}/plate-laura.webp`,
+      photos: [
+        photo("laura-1", "Panini (Mozzarella, Pesto & Tomato), Dyke Road Park Cafe", "Andy Li", "CC0", CC0, "Panini_(Mozzarella,_Pesto_%26_Tomato)_-_Dyke_Road_Park_Cafe.jpg"),
+        photo("laura-2", "Panini mozzarella at Down The Rabbit Hole", "FakirNL", "CC BY-SA 4.0", BYSA4, "Panini_mozzarella_at_Down_The_Rabbit_Hole_2018.jpg"),
+        photo("laura-3", "Panini med gedeost, mozzarella og gorgonzola", "cyclonebill", "CC BY-SA 2.0", BYSA2, "Flickr_-_cyclonebill_-_Panini_med_gedeost,_mozzarella_og_gorgonzola.jpg"),
+      ],
+    },
+    {
+      id: "colette", nameKey: "kitchen.dish.colette.name", aboutKey: "kitchen.dish.colette.about", veg: true, half: 195, full: 300, category: "Meals", allergens: ["Gluten", "Milk", "Nuts"], plate: `${D}/plate-colette.webp`,
+      photos: [
+        photo("colette-1", "Panini (Spinach, mushrooms & fresh tomato), Breakfast At Tiffany's Brighton", "Andy Li", "CC0", CC0, "Panini_(Spinach,_mushrooms_%26_fresh_tomato)_-_Breakfast_At_Tiffany%27s_Brighton_2023-11-23.jpg"),
+        photo("colette-2", "Panini hummus and vegetables at Down The Rabbit Hole", "FakirNL", "CC BY-SA 4.0", BYSA4, "Panini_hummus_and_vegetables_at_Down_The_Rabbit_Hole_2018.jpg"),
+        photo("colette-3", "Sorta panini, warmed but not pressed", "jeffreyw", "CC BY 2.0", BY2, "Sorta_panini,_warmed_but_not_pressed_(4477070898).jpg"),
+      ],
+    },
+    {
+      id: "mathieu", nameKey: "kitchen.dish.mathieu.name", aboutKey: "kitchen.dish.mathieu.about", veg: false, half: 235, full: 390, mustTry: true, category: "Meals", allergens: ["Gluten", "Egg"], plate: `${D}/plate-mathieu.webp`,
+      photos: [
+        photo("mathieu-2", "Moroccan Chicken panini", "jeffreyw", "CC BY 2.0", BY2, "Moroccan_Chicken_panini_(4477824766).jpg"),
+        photo("mathieu-1", "Chicken Panini with Peperonata and Basil", "Lets.Custodio", "CC BY-SA 4.0", BYSA4, "Chicken_Panini_with_Peperonata_and_Basil.jpg"),
+      ],
+    },
+    {
+      id: "veg-wrap", nameKey: "kitchen.dish.vegWrap.name", aboutKey: "kitchen.dish.vegWrap.about", veg: true, full: 250, category: "Meals", allergens: ["Gluten", "Milk"], plate: `${D}/plate-veg-wrap.webp`,
+      photos: [
+        photo("veg-wrap-1", "Falafel & Hummus Wrap, Lavash", "Andy Li", "CC0", CC0, "Falafel_%26_Hummus_Wrap_-_Lavash_2024-08-19.jpg"),
+        photo("veg-wrap-2", "Falafel & Tzatziki Wrap, Lavash", "Andy Li", "CC0", CC0, "Falafel_%26Tzatziki_Wrap_-_Lavash.jpg"),
+      ],
+    },
+    {
+      id: "peri-peri", nameKey: "kitchen.dish.periPeri.name", aboutKey: "kitchen.dish.periPeri.about", veg: false, full: 260, category: "Meals", allergens: ["Gluten", "Milk", "Egg"], plate: `${D}/plate-peri-peri.webp`,
+      photos: [
+        photo("chicken-wrap-1", "Handmade Chicken Shawarma Wrap, Lavash", "Andy Li", "CC0", CC0, "Handmade_Chicken_Shawarma_Wrap_-_Lavash.jpg"),
+        photo("chicken-wrap-2", "Chicken Shawarma Wrap, Lavash", "Andy Li", "CC0", CC0, "Chicken_Shawarma_Wrap_-_Lavash_2024-09-11.jpg"),
+        photo("chicken-wrap-3", "Chicken Çöp Shish, Lavash", "Andy Li", "CC0", CC0, "Chicken_%C3%87%C3%B6p_Shish_-_Lavash_2023-12-13.jpg"),
+      ],
+    },
   ],
 };
 
 export const KITCHEN_THEMES: Record<string, KitchenTheme> = { [PARIS_PANINI.id]: PARIS_PANINI };
+
+/** The 3D kitchen is a TEST feature: it exists on preview deployments and local development only, never on the live site. */
+export function kitchenEnabled() {
+  return process.env.VERCEL_ENV === "preview" || (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test");
+}
