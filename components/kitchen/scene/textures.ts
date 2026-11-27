@@ -112,3 +112,11 @@ export function chalkTexture(lines: { text: string; size: number; y: number; col
   noise(g, 1024, 640, 2500, 0.1, true);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
+
+/** black and cream stripes like the restaurant's ceiling */
+export function stripeTexture() {
+  const [c, g] = canvas(256, 64); g.fillStyle = "#f1ebdd"; g.fillRect(0, 0, 256, 64); g.fillStyle = "#26262e";
+  for (let x = 0; x < 256; x += 32) g.fillRect(x, 0, 16, 64);
+  noise(g, 256, 64, 600, 0.08);
+  return tex(c, 20, 1);
+}

@@ -64,7 +64,7 @@ export function PhotoViewer({ dish, name, onClose }: { dish: KitchenDish; name: 
         <div className="mb-3 flex justify-center gap-2" aria-hidden="true">{dish.photos.map((_, i) => <span key={i} className="h-2 rounded-full transition-all" style={{ width: i === cur ? 26 : 8, background: i === cur ? "var(--k-brass)" : "rgba(255,255,255,.4)" }} />)}</div>
         <p role="status" className="text-sm font-bold">{t("kitchen.photo.count", { n: cur + 1, total: n })}{n > 1 ? ` · ${t("kitchen.photo.tap")}` : ""}</p>
         <p className="mt-1 text-xs text-white/75">
-          <a href={p.source} target="_blank" rel="noopener noreferrer" className="underline decoration-white/40 underline-offset-2 hover:decoration-white">{t("kitchen.photo.credit", { author: p.author, license: p.license })}</a>
+          {p.source ? <a href={p.source} target="_blank" rel="noopener noreferrer" className="underline decoration-white/40 underline-offset-2 hover:decoration-white">{t("kitchen.photo.credit", { author: p.author, license: p.license })}</a> : <span>{t("kitchen.photo.credit", { author: p.author, license: p.license })}</span>}
           {" · "}{t("kitchen.photo.note")}
         </p>
       </div>

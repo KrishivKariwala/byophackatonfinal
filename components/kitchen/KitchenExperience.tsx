@@ -79,16 +79,23 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
   useEffect(() => { api.busy.current = viewer != null || cartOpen || credits; }, [api, viewer, cartOpen, credits]);
 
   // ---- walking and looking
-  const jumpTo = useCallback((i: number) => {
-    const el = scroller.current; if (!el) return;
-    const p = pForDish(i); api.progress.current = p; el.scrollTop = p * Math.max(1, el.scrollHeight - el.clientHeight);
-  }, [api]);
-  const focusDish = useCallback((i: number, jump: boolean) => {
-    if (jump) jumpTo(i);
-    api.focus.current = i; api.rest.current = null;
-    setDraft({ qty: 4, allergens: [...theme.dishes[i].allergens] });
-    setSheet(i);
-  }, [api, jumpTo, theme.dishes]);
+  const pending = useRef<number | null>(null);
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** open a dish: if it is not right here, walk to it first (smooth scroll), then turn and open the sheet */
+  const focusDish = useCallback((i: number, walk: boolean) => {
+    const open = () => { api.focus.current = i; api.rest.current = null; setDraft({ qty: 4, allergens: [...theme.dishes[i].allergens] }); setSheet(i); };
+    const el = scroller.current;
+    if (walk && el) {
+      const max = Math.max(1, el.scrollHeight - el.clientHeight), want = pForDish(i);
+      if (Math.abs(api.progress.current - want) > 0.03) {
+        api.focus.current = null; setSheet(null); setViewer(null);
+        pending.current = i;
+        el.scrollTo({ top: want * max, behavior: "smooth" });
+        return;
+      }
+    }
+    open();
+  }, [api, theme.dishes]);
   const closeSheet = useCallback((manual: boolean) => {
     if (manual) api.rest.current = api.progress.current;
     api.focus.current = null; setSheet(null); setViewer(null);
@@ -141,7 +148,8 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
           {/* the scroll track: scroll or swipe anywhere over the kitchen to walk; drag sideways to look around */}
           <div ref={scroller} role="region" tabIndex={0} aria-label={aria} className="k-scene-area absolute inset-0 z-10 overflow-y-auto"
             style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
-            onScroll={(e) => { const el = e.currentTarget; api.progress.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); if (!moved && el.scrollTop > 30) setMoved(true); }}
+            onScroll={(e) => { const el = e.currentTarget; api.progress.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); if (!moved && el.scrollTop > 30) setMoved(true);
+              if (pending.current != null) { if (settle.current) clearTimeout(settle.current); settle.current = setTimeout(() => { const i = pending.current; pending.current = null; if (i != null) focusDish(i, false); }, 220); } }}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => cursor.current?.classList.remove("is-on")}>
             <div style={{ height: "560%" }} />
           </div>
@@ -232,7 +240,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
             <div className="flex items-start justify-between gap-3"><h2 className="k-display text-2xl" style={{ color: "var(--k-brand)" }}>{t("kitchen.credits")}</h2><button type="button" aria-label={t("kitchen.close")} onClick={() => setCredits(false)} className="grid h-11 w-11 place-items-center rounded-full bg-black/5"><X size={20} aria-hidden="true" /></button></div>
             <p className="mt-1 text-sm k-m75">{t("kitchen.credits.intro")} {t("kitchen.photo.note")}</p>
             <ul className="mt-3 divide-y divide-black/10 text-sm">
-              {theme.dishes.flatMap((d) => d.photos).map((p) => <li key={p.src} className="py-2"><a className="font-bold underline" style={{ color: "var(--k-brand)" }} href={p.source} target="_blank" rel="noopener noreferrer">{p.title}</a><span className="block text-xs k-m70"><a href={p.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline">{t("kitchen.photo.credit", { author: p.author, license: p.license })}</a></span></li>)}
+              {theme.dishes.flatMap((d) => d.photos).map((p) => <li key={p.src} className="py-2"><span className="font-bold" style={{ color: "var(--k-brand)" }}>{p.title}</span><span className="block text-xs k-m70">{t("kitchen.photo.credit", { author: p.author, license: p.license })}</span></li>)}
             </ul>
           </section>
         </div>

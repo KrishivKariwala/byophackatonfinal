@@ -23,7 +23,7 @@ export const polar = (r: number, th: number): [number, number] => [r * Math.sin(
 export const DISH_TH = [-6, 18, 42, 66, 90].map((d) => d * DEG);
 /** the walk runs from the door (TH0) along the aisle to TH1 */
 export const TH0 = -50 * DEG;
-export const TH1 = 100 * DEG;
+export const TH1 = 110 * DEG;
 export const DOOR_TH = -64 * DEG;
 /** where the camera stands, in angle, when it looks at a dish: a little before it, so the food is ahead on the left */
 export const FOCUS_LEAD = 0.13;

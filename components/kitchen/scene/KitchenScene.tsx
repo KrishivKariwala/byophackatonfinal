@@ -7,6 +7,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { AISLE_R, COUNTER_IN, COUNTER_OUT, COUNTER_TOP, DEG, DISH_R, DISH_TH, DOOR_TH, EYE, FOCUS_LEAD, FOCUS_R, ISLAND_R, ROOM_R, WALL_H, lerp, lerpAngle, pForDish, pathTheta, polar, smoothstep, type WalkApi } from "./constants";
 import * as TX from "./textures";
+import { MatsProvider, useBuildMats, useMats } from "./materials";
+import { Dust, Fan, HangingStrings, LightCone, Oven, Press, Puffs, Sparks, Stations, WallClock } from "./props";
 
 /**
  * The round back-of-house kitchen of one restaurant, built from simple shapes and painted surfaces, with the real food photos on the plates.
@@ -35,68 +37,44 @@ function sectorGeometry(r0: number, r1: number, t0: number, t1: number, h: numbe
 }
 const at = (r: number, th: number, y: number): [number, number, number] => { const [x, z] = polar(r, th); return [x, y, z]; };
 
-// ---------------------------------------------------------------- the room
-function Room({ theme, fontsReady }: { theme: KitchenTheme; fontsReady: boolean }) {
-  const { brand, brandDark, accent, cream, brass, ink } = theme.colors;
-  const t = useMemo(() => {
-    const floor = TX.checkerTexture("#e9e0cc", "#2a3170");
-    const wall = TX.subwayTexture(); wall.repeat.set(28.5, 3.1);
-    const blue = TX.glazedTileTexture(brand, brandDark); blue.repeat.set(28.5, 0.96);
-    const mural = TX.muralTexture(brandDark); mural.repeat.set(17, 1);
-    return { floor, wall, blue, mural };
-  }, [brand, brandDark]);
-  void fontsReady;
+// ---------------------------------------------------------------- the room: terrazzo floor, pine panelling, the Paris mural, a striped ceiling
+const PANELS = 9;
+function Room({ theme }: { theme: KitchenTheme }) {
+  const m = useMats();
+  const { brand, accent, brass, cream } = theme.colors;
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2}><circleGeometry args={[ROOM_R, 80]} /><meshStandardMaterial map={t.floor} roughness={0.32} metalness={0.05} /></mesh>
-      <mesh position-y={WALL_H / 2}><cylinderGeometry args={[ROOM_R, ROOM_R, WALL_H, 96, 1, true]} /><meshStandardMaterial map={t.wall} roughness={0.28} side={THREE.BackSide} /></mesh>
-      <mesh position-y={0.58}><cylinderGeometry args={[ROOM_R - 0.006, ROOM_R - 0.006, 1.16, 96, 1, true]} /><meshStandardMaterial map={t.blue} roughness={0.2} metalness={0.05} side={THREE.BackSide} /></mesh>
-      <mesh position-y={1.19}><cylinderGeometry args={[ROOM_R - 0.03, ROOM_R - 0.03, 0.06, 96, 1, true]} /><meshStandardMaterial color={brass} roughness={0.35} metalness={0.7} side={THREE.BackSide} /></mesh>
-      <mesh position-y={3.28}><cylinderGeometry args={[ROOM_R - 0.004, ROOM_R - 0.004, 0.5, 96, 1, true]} /><meshStandardMaterial map={t.mural} roughness={0.9} side={THREE.BackSide} /></mesh>
-      <mesh position-y={3.55}><cylinderGeometry args={[ROOM_R - 0.03, ROOM_R - 0.03, 0.06, 96, 1, true]} /><meshStandardMaterial color={accent} roughness={0.5} side={THREE.BackSide} /></mesh>
-      <mesh position-y={WALL_H} rotation-x={Math.PI / 2}><circleGeometry args={[ROOM_R, 64]} /><meshStandardMaterial color={ink} roughness={0.95} /></mesh>
-      {Array.from({ length: 8 }, (_, i) => <mesh key={i} position={[0, WALL_H - 0.08, 0]} rotation-y={(i * Math.PI) / 8}><boxGeometry args={[ROOM_R * 2 - 0.2, 0.14, 0.16]} /><meshStandardMaterial color="#3a2a1c" roughness={0.8} /></mesh>)}
-      <mesh position-y={WALL_H - 0.12}><torusGeometry args={[ROOM_R - 0.12, 0.04, 8, 96]} /><meshStandardMaterial color={cream} roughness={0.6} /></mesh>
+      <mesh rotation-x={-Math.PI / 2}><circleGeometry args={[ROOM_R, 96]} /><primitive object={m.floor} attach="material" /></mesh>
+      <mesh position-y={WALL_H / 2}><cylinderGeometry args={[ROOM_R, ROOM_R, WALL_H, 96, 1, true]} /><primitive object={m.plaster} attach="material" /></mesh>
+      <mesh position-y={0.52}><cylinderGeometry args={[ROOM_R - 0.012, ROOM_R - 0.012, 1.04, 96, 1, true]} /><primitive object={m.pineWall} attach="material" /></mesh>
+      <mesh position-y={1.1}><cylinderGeometry args={[ROOM_R - 0.016, ROOM_R - 0.016, 0.13, 96, 1, true]} /><meshStandardMaterial color={brand} roughness={0.35} side={THREE.BackSide} /></mesh>
+      <mesh position-y={1.18}><cylinderGeometry args={[ROOM_R - 0.02, ROOM_R - 0.02, 0.035, 96, 1, true]} /><meshStandardMaterial color={brass} metalness={0.85} roughness={0.35} side={THREE.BackSide} /></mesh>
+      {Array.from({ length: PANELS }, (_, i) => (
+        <mesh key={i} position-y={2.3}><cylinderGeometry args={[ROOM_R - 0.02, ROOM_R - 0.02, 2.1, 14, 1, true, (i * 2 * Math.PI) / PANELS, (2 * Math.PI) / PANELS]} /><primitive object={m.murals[i % 2]} attach="material" /></mesh>
+      ))}
+      <mesh position-y={3.37}><cylinderGeometry args={[ROOM_R - 0.025, ROOM_R - 0.025, 0.05, 96, 1, true]} /><meshStandardMaterial color={accent} roughness={0.5} side={THREE.BackSide} /></mesh>
+      <mesh position-y={WALL_H} rotation-x={Math.PI / 2}><circleGeometry args={[ROOM_R, 64]} /><primitive object={m.ceiling} attach="material" /></mesh>
+      {Array.from({ length: 6 }, (_, i) => <mesh key={i} position={[0, WALL_H - 0.07, 0]} rotation-y={(i * Math.PI) / 6}><boxGeometry args={[ROOM_R * 2 - 0.2, 0.13, 0.17]} /><primitive object={m.pine} attach="material" /></mesh>)}
+      <mesh position-y={WALL_H - 0.1} rotation-x={Math.PI / 2}><torusGeometry args={[ROOM_R - 0.1, 0.05, 8, 96]} /><meshStandardMaterial color={cream} roughness={0.6} /></mesh>
     </group>
   );
 }
 
-// ---------------------------------------------------------------- the stone counter, shelves, rails, signs and tubs all round the wall
-const ARC0 = -44 * DEG, ARC1 = 112 * DEG;
+// ---------------------------------------------------------------- the marble counter, tile, shelves, rails and signs all round the wall
+const ARC0 = -44 * DEG, ARC1 = 114 * DEG;
 function Counter({ theme, fontsReady }: { theme: KitchenTheme; fontsReady: boolean }) {
+  const m = useMats();
   const { brand, accent, cream, brass } = theme.colors;
   const geo = useMemo(() => ({
     base: sectorGeometry(COUNTER_IN, COUNTER_OUT, ARC0, ARC1, 0.78),
     kick: sectorGeometry(COUNTER_IN + 0.08, COUNTER_OUT, ARC0, ARC1, 0.1),
-    top: sectorGeometry(COUNTER_IN - 0.04, COUNTER_OUT, ARC0 - 0.01, ARC1 + 0.01, 0.05, 0.008),
+    top: sectorGeometry(COUNTER_IN - 0.05, COUNTER_OUT, ARC0 - 0.012, ARC1 + 0.012, 0.055, 0.01),
     splash: sectorGeometry(COUNTER_OUT - 0.06, COUNTER_OUT, ARC0, ARC1, 0.62),
     shelf: sectorGeometry(COUNTER_OUT - 0.5, COUNTER_OUT, ARC0, ARC1, 0.045),
   }), []);
-  const m = useMemo(() => {
-    const steel = TX.steelTexture(); const granite = TX.graniteTexture(); granite.repeat.set(1.3, 1.3); const wood = TX.woodTexture("#8a5a2e"); const cane = TX.caneTexture();
-    return { steel, granite, wood, cane };
-  }, []);
-  const mats = useMemo(() => ({
-    steel: new THREE.MeshStandardMaterial({ map: m.steel, roughness: 0.38, metalness: 0.75 }),
-    kick: new THREE.MeshStandardMaterial({ color: "#14161c", roughness: 0.8 }),
-    granite: new THREE.MeshStandardMaterial({ map: m.granite, roughness: 0.2, metalness: 0.1 }),
-    wood: new THREE.MeshStandardMaterial({ map: m.wood, roughness: 0.7 }),
-  }), [m]);
-
-  // tubs on the lower shelf, plates and jars
-  const tubs = useMemo(() => {
-    const out: { p: [number, number, number]; r: number; h: number; c: string }[] = [];
-    const cols = ["#d9dde2", "#c5a35a", "#f4f1ea", "#7f9a52", "#c25a3c", "#d9dde2", "#e8d9b0"];
-    for (let a = ARC0 + 3 * DEG; a < ARC1 - 2 * DEG; a += 3.4 * DEG) {
-      const k = Math.round((a - ARC0) / (3.4 * DEG));
-      const h = 0.1 + ((k * 7) % 5) * 0.025;
-      out.push({ p: at(COUNTER_OUT - 0.24 + (k % 2) * 0.1, a, 1.64 + h / 2), r: 0.065 + ((k * 3) % 3) * 0.012, h, c: cols[k % cols.length] });
-    }
-    return out;
-  }, []);
-  const pans = useMemo(() => { const out: { th: number; r: number }[] = []; for (let a = ARC0 + 6 * DEG; a < ARC1 - 4 * DEG; a += 8.5 * DEG) out.push({ th: a, r: 0.1 + (Math.round(a * 50) % 3) * 0.025 }); return out; }, []);
-  const rail = useMemo(() => { const out: { th: number }[] = []; for (let a = ARC0; a <= ARC1; a += 2.5 * DEG) out.push({ th: a }); return out; }, []);
-
+  const kick = useMemo(() => new THREE.MeshStandardMaterial({ color: "#14161c", roughness: 0.8 }), []);
+  const pans = useMemo(() => { const out: { th: number }[] = []; for (let a = ARC0 + 5 * DEG; a < ARC1 - 4 * DEG; a += 8.5 * DEG) out.push({ th: a }); return out; }, []);
+  const railGeo = useMemo(() => { const pts: THREE.Vector3[] = []; for (let a = ARC0 - 18 * DEG; a <= ARC1 + 0.001; a += 4 * DEG) pts.push(new THREE.Vector3(...at(COUNTER_OUT - 0.1, a, 2.88))); return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.013, 6, false); }, []);
   const signTex = useMemo(() => TX.signTexture({ w: 1024, h: 300, bg: brand, border: brass, lines: [
     { text: "Paris Panini", size: 150, color: "#ffffff", font: "'Abril Fatface', Georgia, serif", y: 125 },
     { text: "gourmet sandwiches & wraps", size: 46, color: cream, font: "'Josefin Sans', Arial, sans-serif", y: 238, spacing: 6 },
@@ -108,149 +86,109 @@ function Counter({ theme, fontsReady }: { theme: KitchenTheme; fontsReady: boole
     { text: "rien ne se perd", size: 66, y: 470, color: "#ffb4a8" },
     { text: "(nothing is wasted)", size: 40, y: 545 },
   ], "'Josefin Sans', Arial, sans-serif"), [fontsReady]); // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
     <group>
-      <mesh geometry={geo.kick} material={mats.kick} />
-      <mesh geometry={geo.base} material={mats.steel} position-y={0.1} />
-      <mesh geometry={geo.top} material={mats.granite} position-y={0.88} />
-      <mesh geometry={geo.splash} material={mats.steel} position-y={COUNTER_TOP} />
-      <mesh geometry={geo.shelf} material={mats.wood} position-y={1.6} />
-      {/* tubs and jars on the shelf */}
-      {tubs.map((t, i) => (
-        <mesh key={i} position={t.p}><cylinderGeometry args={[t.r, t.r * 0.92, t.h, 14]} /><meshStandardMaterial color={t.c} roughness={0.4} metalness={t.c === "#d9dde2" ? 0.6 : 0.1} /></mesh>
-      ))}
-      {/* the pan rail with copper pans hanging on it */}
-      {rail.map((r, i) => <mesh key={i} position={at(COUNTER_OUT - 0.1, r.th, 2.88)} rotation-y={-r.th}><boxGeometry args={[0.27, 0.025, 0.025]} /><meshStandardMaterial color="#b8bdc4" metalness={0.9} roughness={0.3} /></mesh>)}
+      <mesh geometry={geo.kick} material={kick} />
+      <mesh geometry={geo.base} material={m.counter} position-y={0.1} />
+      <mesh geometry={geo.top} material={m.marble} position-y={0.88} />
+      <mesh geometry={geo.splash} material={m.blueTile} position-y={COUNTER_TOP} />
+      <mesh geometry={geo.shelf} material={m.pine} position-y={1.6} />
+      {/* the pan rail with copper pans */}
+      <mesh geometry={railGeo} material={m.steel} />
       {pans.map((p, i) => (
         <group key={i} position={at(COUNTER_OUT - 0.16, p.th, 2.62)} rotation-y={-p.th}>
-          <mesh rotation-x={Math.PI / 2}><cylinderGeometry args={[0.14, 0.13, 0.04, 20]} /><meshStandardMaterial color="#b8683a" metalness={0.85} roughness={0.35} /></mesh>
+          <mesh rotation-x={Math.PI / 2}><cylinderGeometry args={[0.14, 0.13, 0.04, 20]} /><primitive object={i % 3 ? m.copper : m.steel} attach="material" /></mesh>
           <mesh position={[0, 0.2, 0]}><cylinderGeometry args={[0.012, 0.012, 0.3, 6]} /><meshStandardMaterial color="#3a3a3a" metalness={0.5} /></mesh>
-          <mesh position={[0, -0.02, 0.02]} rotation-z={0}><boxGeometry args={[0.02, 0.01, 0.01]} /><meshStandardMaterial color="#222" /></mesh>
-          <mesh position={[0, 0.34, 0]}><sphereGeometry args={[0.02, 8, 8]} /><meshStandardMaterial color="#b8bdc4" metalness={0.9} roughness={0.3} /></mesh>
-          <mesh position={[0, 0.25 - p.r * 0, 0]}><cylinderGeometry args={[0.004, 0.004, 0.2, 4]} /><meshStandardMaterial color="#444" /></mesh>
         </group>
       ))}
       {/* order tickets on their rail */}
-      <group position={at(COUNTER_OUT - 0.1, -33 * DEG, 1.95)} rotation-y={33 * DEG}>
-        <mesh><boxGeometry args={[1.1, 0.025, 0.025]} /><meshStandardMaterial color="#b8bdc4" metalness={0.9} roughness={0.3} /></mesh>
-        {[-0.45, -0.3, -0.16, -0.02, 0.12, 0.27, 0.42].map((x, i) => (
-          <mesh key={i} position={[x, -0.12, 0.012]} rotation-z={(i % 3 - 1) * 0.04}><planeGeometry args={[0.1, 0.22]} /><meshStandardMaterial color="#fbfaf4" roughness={0.9} emissive="#fff1c8" emissiveIntensity={0.08} side={THREE.DoubleSide} /></mesh>
-        ))}
+      <group position={at(COUNTER_OUT - 0.1, 112 * DEG, 1.95)} rotation-y={-112 * DEG}>
+        <mesh><boxGeometry args={[1.1, 0.025, 0.025]} /><primitive object={m.steel} attach="material" /></mesh>
+        {[-0.45, -0.3, -0.16, -0.02, 0.12, 0.27, 0.42].map((x, i) => <Ticket key={i} x={x} i={i} />)}
       </group>
-      {/* the restaurant's sign above the first dishes, and the chalk menu above the middle one */}
-      <group position={at(COUNTER_OUT - 0.03, -20 * DEG, 2.34)} rotation-y={20 * DEG}>
+      {/* the restaurant's sign above the entrance end, and the chalk menu above the middle dish */}
+      <group position={at(COUNTER_OUT - 0.03, -8 * DEG, 2.62)} rotation-y={8 * DEG}>
         <mesh position-z={-0.02}><boxGeometry args={[2.5, 0.78, 0.04]} /><meshStandardMaterial color={brand} roughness={0.5} /></mesh>
         <mesh position-z={0.003}><planeGeometry args={[2.4, 0.7]} /><meshBasicMaterial map={signTex} toneMapped={false} /></mesh>
-        <mesh position={[-1.18, 0.5, -0.03]}><cylinderGeometry args={[0.008, 0.008, 0.5, 5]} /><meshStandardMaterial color="#333" /></mesh>
-        <mesh position={[1.18, 0.5, -0.03]}><cylinderGeometry args={[0.008, 0.008, 0.5, 5]} /><meshStandardMaterial color="#333" /></mesh>
-        {/* beret and moustache */}
         <mesh position={[-0.98, 0.43, 0.05]} scale={[1, 0.4, 0.6]}><sphereGeometry args={[0.12, 20, 12]} /><meshStandardMaterial color={accent} roughness={0.8} /></mesh>
       </group>
-      <group position={at(COUNTER_OUT - 0.03, DISH_TH[2], 2.36)} rotation-y={-DISH_TH[2]}>
-        <mesh position-z={-0.03}><boxGeometry args={[1.62, 1.02, 0.05]} /><meshStandardMaterial color="#6a4524" roughness={0.7} /></mesh>
+      <group position={at(COUNTER_OUT - 0.03, DISH_TH[2], 2.45)} rotation-y={-DISH_TH[2]}>
+        <mesh position-z={-0.03}><boxGeometry args={[1.62, 1.02, 0.05]} /><primitive object={m.pine} attach="material" /></mesh>
         <mesh position-z={0.003}><planeGeometry args={[1.5, 0.94]} /><meshBasicMaterial map={chalk} toneMapped={false} /></mesh>
       </group>
-      {/* a French flag and the red beret on its hook */}
-      <group position={at(COUNTER_OUT - 0.02, 106 * DEG, 2.3)} rotation-y={-106 * DEG}>
-        {[brand, "#f4f1ea", accent].map((c, i) => <mesh key={i} position={[(i - 1) * 0.2, 0, 0]}><planeGeometry args={[0.2, 0.55]} /><meshStandardMaterial color={c} roughness={0.8} side={THREE.DoubleSide} /></mesh>)}
-      </group>
-      <group position={at(COUNTER_OUT - 0.08, 99 * DEG, 2.0)} rotation-y={-99 * DEG}>
+      <group position={at(COUNTER_OUT - 0.08, 99 * DEG, 2.2)} rotation-y={-99 * DEG}>
         <mesh scale={[1, 0.34, 1]}><sphereGeometry args={[0.16, 22, 14]} /><meshStandardMaterial color={accent} roughness={0.9} /></mesh>
         <mesh position={[0, 0.07, 0.01]}><cylinderGeometry args={[0.012, 0.012, 0.05, 6]} /><meshStandardMaterial color="#2a1a10" /></mesh>
-      </group>
-      {/* baguettes standing in a wooden bin near the door, and a stack of bread boxes */}
-      <group position={at(COUNTER_OUT - 0.45, 102 * DEG, COUNTER_TOP)} rotation-y={-102 * DEG}>
-        <mesh position={[0, 0.12, 0]}><boxGeometry args={[0.7, 0.24, 0.32]} /><meshStandardMaterial map={m.wood} roughness={0.8} /></mesh>
-        <BaguetteBundle />
       </group>
     </group>
   );
 }
-function BaguetteBundle() {
-  const bread = useMemo(() => TX.breadTexture(), []);
-  return (
-    <group>
-      {[-0.22, -0.11, 0, 0.11, 0.22].map((x, i) => (
-        <mesh key={i} position={[x, 0.55, (i % 2) * 0.05 - 0.03]} rotation={[0.08 * (i - 2) * 0.3, 0, 0.12 * (i - 2) * 0.4]}><capsuleGeometry args={[0.045, 0.78, 6, 14]} /><meshStandardMaterial map={bread} roughness={0.75} /></mesh>
-      ))}
-    </group>
-  );
+function Ticket({ x, i }: { x: number; i: number }) {
+  const r = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => { if (r.current) r.current.rotation.z = (i % 3 - 1) * 0.04 + Math.sin(clock.elapsedTime * 1.4 + i) * 0.03; });
+  return <mesh ref={r} position={[x, -0.12, 0.012]}><planeGeometry args={[0.1, 0.22]} /><meshStandardMaterial color="#fbfaf4" roughness={0.9} emissive="#fff1c8" emissiveIntensity={0.08} side={THREE.DoubleSide} /></mesh>;
 }
 
 // ---------------------------------------------------------------- the island, the grill and the chimney hood in the middle
 function Island({ theme }: { theme: KitchenTheme }) {
+  const m = useMats();
   const { brass } = theme.colors;
-  const steel = useMemo(() => TX.steelTexture(), []);
-  const bread = useMemo(() => TX.breadTexture(), []);
-  const wood = useMemo(() => TX.woodTexture("#a47440"), []);
-  const hoodMat = useMemo(() => new THREE.MeshStandardMaterial({ map: steel, color: "#d4d8dd", metalness: 0.85, roughness: 0.32, side: THREE.DoubleSide }), [steel]);
-  const dark = <meshStandardMaterial color="#1b1c20" roughness={0.45} metalness={0.7} />;
+  const wood = m.pine;
   return (
     <group>
-      <mesh position-y={0.45}><cylinderGeometry args={[ISLAND_R - 0.1, ISLAND_R - 0.05, 0.9, 8]} /><meshStandardMaterial map={steel} color="#aeb3ba" metalness={0.75} roughness={0.42} /></mesh>
-      <mesh position-y={0.92}><cylinderGeometry args={[ISLAND_R + 0.05, ISLAND_R + 0.05, 0.07, 8]} /><meshStandardMaterial map={steel} color="#e1e4e8" metalness={0.85} roughness={0.3} /></mesh>
-      {/* the flat-top grill */}
-      <mesh position={[0, 0.97, 0.42]}><boxGeometry args={[1.15, 0.03, 0.6]} />{dark}</mesh>
-      <mesh position={[0, 0.99, 0.42]} rotation-x={-Math.PI / 2}><planeGeometry args={[1.0, 0.45]} /><meshStandardMaterial color="#ff7a2a" emissive="#ff5a10" emissiveIntensity={0.35} transparent opacity={0.28} /></mesh>
-      {/* two panini presses, lids open */}
-      {[{ x: -0.5, z: -0.35, r: 0.4 }, { x: 0.48, z: -0.45, r: -0.2 }].map((p, k) => (
-        <group key={k} position={[p.x, 0.955, p.z]} rotation-y={p.r}>
-          <mesh position-y={0.05}><boxGeometry args={[0.64, 0.1, 0.46]} />{dark}</mesh>
-          {Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[-0.26 + i * 0.065, 0.105, 0]}><boxGeometry args={[0.03, 0.016, 0.4]} /><meshStandardMaterial color="#303238" metalness={0.8} roughness={0.35} /></mesh>)}
-          <group position={[0, 0.1, -0.23]} rotation-x={-0.95}>
-            <mesh position={[0, 0.02, 0.23]}><boxGeometry args={[0.64, 0.07, 0.46]} />{dark}</mesh>
-            {Array.from({ length: 9 }, (_, i) => <mesh key={i} position={[-0.26 + i * 0.065, -0.02, 0.23]}><boxGeometry args={[0.03, 0.016, 0.4]} /><meshStandardMaterial color="#303238" metalness={0.8} roughness={0.35} /></mesh>)}
-            <mesh position={[0, 0.07, 0.4]} rotation-z={Math.PI / 2}><cylinderGeometry args={[0.018, 0.018, 0.34, 10]} /><meshStandardMaterial color="#111" roughness={0.6} /></mesh>
-          </group>
-        </group>
-      ))}
-      {/* stock pot and a pan */}
+      <mesh position-y={0.45}><cylinderGeometry args={[ISLAND_R - 0.1, ISLAND_R - 0.05, 0.9, 8]} /><primitive object={m.steel} attach="material" /></mesh>
+      <mesh position-y={0.92}><cylinderGeometry args={[ISLAND_R + 0.05, ISLAND_R + 0.05, 0.07, 8]} /><primitive object={m.steel} attach="material" /></mesh>
+      {/* the flat-top grill, with sparks */}
+      <mesh position={[0, 0.97, 0.42]}><boxGeometry args={[1.15, 0.03, 0.6]} /><primitive object={m.steelDark} attach="material" /></mesh>
+      <mesh position={[0, 0.99, 0.42]} rotation-x={-Math.PI / 2}><planeGeometry args={[1.0, 0.45]} /><meshStandardMaterial color="#ff7a2a" emissive="#ff5a10" emissiveIntensity={0.35} transparent opacity={0.26} /></mesh>
+      <Sparks origin={[0, 1.0, 0.42]} width={1.0} />
+      <Puffs origin={[0.1, 1.0, 0.42]} count={14} height={1.0} size={0.5} spread={0.3} opacity={0.2} />
+      <Press p={[-0.5, 0.955, -0.35]} rot={0.4} phase={0} />
+      <Press p={[0.48, 0.955, -0.45]} rot={-0.2} phase={4} />
       <group position={[-0.55, 0.955, 0.45]}>
-        <mesh position-y={0.11}><cylinderGeometry args={[0.17, 0.17, 0.22, 24]} /><meshStandardMaterial map={steel} metalness={0.85} roughness={0.3} /></mesh>
-        <mesh position-y={0.225}><cylinderGeometry args={[0.175, 0.175, 0.02, 24]} /><meshStandardMaterial color="#cfd3d8" metalness={0.9} roughness={0.28} /></mesh>
+        <mesh position-y={0.11}><cylinderGeometry args={[0.17, 0.17, 0.22, 24]} /><primitive object={m.steel} attach="material" /></mesh>
+        <mesh position-y={0.225}><cylinderGeometry args={[0.175, 0.175, 0.02, 24]} /><primitive object={m.steel} attach="material" /></mesh>
+        <Puffs origin={[0, 0.25, 0]} count={8} height={0.5} size={0.2} spread={0.06} opacity={0.2} />
       </group>
-      {/* chopping board, baguette, sauce tubs */}
       <group position={[0.75, 0.955, 0.38]} rotation-y={-0.5}>
-        <mesh position-y={0.02}><boxGeometry args={[0.46, 0.04, 0.3]} /><meshStandardMaterial map={wood} roughness={0.75} /></mesh>
-        <mesh position={[0, 0.09, 0]} rotation-z={Math.PI / 2}><capsuleGeometry args={[0.04, 0.34, 6, 12]} /><meshStandardMaterial map={bread} roughness={0.75} /></mesh>
+        <mesh position-y={0.02}><boxGeometry args={[0.46, 0.04, 0.3]} /><primitive object={wood} attach="material" /></mesh>
+        <mesh position={[0, 0.09, 0]} rotation-z={Math.PI / 2}><capsuleGeometry args={[0.04, 0.34, 6, 12]} /><meshStandardMaterial map={m.bread} roughness={0.75} /></mesh>
       </group>
       {[["#7aa04a", 1.0, 0.1], ["#d2503a", 1.1, -0.1], ["#f2efe6", 1.17, 0.25]].map(([c, x, z], i) => (
         <group key={i} position={[(x as number) - 0.28, 0.955, (z as number) - 0.08]} rotation-y={0.4}>
-          <mesh position-y={0.05}><cylinderGeometry args={[0.07, 0.065, 0.1, 14]} /><meshStandardMaterial color="#e5e8ec" metalness={0.6} roughness={0.3} /></mesh>
+          <mesh position-y={0.05}><cylinderGeometry args={[0.07, 0.065, 0.1, 14]} /><primitive object={m.steel} attach="material" /></mesh>
           <mesh position-y={0.1}><cylinderGeometry args={[0.063, 0.063, 0.01, 14]} /><meshStandardMaterial color={c as string} roughness={0.6} /></mesh>
         </group>
       ))}
-      {/* the chimney: a steel hood, a duct to the ceiling, a rail with copper pans and the warm light underneath */}
-      <mesh position-y={2.4} rotation-y={Math.PI / 4} material={hoodMat}><cylinderGeometry args={[0.52, 1.72, 0.9, 4, 1, true]} /></mesh>
+      {/* the chimney: steel hood, a fan inside, a duct to the ceiling, pans on a ring, a warm light and a cone of it */}
+      <mesh position-y={2.4} rotation-y={Math.PI / 4}><cylinderGeometry args={[0.52, 1.72, 0.9, 4, 1, true]} /><primitive object={m.steel} attach="material" /></mesh>
       <mesh position-y={1.97} rotation-y={Math.PI / 4}><torusGeometry args={[1.2, 0.025, 6, 4]} /><meshStandardMaterial color={brass} metalness={0.9} roughness={0.3} /></mesh>
-      <mesh position-y={(2.85 + WALL_H) / 2} material={hoodMat}><boxGeometry args={[0.74, WALL_H - 2.85, 0.74]} /></mesh>
+      <mesh position-y={(2.85 + WALL_H) / 2}><boxGeometry args={[0.74, WALL_H - 2.85, 0.74]} /><primitive object={m.steel} attach="material" /></mesh>
       <mesh position-y={1.965} rotation-x={Math.PI / 2}><circleGeometry args={[0.95, 4]} /><meshBasicMaterial color="#ffd08a" toneMapped={false} side={THREE.DoubleSide} /></mesh>
+      <Fan y={1.99} />
+      <LightCone p={[0, 1.96, 0]} h={1.0} r={1.1} color="#ffb867" opacity={0.1} />
       {[0, 1, 2, 3].map((i) => <mesh key={i} position={[Math.cos((i * Math.PI) / 2 + 0.78) * 1.5, 3.3, Math.sin((i * Math.PI) / 2 + 0.78) * 1.5]}><cylinderGeometry args={[0.008, 0.008, 0.8, 4]} /><meshStandardMaterial color="#333" /></mesh>)}
       {Array.from({ length: 9 }, (_, i) => { const a = (i / 9) * Math.PI * 2; return (
         <group key={i} position={[Math.cos(a) * 1.56, 2.62, Math.sin(a) * 1.56]} rotation-y={-a + Math.PI / 2}>
-          <mesh rotation-x={Math.PI / 2}><cylinderGeometry args={[0.12, 0.11, 0.035, 18]} /><meshStandardMaterial color={i % 3 ? "#b8683a" : "#c9ccd2"} metalness={0.85} roughness={0.35} /></mesh>
+          <mesh rotation-x={Math.PI / 2}><cylinderGeometry args={[0.12, 0.11, 0.035, 18]} /><primitive object={i % 3 ? m.copper : m.steel} attach="material" /></mesh>
           <mesh position={[0, 0.17, 0]}><cylinderGeometry args={[0.01, 0.01, 0.24, 5]} /><meshStandardMaterial color="#2a2a2a" /></mesh>
         </group>); })}
-      <mesh position-y={2.62} rotation-x={Math.PI / 2}><torusGeometry args={[1.56, 0.012, 6, 64]} /><meshStandardMaterial color="#9aa0a8" metalness={0.9} roughness={0.3} /></mesh>
+      <mesh position-y={2.62} rotation-x={Math.PI / 2}><torusGeometry args={[1.56, 0.012, 6, 64]} /><primitive object={m.steel} attach="material" /></mesh>
     </group>
   );
 }
 
-// ---------------------------------------------------------------- the back door we came in through, and lamps
-function Door({ theme, fontsReady }: { theme: KitchenTheme; fontsReady: boolean }) {
+// ---------------------------------------------------------------- the back door we came in through, and the rattan lamps
+function DoorFrame({ theme, fontsReady }: { theme: KitchenTheme; fontsReady: boolean }) {
   const { brand, brass, cream, accent } = theme.colors;
+  const m = useMats();
   const sign = useMemo(() => TX.signTexture({ w: 256, h: 128, bg: cream, border: accent, lines: [{ text: "OUVERT", size: 62, color: accent, font: "'Abril Fatface', Georgia, serif", y: 68 }] }), [cream, accent, fontsReady]); // eslint-disable-line react-hooks/exhaustive-deps
-  const glow = useMemo(() => { const t = TX.softTexture(); return t; }, []);
   return (
     <group position={at(ROOM_R - 0.02, DOOR_TH, 0)} rotation-y={-DOOR_TH}>
-      {/* the night outside, seen through the doorway */}
       <mesh position={[0, 1.1, -0.06]}><planeGeometry args={[1.05, 2.2]} /><meshBasicMaterial color="#2c3a7a" toneMapped={false} /></mesh>
-      <mesh position={[0, 1.1, -0.055]}><planeGeometry args={[1.05, 2.2]} /><meshBasicMaterial map={glow} color="#ffc46b" transparent opacity={0.55} toneMapped={false} depthWrite={false} /></mesh>
-      {/* frame */}
+      <mesh position={[0, 1.1, -0.055]}><planeGeometry args={[1.05, 2.2]} /><meshBasicMaterial map={m.soft} color="#ffc46b" transparent opacity={0.55} toneMapped={false} depthWrite={false} /></mesh>
       {[[-0.56, 1.15, 0.07, 2.4], [0.56, 1.15, 0.07, 2.4]].map(([x, y, w, h], i) => <mesh key={i} position={[x, y, 0.05]}><boxGeometry args={[w, h, 0.14]} /><meshStandardMaterial color={cream} roughness={0.6} /></mesh>)}
       <mesh position={[0, 2.3, 0.05]}><boxGeometry args={[1.2, 0.1, 0.14]} /><meshStandardMaterial color={cream} roughness={0.6} /></mesh>
-      {/* the door leaf, swung open into the kitchen */}
       <group position={[-0.5, 0, 0.1]} rotation-y={-1.75}>
         <mesh position={[0.5, 1.1, 0]}><boxGeometry args={[1.0, 2.2, 0.06]} /><meshStandardMaterial color={brand} roughness={0.4} metalness={0.05} /></mesh>
         {[[0.5, 1.55, 0.78, 0.9], [0.5, 0.55, 0.78, 0.7]].map(([x, y, w, h], i) => <mesh key={i} position={[x, y, 0.035]}><boxGeometry args={[w, h, 0.012]} /><meshStandardMaterial color="#222c78" roughness={0.45} /></mesh>)}
@@ -262,14 +200,21 @@ function Door({ theme, fontsReady }: { theme: KitchenTheme; fontsReady: boolean 
 }
 
 function Lamps() {
-  const cane = useMemo(() => TX.caneTexture(), []);
+  const m = useMats();
+  const refs = useRef<(THREE.Group | null)[]>([]);
+  const list = [-30, 0, 30, 60, 90];
+  useFrame(({ clock }) => { refs.current.forEach((g, i) => { if (g) { g.rotation.z = Math.sin(clock.elapsedTime * 0.6 + i * 1.3) * 0.012; g.rotation.x = Math.cos(clock.elapsedTime * 0.5 + i) * 0.01; } }); });
   return (
     <group>
-      {[-30, 0, 30, 60, 90].map((d) => (
-        <group key={d} position={at(AISLE_R + 0.15, d * DEG, 2.62)}>
-          <mesh position-y={0.55}><cylinderGeometry args={[0.006, 0.006, 1.1, 4]} /><meshStandardMaterial color="#222" /></mesh>
-          <mesh><cylinderGeometry args={[0.17, 0.4, 0.36, 24, 1, true]} /><meshStandardMaterial map={cane} color="#e8cf9c" side={THREE.DoubleSide} roughness={0.9} emissive="#ffb24a" emissiveIntensity={0.55} /></mesh>
-          <mesh position-y={-0.14}><sphereGeometry args={[0.07, 12, 10]} /><meshBasicMaterial color="#fff0c8" toneMapped={false} /></mesh>
+      {list.map((d, i) => (
+        <group key={d} position={at(AISLE_R + 0.15, d * DEG, 2.78)}>
+          <group ref={(e) => { refs.current[i] = e; }}>
+            <mesh position-y={0.5}><cylinderGeometry args={[0.006, 0.006, 1.0, 4]} /><meshStandardMaterial color="#222" /></mesh>
+            <mesh><cylinderGeometry args={[0.3, 0.3, 0.32, 28, 1, true]} /><meshStandardMaterial map={m.rattan} color="#f0d9a8" side={THREE.DoubleSide} roughness={0.9} emissive="#ffb24a" emissiveIntensity={0.65} /></mesh>
+            <mesh position-y={0.16} rotation-x={-Math.PI / 2}><circleGeometry args={[0.3, 24]} /><meshStandardMaterial map={m.rattan} /></mesh>
+            <mesh position-y={-0.06} rotation-x={Math.PI / 2}><circleGeometry args={[0.26, 24]} /><meshBasicMaterial color="#fff0c8" toneMapped={false} transparent opacity={0.85} /></mesh>
+          </group>
+          <LightCone p={[0, -0.15, 0]} h={1.5} r={0.75} opacity={0.09} />
         </group>
       ))}
     </group>
@@ -305,12 +250,13 @@ function Dish({ index, dish, focused, onTap, onPlate, onHover }: { index: number
         <mesh position={[0, -0.12, -0.2]} rotation-x={0.2}><cylinderGeometry args={[0.018, 0.018, 0.6, 6]} /><meshStandardMaterial color="#8d939b" metalness={0.9} roughness={0.3} /></mesh>
         <mesh position-z={-0.02} rotation-x={Math.PI / 2}><cylinderGeometry args={[0.385, 0.385, 0.035, 48]} /><meshStandardMaterial color="#c3c8cf" metalness={0.9} roughness={0.28} /></mesh>
         <mesh position-z={0.0}><torusGeometry args={[0.37, 0.016, 10, 56]} /><meshStandardMaterial color="#d9dde2" metalness={0.95} roughness={0.22} /></mesh>
-        <mesh position-z={0.004}><circleGeometry args={[0.352, 72]} /><meshPhysicalMaterial map={map} color="#8c8c8c" emissive="#ffffff" emissiveMap={map} emissiveIntensity={0.5} roughness={0.6} clearcoat={0.15} clearcoatRoughness={0.5} toneMapped={false} /></mesh>
-        <mesh position-z={0.03} onClick={(e) => { e.stopPropagation(); if (focused.current === index) onPlate(index); else onTap(index); }} onPointerOver={(e) => { e.stopPropagation(); hov.current = true; onHover(index); }} onPointerOut={() => { hov.current = false; onHover(null); }}>
-          <circleGeometry args={[0.55, 24]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
+        <mesh position-z={0.004}><circleGeometry args={[0.352, 72]} /><meshBasicMaterial map={map} toneMapped={false} /></mesh>
       </group>
       <Steam count={10} height={0.5} spread={0.1} size={0.14} opacity={0.16} origin={[0, 0.85, 0.05]} />
+      {/* an invisible ball around the plate catches taps; it never moves, so the plate cannot dodge the pointer */}
+      <mesh position={[0, 0.5, 0.05]} onClick={(e) => { e.stopPropagation(); if (focused.current === index) onPlate(index); else onTap(index); }} onPointerOver={(e) => { e.stopPropagation(); hov.current = true; onHover(index); }} onPointerOut={() => { hov.current = false; onHover(null); }}>
+        <sphereGeometry args={[0.46, 10, 8]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
     </group>
   );
 }
@@ -345,7 +291,7 @@ function Env() {
 }
 
 function Lights({ api }: { api: WalkApi }) {
-  const spot = useRef<THREE.SpotLight>(null), target = useMemo(() => new THREE.Object3D(), []), lantern = useRef<THREE.PointLight>(null);
+  const spot = useRef<THREE.SpotLight>(null), target = useMemo(() => new THREE.Object3D(), []);
   const cur = useRef({ th: DISH_TH[0], k: 0 });
   useFrame(({ camera }, d) => {
     const f = api.focus.current;
@@ -356,13 +302,11 @@ function Lights({ api }: { api: WalkApi }) {
     cur.current.th = lerpAngle(cur.current.th, th, 1 - Math.exp(-4 * d));
     cur.current.k = THREE.MathUtils.damp(cur.current.k, f != null ? 1 : 0.6, 4, d);
     if (spot.current) { const [x, z] = polar(DISH_R - 1.1, cur.current.th); spot.current.position.set(x, 2.9, z); spot.current.intensity = 26 * cur.current.k + 8; const [tx, tz] = polar(DISH_R, cur.current.th); target.position.set(tx, COUNTER_TOP + 0.35, tz); }
-    if (lantern.current) { lantern.current.position.copy(camera.position); lantern.current.position.y += 0.4; }
   });
   return (
     <>
       <hemisphereLight args={["#ffe0b8", "#1a2050", 0.3]} />
       <pointLight position={[0, 1.85, 0]} intensity={20} distance={7.5} decay={2} color="#ffb867" />
-      <pointLight ref={lantern} intensity={3.2} distance={5} decay={2} color="#ffe9cf" />
       <spotLight ref={spot} angle={0.5} penumbra={0.85} distance={7} decay={1.6} color="#ffe0b0" target={target} />
       <primitive object={target} />
     </>
@@ -385,7 +329,7 @@ function TapPosition() {
 /** Moves the camera: along the aisle with scrolling, to the dish when it is focused, with drag-to-look on top. Also places the dish name tags and notices when the visitor stops. */
 function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "api" | "tags" | "onAutoFocus" | "onUnfocus" | "portrait">) {
   const { camera, size } = useThree();
-  const st = useRef({ t: 0, f: 0, fi: 0, lx: 0, ly: 0, sx: 0, sy: 0, enter: 0, idle: 0, lastP: 0, focusP: 0, fov: 58, seen: false });
+  const st = useRef({ t: 0, f: 0, fi: 0, lx: 0, ly: 0, sx: 0, sy: 0, enter: 0, idle: 0, lastP: 0, focusP: 0, fov: 58, lastFocus: null as number | null });
   const v = useMemo(() => new THREE.Vector3(), []);
   const fwd = useMemo(() => new THREE.Vector3(), []);
   const rel0 = useMemo(() => new THREE.Vector3(), []);
@@ -397,7 +341,8 @@ function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "
     s.t = THREE.MathUtils.damp(s.t, p, 3.6, d);
     s.enter = THREE.MathUtils.damp(s.enter, api.enter.current, 1.7, d);
     const focus = api.focus.current;
-    if (focus != null && s.fi !== focus) { s.fi = focus; s.focusP = p; }
+    // note where the scroll was when a dish was focused; scrolling clearly away from there (and only that) lets it go
+    if (focus !== s.lastFocus) { s.lastFocus = focus; if (focus != null) { s.fi = focus; s.focusP = p; } }
     s.f = THREE.MathUtils.damp(s.f, focus != null ? 1 : 0, 3.4, d);
 
     // the pose on the aisle
@@ -449,7 +394,7 @@ function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "
       for (let i = 0; i < DISH_TH.length; i++) { const dd = Math.abs(pForDish(i) - s.t); if (dd < bd) { bd = dd; best = i; } }
       if (best >= 0 && bd < 0.04) onAutoFocus(best);
     }
-    if (focus != null && Math.abs(p - s.focusP) > 0.014 && !api.busy.current) onUnfocus();
+    if (focus != null && Math.abs(p - s.focusP) > 0.03 && !api.busy.current) onUnfocus();
 
     // the dish name tags
     cam.getWorldDirection(fwd);
@@ -472,32 +417,45 @@ function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "
   return null;
 }
 
+function World(p: SceneProps) {
+  const { theme, api } = p;
+  const mats = useBuildMats(theme);
+  return (
+    <MatsProvider value={mats}>
+      <Room theme={theme} />
+      <Counter theme={theme} fontsReady={p.fontsReady} />
+      <Island theme={theme} />
+      <Oven th={123} />
+      <Stations />
+      <HangingStrings />
+      <WallClock th={76} />
+      <DoorFrame theme={theme} fontsReady={p.fontsReady} />
+      <Lamps />
+      <Dust />
+      {theme.dishes.map((dish, i) => <Dish key={dish.id} index={i} dish={dish} focused={api.focus} onTap={p.onTap} onPlate={p.onPlate} onHover={p.onHover} />)}
+      <Rig api={api} tags={p.tags} onAutoFocus={p.onAutoFocus} onUnfocus={p.onUnfocus} portrait={p.portrait} />
+    </MatsProvider>
+  );
+}
+
 function Ready({ onReady }: { onReady: () => void }) { useEffect(() => { onReady(); }, [onReady]); return null; }
 
 export default function KitchenScene(p: SceneProps) {
   const { theme, api } = p;
   // sharpness follows the device: start high, step down when frames get slow, step back up when there is room (?dpr=0.5 forces it, for testing)
   const forced = typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("dpr")) || 0 : 0;
-  const [dpr, setDpr] = useState(forced || 1.5);
+  const [dpr, setDpr] = useState(forced || Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1));
   return (
     <Canvas dpr={dpr} camera={{ fov: 58, near: 0.08, far: 40, position: [0, EYE, 0] }} gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
       style={{ position: "absolute", inset: 0 }} eventSource={p.eventSource as React.RefObject<HTMLElement>} eventPrefix="client" aria-hidden="true">
       <color attach="background" args={[theme.colors.ink]} />
       <fogExp2 attach="fog" args={[theme.colors.ink, 0.05]} />
-      {!forced && <PerformanceMonitor flipflops={3} onDecline={() => setDpr((d) => Math.max(0.6, d - 0.35))} onIncline={() => setDpr((d) => Math.min(1.7, d + 0.2))} />}
+      {!forced && <PerformanceMonitor flipflops={3} onDecline={() => setDpr((d) => Math.max(1, d - 0.25))} onIncline={() => setDpr((d) => Math.min(2, d + 0.25))} />}
       <Env />
       <Lights api={api} />
       <TapPosition />
       <Suspense fallback={null}>
-        <Room theme={theme} fontsReady={p.fontsReady} />
-        <Counter theme={theme} fontsReady={p.fontsReady} />
-        <Island theme={theme} />
-        <Door theme={theme} fontsReady={p.fontsReady} />
-        <Lamps />
-        {theme.dishes.map((dish, i) => <Dish key={dish.id} index={i} dish={dish} focused={api.focus} onTap={p.onTap} onPlate={p.onPlate} onHover={p.onHover} />)}
-        <Steam count={34} height={1.1} spread={0.45} size={0.7} opacity={0.34} origin={[0, 1.0, 0.42]} />
-        <Steam count={12} height={0.9} spread={0.2} size={0.5} opacity={0.3} origin={[-0.55, 1.2, 0.45]} />
-        <Rig api={api} tags={p.tags} onAutoFocus={p.onAutoFocus} onUnfocus={p.onUnfocus} portrait={p.portrait} />
+        <World {...p} />
         <Ready onReady={p.onReady} />
       </Suspense>
     </Canvas>
