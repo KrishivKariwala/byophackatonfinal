@@ -14,6 +14,7 @@ import { priorityOver, setupPriority } from "./p2/priority";
 import { issueReceiptTx } from "./p2/receipts";
 import { creditQuote, restoreCreditTx, rewardReferralTx, spendCreditTx } from "./p2/credits";
 import { pgEnabled } from "./pg/db";
+import { istClock } from "./time-text";
 import { pgAttachGatewayOrder, pgConfirmPayment, pgFailPayment, pgHandover, pgReserve, pgSweep } from "./pg/flow";
 import { newId, random4, randomToken, sha256 } from "./crypto";
 import { distanceKm } from "./geo";
@@ -525,7 +526,7 @@ export function handover(actor: Profile | null, input: { code?: string; token?: 
     if (r.codeUsedAt || r.status === "Picked up") throw new RuleError("code_used", `${r.ref} was already collected; codes work once.`, 409, { ref: r.ref });
     if (r.status !== "Reserved" && r.status !== "Ready") throw new RuleError("order_inactive", `${r.ref} is ${r.status.toLowerCase()}.`, 409, { ref: r.ref, status: r.status.toLowerCase(), statusKey: `status.${r.status}` });
     const l = listingIn(db, r.listingId);
-    if (now < t(l.windowStart)) throw new RuleError("too_early", `Pickup window opens at ${l.windowStart}.`, 409, { time: l.windowStart }, "too_early_opens");
+    if (now < t(l.windowStart)) throw new RuleError("too_early", `Pickup opens at ${istClock(l.windowStart)}. The code will work from then.`, 409, { time: istClock(l.windowStart) }, "too_early_opens");
     if (now > t(l.windowEnd)) throw new RuleError("too_late", "The pickup window has ended.", 409);
     setResStatus(tx, r, "Picked up", me.id, input.token ? "qr" : "code");
     r.pickedUpAt = iso(now);

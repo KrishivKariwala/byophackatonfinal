@@ -10,7 +10,7 @@ afterAll(async () => { await cleanup(); await closePool(); });
 
 const q = async (sql: string, a: unknown[] = []) => (await pool().query(sql, a)).rows;
 /** Customers with nothing active right now (the 50-way race gave 10 random customers an order, so the later tests must not assume who is free). */
-const idle = async (n: number) => (await q("select p.id from profiles p where p.name like 'DBTEST Customer%' and not exists (select 1 from reservations r where r.customer_id = p.id and r.status in ('Reserved','Ready')) and not exists (select 1 from checkout_holds h where h.customer_id = p.id and h.status = 'Active') order by p.name")).slice(0, n).map((r) => r.id as string);
+const idle = async (n: number) => (await q("select p.id from profiles p where p.name like 'DBTEST Customer%' and p.suspended_until is null and not exists (select 1 from reservations r where r.customer_id = p.id and r.status in ('Reserved','Ready')) and not exists (select 1 from checkout_holds h where h.customer_id = p.id and h.status = 'Active') order by p.name")).slice(0, n).map((r) => r.id as string);
 const code = (e: unknown) => (e instanceof RuleError ? e.code : String(e));
 
 describe("the core flow on the real database (through the same functions the app calls)", () => {
@@ -125,5 +125,19 @@ describe("the core flow on the real database (through the same functions the app
     await expect(pgReserve(c13, { listingId: listing, qty: 1, method: "online" })).rejects.toMatchObject({ code: "suspended", message: "Paused after no-shows." });
     await q("update vendors set max_units_per_order = 10 where id = $1", [w.vendor]);
     expect(await pgReserve(c14, { listingId: listing, qty: 8, method: "online" })).toMatchObject({ kind: "hold", amount: 800 });
+  });
+
+  it("a code entered before pickup opens is refused with the TIME it opens (and works once it has)", async () => {
+    const listing = await w.listing({ qty: 2, startMin: 90, endMin: 180 });
+    const [cust] = await idle(1);
+    const hold = await pgReserve(cust, { listingId: listing, qty: 1, method: "online" });
+    if (hold.kind !== "hold") throw new Error("expected a hold");
+    const paid = await pgConfirmPayment({ holdId: hold.holdId, gatewayPaymentId: "early_pay", eventId: `dbtest_evt_early_${hold.holdId}`, actorId: cust });
+    if (paid.outcome !== "confirmed") throw new Error("expected confirmed");
+    const secrets = (await pgOrderSecrets(cust, paid.reservationId))!;
+    await expect(pgHandover(w.owner, { code: secrets.code })).rejects.toMatchObject({ code: "too_early", message: expect.stringMatching(/^Pickup opens at \d{1,2}:\d{2} (am|pm)\. The code will work from then\.$/) });
+    await expect(pgHandover(w.owner, { token: secrets.qrToken })).rejects.toMatchObject({ code: "too_early", message: expect.stringMatching(/Pickup opens at/) });
+    await q("update listings set window_start = now() - interval '2 minutes' where id = $1", [listing]);
+    expect(await pgHandover(w.owner, { code: secrets.code })).toMatchObject({ ok: true });
   });
 });

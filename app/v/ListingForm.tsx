@@ -236,6 +236,16 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
             <label className="label">{tr("vform.prepared")}<input type="datetime-local" className="input" required value={times.prepared} onChange={(e) => setTimes({ ...times, prepared: e.target.value })} /></label>
             <label className="label">{tr("vform.safeUntil")}<input type="datetime-local" className="input" value={times.safe} onChange={(e) => setTimes({ ...times, safe: e.target.value })} /></label>
           </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="font-semibold text-muted">{tr("vform.startSoon")}</span>
+            {[5, 15, 30].map((m) => (
+              <button type="button" key={m} className="chip border-2 border-line bg-white !py-1.5 text-burgundy" onClick={() => {
+                const drift = serverNow - t0, s = serverNow + (Date.now() - t0) + m * 60_000;
+                const len = times.start && times.end ? Math.max(30, (new Date(times.end).getTime() - new Date(times.start).getTime()) / 60_000) : 90;
+                setTimes({ ...times, start: toLocal(s - drift), end: toLocal(s + len * 60_000 - drift) });
+              }}>{tr("vform.startInMin", { n: m })}</button>
+            ))}
+          </div>
           <p className="text-[11px] text-muted">{tr("vform.windowNote")}</p>
         </div>
         <div className="card flex flex-col gap-3 p-5">

@@ -6,6 +6,7 @@ import { withTx, attempt, pool } from "./db";
 import { guard } from "./errors";
 import { open as unseal, seal } from "./box";
 import { RuleError } from "../rules";
+import { istClock } from "../time-text";
 import { randomToken, random4, sha256, newId } from "../crypto";
 import { toUuid as U } from "./uuid";
 import { razorpayConfigured } from "../payments";
@@ -186,7 +187,16 @@ export async function pgHandover(vendorUserId: string, input: { code?: string; t
       if (!v) throw new RuleError("approval_required", "Your verification is not approved yet.", 403);
       codeHash = sha256(`${v.id}:${input.code.trim()}`);
     } else throw new RuleError("code_required", "Scan the QR or enter the 4-digit code.");
-    const r = (await one(c, "select handover($1, $2) r", [tokenHash, codeHash]))!.r;
+    const tried = await attempt(c, () => one(c, "select handover($1, $2) r", [tokenHash, codeHash]));
+    if (!tried.ok) {
+      // "Not open yet" should say WHEN it opens (the database function only says that it has not). The failed attempt is undone; this just looks the time up.
+      if ((tried.error as { message?: string }).message === "too_early") {
+        const w = await one(c, "select l.window_start from pickup_codes pc join reservations r on r.id = pc.reservation_id join listings l on l.id = r.listing_id where pc.used_at is null and pc.voided_at is null and (pc.qr_token_hash = $1 or (pc.code_hash = $2 and pc.vendor_id = (select id from vendors where id in (select my_vendor_ids()) and status = 'Approved' order by created_at limit 1))) order by l.window_start limit 1", [tokenHash, codeHash]);
+        if (w) throw new RuleError("too_early", `Pickup opens at ${istClock(w.window_start)}. The code will work from then.`, 409, { time: istClock(w.window_start) }, "too_early_opens");
+      }
+      throw tried.error;
+    }
+    const r = tried.value!.r;
     const o = await one(c, "select customer_id, id from reservations where ref = $1", [r.ref]);
     if (o) { await tell(c, o.customer_id, "review_prompt", `${r.ref} was picked up. How was it?`, { reservationId: o.id }); await reservationEvent(c, o.id, events); }
     events.push({ type: "impact" } as Pending);

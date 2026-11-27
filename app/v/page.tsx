@@ -152,6 +152,7 @@ export default async function VendorHome() {
                     <span className="text-xs text-muted">{t("vdash.pickup", { window: fmt.window(l.windowStart, l.windowEnd) })}</span>
                     <span className="text-xs text-muted">{r.method === "online" ? t("vdash.online") : t("listing.payAtPickup")} · {p ? statusLabel(t, p.status) : null}{r.method === "pay_at_pickup" && p?.status === "Pending" ? ` · ${t("vdash.collect", { amount: r.amount })}` : ""}</span>
                     {c === "Reserved" && approved && <ActionButton path={`/api/vendor/orders/${r.id}/ready`} label={t("vdash.markReady")} className="btn-primary mt-1" />}
+                    {c !== "Picked up" && n < Date.parse(l.windowStart) && <span role="status" className="rounded-lg bg-sand px-2 py-1 text-xs font-semibold text-burgundy">{t("vdash.opensAt", { time: fmt.time(l.windowStart) })}</span>}
                     {c === "Ready" && <Link href="/v/scan" className="btn-outline mt-1">{t("vdash.scanOrEnter")}</Link>}
                     {c === "Picked up" && <span className="text-xs font-semibold text-veg">{t("vdash.handedOver", { time: fmt.time(r.pickedUpAt!) })}</span>}
                   </div>
