@@ -1,171 +1,188 @@
 "use client";
-import * as THREE from "three";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useTexture } from "@react-three/drei";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUp } from "lucide-react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { useT } from "@/components/I18n";
 
 /**
- * The entrance. The vendor stands in front of their restaurant at night, using a real photo of the shopfront that has been given depth:
- * move the mouse (or tilt, or just wait: it breathes) and the street shifts in 3D. "Enter door" is a brass plate at the entrance.
- * Tap it, or swipe up / scroll, and the camera walks in through the arch, with the steps, pillar and shrubs rushing past, into the kitchen.
- * The kitchen is already loading underneath.
+ * The entrance. The vendor stands in front of the restaurant at dusk and PUSHES the door open.
+ *
+ * Motion thesis (from the creative-skills pack: apple-design + animate): one authored moment, the push. The door answers the instant it is
+ * pressed, follows a drag 1:1, keeps the speed of the hand when released, swings on springs with a small bump at the stop, and is never
+ * pulled (it only opens inward, away from you). Behind the opening is the LIVE kitchen: the doorway is a real hole in the picture, so as
+ * the leaves swing away you see the kitchen, then the whole front zooms past you and you are inside.
  */
-const PHOTO_ASPECT = 830 / 886;
-const ARCH = { x: 232, y: 500 };           // the entrance, in photo pixels
-const FOCUS = { x: 0.26, y: 1 - 0.6 };     // where the camera heads, in photo uv (y up)
-/** the same maths as the picture: where a photo pixel lands on the screen */
-function toScreen(px: number, py: number, W: number, H: number): [number, number] {
-  const sa = W / H, portrait = sa < 0.9, cx = portrait ? 0.4 : 0.5, sc = portrait ? 0.9 : 1.22, cy = portrait ? 0.5 : 0.49;
-  const ux = 0.5 + (px / 830 - cx) * PHOTO_ASPECT / sa * sc, uy = 0.5 + (1 - py / 886 - cy) * sc;
-  return [ux * W, (1 - uy) * H];
+const IW = 1376, IH = 768;                                   // the shopfront picture
+const LEAF = { x: 606, y: 302, w: 166, h: 327 };             // the two door leaves, in picture pixels
+const HALF = Math.round(LEAF.w / 2);
+const DC = { x: LEAF.x + LEAF.w / 2, y: LEAF.y + LEAF.h / 2 };
+const OPEN = 84;                                             // degrees: how far the leaves swing away
+const IMG = "/kitchen/paris-panini";
+
+type Sp = { x: number; v: number };
+/** a damped spring toward `target`, integrated in small steps so it is stable at any frame rate */
+function spring(s: Sp, target: number, response: number, zeta: number, dt: number) {
+  const w = (2 * Math.PI) / response, n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+  for (let i = 0; i < n; i++) { s.v += (-w * w * (s.x - target) - 2 * zeta * w * s.v) * h; s.x += s.v * h; }
 }
+const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
+const smooth = (t: number) => { const c = clamp(t, 0, 1); return c * c * (3 - 2 * c); };
 
-const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-const FRAG = `
-precision highp float;
-uniform sampler2D uPhoto; uniform sampler2D uDepth;
-uniform vec2 uRes; uniform vec2 uOff; uniform vec2 uFocus; uniform float uTime; uniform float uZoom; uniform float uPortrait; uniform float uAspect;
-varying vec2 vUv;
-vec2 toPhoto(vec2 uv){ float sa = uRes.x / uRes.y; float cx = mix(0.5, 0.4, uPortrait); float sc = mix(1.22, 0.9, uPortrait); float cy = mix(0.49, 0.5, uPortrait); return vec2(cx + (uv.x - 0.5) * sa / uAspect / sc, cy + (uv.y - 0.5) / sc); }
-float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-void main(){
-  vec2 p = toPhoto(vUv);
-  float d = texture2D(uDepth, vec2(clamp(p.x, 0.001, 0.999), clamp(p.y, 0.001, 0.999))).r;
-  vec2 q = p;
-  for (int i = 0; i < 3; i++) {
-    float s = 1.0 + uZoom * (0.1 + 2.6 * d);
-    q = uFocus + (p - uFocus) / s;
-    q += uOff * (d - 0.4) * 0.045;
-    d = texture2D(uDepth, vec2(clamp(q.x, 0.001, 0.999), clamp(q.y, 0.001, 0.999))).r;
-  }
-  // beyond the photo's left and right edge the facade simply carries on (its blue band) and falls away into the night
-  float outside = max(max(-q.x, q.x - 1.0), 0.0);
-  vec3 c = texture2D(uPhoto, vec2(clamp(q.x, 0.002, 0.998), clamp(q.y, 0.001, 0.999))).rgb;
-  float lum = dot(c, vec3(0.299, 0.587, 0.114));
-  // day to night: darker, bluer, then light the sign, the entrance and the street lamps back up
-  vec3 night = c * vec3(0.34, 0.44, 0.78) * 0.82;
-  float sig = smoothstep(0.688, 0.700, q.y) * (1.0 - smoothstep(0.880, 0.892, q.y));
-  float lamp = 0.9 + 0.1 * sin(uTime * 1.3) * sin(uTime * 0.37 + 1.0);
-  night = mix(night, c * vec3(1.02, 1.08, 1.28) * 1.05 * lamp, sig * 0.92);
-  float inside = 1.0 - smoothstep(0.0, 0.16, d);
-  float flick = 0.88 + 0.12 * sin(uTime * 2.1 + sin(uTime * 5.3));
-  vec3 warm = vec3(1.0, 0.62, 0.27) * (0.18 + 1.05 * lum) * flick;
-  night += warm * inside * (0.55 + 0.9 * uZoom);
-  // a pool of warm light spilling down the steps
-  float spill = smoothstep(0.32, 0.0, length((q - vec2(0.27, 0.22)) * vec2(1.0, 1.3)));
-  night += vec3(0.9, 0.5, 0.2) * spill * 0.18 * (1.0 - step(0.5, outside));
-  // past the edge: the blue facade band goes on, everything below it sinks into the dark street
-  float band = smoothstep(0.62, 0.69, q.y);
-  vec3 street = vec3(0.012, 0.018, 0.05) + vec3(0.02, 0.03, 0.08) * smoothstep(0.0, 0.5, q.y);
-  float edge = min(q.x, 1.0 - q.x);
-  night = mix(night, street, (1.0 - smoothstep(-0.01, 0.12, edge)) * (1.0 - band));
-  night *= 1.0 - smoothstep(0.0, 0.4, outside) * 0.9 * band;
-  float outY = max(max(-q.y, q.y - 1.0), 0.0);
-  night *= 1.0 - smoothstep(0.0, 0.06, outY);
-  float v = length(vUv - 0.5);
-  night *= 1.0 - smoothstep(0.35, 0.95, v) * 0.7;
-  night += (hash(vUv * uRes + uTime) - 0.5) * 0.035;
-  // walking in: the doorway glow takes over the whole screen
-  vec3 end = vec3(0.16, 0.085, 0.045);
-  night = mix(night, end, smoothstep(0.72, 1.0, uZoom));
-  gl_FragColor = vec4(night, 1.0);
-  #include <colorspace_fragment>
-}`;
-
-interface Ctl { zoom: { current: number }; off: { current: [number, number] } }
-
-function Street({ ctl }: { ctl: Ctl }) {
-  const [photo, depth] = useTexture(["/kitchen/paris-panini/door-photo.webp", "/kitchen/paris-panini/door-depth.webp"]);
-  const { size } = useThree();
-  const mat = useRef<THREE.ShaderMaterial>(null);
-  useEffect(() => { photo.colorSpace = THREE.SRGBColorSpace; photo.anisotropy = 8; photo.needsUpdate = true; }, [photo]);
-  useFrame(({ clock }) => {
-    const m = mat.current; if (!m) return; const u = m.uniforms;
-    const t = clock.elapsedTime;
-    u.uTime.value = t; u.uZoom.value = ctl.zoom.current; u.uRes.value.set(size.width, size.height); u.uPortrait.value = size.width / size.height < 0.9 ? 1 : 0;
-    // the breathing keeps the 3D visible even when nothing is touched
-    u.uOff.value.set(ctl.off.current[0] + Math.sin(t * 0.45) * 0.35, ctl.off.current[1] + Math.cos(t * 0.33) * 0.22);
-  });
-  return (
-    <mesh frustumCulled={false}>
-      <planeGeometry args={[2, 2]} />
-      <shaderMaterial ref={mat} vertexShader={VERT} fragmentShader={FRAG} toneMapped={false} depthTest={false}
-        uniforms={{ uPhoto: { value: photo }, uDepth: { value: depth }, uRes: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() }, uFocus: { value: new THREE.Vector2(FOCUS.x, FOCUS.y) }, uTime: { value: 0 }, uZoom: { value: 0 }, uPortrait: { value: 0 }, uAspect: { value: PHOTO_ASPECT } }} />
-    </mesh>
-  );
+/** the little brass doorbell, only ever as an answer to a tap or push */
+let ctx: AudioContext | null = null;
+function bell() {
+  try {
+    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext; if (!AC) return;
+    ctx = ctx ?? new AC(); const t = ctx.currentTime;
+    [1568, 2349, 3136].forEach((f, i) => { const o = ctx!.createOscillator(), g = ctx!.createGain(); o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05 / (i + 1), t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.1); o.connect(g).connect(ctx!.destination); o.start(t); o.stop(t + 1.2); });
+  } catch { /* no sound: fine */ }
 }
+const buzz = (ms: number) => { try { const ua = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation; if (ua && !ua.hasBeenActive) return; navigator.vibrate?.(ms); } catch { /* not supported */ } };
 
-export function Door({ theme, onOpening, onDone, onSkip }: { theme: KitchenTheme; onOpening: () => void; onDone: () => void; onSkip: () => void }) {
+export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: KitchenTheme; onAwake: () => void; onOpening: () => void; onDone: () => void; onSkip: () => void }) {
   const { t } = useT();
-  const root = useRef<HTMLDivElement>(null);
-  const plate = useRef<HTMLButtonElement>(null);
-  const ctl = useRef<Ctl>({ zoom: { current: 0 }, off: { current: [0, 0] } }).current;
-  const st = useRef({ p: 0, target: 0, auto: false, opened: false, done: false, ptr: null as { y: number; id: number } | null, drag: 0 });
-  const [ready, setReady] = useState(false);
-  const [fade, setFade] = useState(0);
+  const root = useRef<HTMLDivElement>(null), stage = useRef<HTMLDivElement>(null), leafL = useRef<HTMLDivElement>(null), leafR = useRef<HTMLDivElement>(null);
+  const shadeL = useRef<HTMLElement>(null), shadeR = useRef<HTMLElement>(null), spill = useRef<HTMLDivElement>(null), reveal = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null);
+  const fills = useRef<(HTMLDivElement | null)[]>([]), hint = useRef<HTMLParagraphElement>(null);
+  const cbs = useRef({ onAwake, onOpening, onDone }); cbs.current = { onAwake, onOpening, onDone };
+  const S = useRef({ a: { x: 0, v: 0 } as Sp, d: { x: 0, v: 0 } as Sp, target: 0, dTarget: 0, opened: false, done: false, touched: false, press: 0, drag: null as null | { x0: number; y0: number; hist: { t: number; a: number }[] }, par: { x: 0, y: 0, tx: 0, ty: 0 }, nextNudge: 3.2, bell: false, buzzed: false, reduce: false });
+  const [loaded, setLoaded] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
 
-  // the plate follows the entrance as the street shifts and the camera moves
+  const pushOpen = () => {
+    const s = S.current; if (s.target === OPEN) return;
+    if (!s.touched) cbs.current.onAwake();
+    s.touched = true; s.target = OPEN; s.a.v = Math.max(s.a.v, s.reduce ? 0 : 70); s.press = 1; buzz(12);
+    if (!s.bell) { s.bell = true; bell(); }
+  };
+
   useEffect(() => {
+    const s = S.current; s.reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let raf = 0, last = performance.now();
-    const loop = (now: number) => {
-      raf = requestAnimationFrame(loop);
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      const s = st.current;
-      if (s.auto) s.target = Math.min(1, s.target + dt / 2.4);
-      s.p += (s.target - s.p) * Math.min(1, dt * (s.auto ? 5 : 7));
-      const e = s.p * s.p * (3 - 2 * s.p);
-      ctl.zoom.current = e;
-      if (e > 0.55 && !s.opened) { s.opened = true; onOpening(); }
-      if (e > 0.62) setFade(Math.min(1, (e - 0.62) / 0.3));
-      if (s.p > 0.985 && !s.done) { s.done = true; onDone(); }
-      const el = root.current, pl = plate.current;
-      if (el && pl) {
-        const W = el.clientWidth, H = el.clientHeight;
-        const [px, py] = toScreen(ARCH.x, ARCH.y, W, H);
-        // the point moves toward the camera's focus as it walks in, and sways with the parallax
-        const [fx, fy] = toScreen(FOCUS.x * 830, (1 - FOCUS.y) * 886, W, H);
-        const scale = 1 + e * 1.4;
-        const x = fx + (px - fx) * scale + ctl.off.current[0] * 6, y = fy + (py - fy) * scale + ctl.off.current[1] * 4;
-        pl.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${(1 + e * 0.8).toFixed(3)})`;
-        pl.style.opacity = String(Math.max(0, 1 - e * 2.4));
-      }
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [ctl, onOpening, onDone]);
+    const t0 = last;
+    const frame = (now: number) => {
+      raf = requestAnimationFrame(frame);
+      const el = root.current, st = stage.current; if (!el || !st) return;
+      const dt = Math.min(0.05, (now - last) / 1000); last = now; const time = (now - t0) / 1000;
+      const vw = el.clientWidth, vh = el.clientHeight, portrait = vw / vh < 1;
+      const s0 = portrait ? (vw * 0.34) / LEAF.w : Math.max(vw / IW, vh / IH);
+      const p0 = { x: vw / 2, y: portrait ? vh * 0.55 : vh * 0.58 };
+      const smax = Math.max(2.4, Math.max(vw / (162 * s0), vh / (323 * s0)) * 1.12);
 
-  const walkIn = () => { st.current.auto = true; };
+      // the door: a spring toward closed or open, or glued to the finger while it is being dragged
+      if (!s.drag) {
+        if (s.touched === false && !s.reduce && time > s.nextNudge && s.target === 0) { s.a.v += 15; s.nextNudge = time + 5.5; } // a small inward nudge now and then: "push me"
+        spring(s.a, s.target, s.reduce ? 0.2 : s.target === OPEN ? 0.62 : 0.5, s.reduce ? 1 : s.target === OPEN ? 0.58 : 0.9, dt);
+        if (s.a.x < 0) { s.a.x = 0; if (s.a.v < 0) s.a.v = 0; }        // a door that only opens inward: it can never be pulled toward you
+        if (s.a.x > OPEN + 6) { s.a.x = OPEN + 6; if (s.a.v > 0) s.a.v *= -0.3; }
+      }
+      s.press *= Math.exp(-dt * 9);
+      const aEff = s.a.x + s.press * 2.2;
+      if (s.a.x > 28 && !s.buzzed) { s.buzzed = true; buzz(10); }
+      if (s.a.x > 58 && !s.opened) { s.opened = true; s.dTarget = 1; cbs.current.onOpening(); }
+      if (s.opened) spring(s.d, s.dTarget, s.reduce ? 0.3 : 1.15, 1, dt);
+      const d = clamp(s.d.x, 0, 1.02);
+      if (d > 0.975 && !s.done) { s.done = true; cbs.current.onDone(); }
+
+      // the whole front: placed so the door sits at its spot, tilting a little with the pointer, then zooming through the doorway
+      s.par.x += (s.par.tx - s.par.x) * Math.min(1, dt * 4); s.par.y += (s.par.ty - s.par.y) * Math.min(1, dt * 4);
+      const sway = s.reduce ? 0 : 1;
+      const ry = (s.par.x * 2.4 + Math.sin(time * 0.4) * 0.9 * sway) * (1 - d), rx = (-s.par.y * 1.6 + Math.cos(time * 0.33) * 0.55 * sway) * (1 - d);
+      const sc = s.reduce ? s0 : s0 * Math.exp(Math.log(smax) * d), e = smooth(d);
+      if (s.reduce) el.style.opacity = String(1 - e);
+      let px = s.reduce ? p0.x : p0.x + (vw / 2 - p0.x) * e, py = s.reduce ? p0.y : p0.y + (vh / 2 - p0.y) * e;
+      if (!portrait) { px = clamp(px, vw - (IW - DC.x) * sc, DC.x * sc); py = clamp(py, vh - (IH - DC.y) * sc, DC.y * sc); }
+      st.style.transform = `translate3d(${px.toFixed(2)}px, ${py.toFixed(2)}px, 0) rotateX(${rx.toFixed(3)}deg) rotateY(${ry.toFixed(3)}deg) scale(${sc.toFixed(4)}) translate3d(${-DC.x}px, ${-DC.y}px, 0)`;
+      // plain fills where the picture does not reach the edges of the screen (phones are taller than the picture)
+      const left = px - DC.x * sc, top = py - DC.y * sc, right = left + IW * sc, bottom = top + IH * sc, f = fills.current;
+      if (f[0]) f[0].style.height = `${Math.max(0, top + 1)}px`;
+      if (f[1]) f[1].style.top = `${Math.max(0, bottom - 1)}px`;
+      if (f[2]) f[2].style.width = `${Math.max(0, left + 1)}px`;
+      if (f[3]) f[3].style.left = `${Math.max(0, right - 1)}px`;
+
+      const k = clamp(s.a.x / OPEN, 0, 1.05);
+      if (leafL.current) leafL.current.style.transform = `rotateY(${aEff.toFixed(2)}deg)`;
+      if (leafR.current) leafR.current.style.transform = `rotateY(${(-aEff).toFixed(2)}deg)`;
+      const shade = String(Math.min(0.62, k * 0.7)); if (shadeL.current) shadeL.current.style.opacity = shade; if (shadeR.current) shadeR.current.style.opacity = shade;
+      if (spill.current) spill.current.style.opacity = String(Math.min(1, k * 1.15) * (1 - e));
+      if (reveal.current) reveal.current.style.opacity = String(1 - e);
+      if (hint.current) hint.current.style.opacity = String(1 - smooth(k * 2.2));
+      if (btn.current) { btn.current.style.opacity = String(1 - smooth(k * 1.6)); btn.current.style.transform = `translateY(${(smooth(k * 1.6) * 24).toFixed(1)}px) scale(${(1 - s.press * 0.05).toFixed(3)})`; }
+    };
+    raf = requestAnimationFrame(frame); if (img.current?.complete && img.current.naturalWidth) setLoaded(true);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // pressing and pushing: respond on touch-down, follow the hand 1:1, hand over its speed on release
+  const down = (e: React.PointerEvent) => {
+    const s = S.current; if ((e.target as HTMLElement).closest("button")) return;
+    if (!s.touched) cbs.current.onAwake();
+    s.touched = true; s.press = 1; buzz(8);
+    s.drag = { x0: e.clientX, y0: e.clientY, hist: [{ t: performance.now(), a: s.a.x }] }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const move = (e: React.PointerEvent) => {
+    const s = S.current, r = e.currentTarget.getBoundingClientRect(); s.par.tx = ((e.clientX - r.left) / r.width - 0.5) * 2; s.par.ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
+    const g = s.drag; if (!g) return;
+    const dy = e.clientY - g.y0, dx = e.clientX - g.x0, travel = r.height * 0.34;
+    let deg = ((-dy + 0.5 * Math.abs(dx)) / travel) * OPEN;
+    if (deg < 0) deg = -(Math.abs(deg) * 5.5) / (Math.abs(deg) + 28);            // rubber band: pushing the wrong way barely moves it
+    deg = Math.min(deg, OPEN + 8);
+    g.hist.push({ t: performance.now(), a: deg }); if (g.hist.length > 6) g.hist.shift();
+    s.a.x = deg; s.a.v = 0; s.target = 0;
+  };
+  const up = () => {
+    const s = S.current, g = s.drag; if (!g) return; s.drag = null;
+    const h = g.hist, first = h[Math.max(0, h.length - 4)], lastS = h[h.length - 1];
+    const dt = Math.max(0.016, (lastS.t - first.t) / 1000), v = (lastS.a - first.a) / dt;     // degrees per second at release
+    const moved = Math.abs(lastS.a - g.hist[0].a) > 3;
+    const projected = s.a.x + clamp(v, -400, 600) * 0.22;                                       // where the swing is heading (momentum projection)
+    if (!moved || projected > 30 || s.a.x > 46) { s.target = OPEN; s.a.v = clamp(v, 40, 500); if (!s.bell) { s.bell = true; bell(); } } else { s.target = 0; s.a.v = clamp(v, -300, 0); }
+  };
+
   useEffect(() => {
-    const el = root.current; if (!el) return;
-    const wheel = (e: WheelEvent) => { e.preventDefault(); const s = st.current; if (s.auto) return; s.target = Math.max(0, Math.min(1, s.target + e.deltaY * 0.0012)); if (s.target > 0.8) s.auto = true; };
-    el.addEventListener("wheel", wheel, { passive: false });
-    const key = (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " " || e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); walkIn(); } };
+    const wheel = (e: WheelEvent) => { e.preventDefault(); const s = S.current; s.touched = true; if (e.deltaY > 6) pushOpen(); };
+    const el = root.current; el?.addEventListener("wheel", wheel, { passive: false });
+    const key = (e: KeyboardEvent) => { if ((e.target as HTMLElement)?.closest?.("button")) return; if (e.key === "Enter" || e.key === " " || e.key === "ArrowUp") { e.preventDefault(); pushOpen(); } };
     window.addEventListener("keydown", key);
-    return () => { el.removeEventListener("wheel", wheel); window.removeEventListener("keydown", key); };
+    return () => { el?.removeEventListener("wheel", wheel); window.removeEventListener("keydown", key); };
   }, []);
 
   return (
-    <div ref={root} className="k-door fixed inset-0 z-[70] touch-none select-none overflow-hidden bg-[#070a22]" role="group" aria-label={t("kitchen.door.aria", { brand: theme.brand })} style={{ opacity: 1 - fade }}
-      onPointerMove={(e) => {
-        const r = e.currentTarget.getBoundingClientRect(); ctl.off.current = [((e.clientX - r.left) / r.width - 0.5) * 2, ((e.clientY - r.top) / r.height - 0.5) * 2];
-        const s = st.current; if (s.ptr && !s.auto) { const dy = s.ptr.y - e.clientY; s.drag = Math.max(s.drag, Math.abs(dy)); s.target = Math.max(0, Math.min(1, dy / (r.height * 0.55))); }
-      }}
-      onPointerDown={(e) => { st.current.ptr = { y: e.clientY, id: e.pointerId }; st.current.drag = 0; }}
-      onPointerUp={() => { const s = st.current; s.ptr = null; if (!s.auto) { if (s.target > 0.3) s.auto = true; else s.target = 0; } }}
-      onPointerCancel={() => { st.current.ptr = null; st.current.target = 0; }}>
-      <Canvas dpr={[1, 2]} gl={{ antialias: false, powerPreference: "high-performance" }} camera={{ position: [0, 0, 1] }} style={{ position: "absolute", inset: 0 }} onCreated={() => setReady(true)}>
-        <Suspense fallback={null}><Street ctl={ctl} /></Suspense>
-      </Canvas>
-      {!ready && <p role="status" className="absolute inset-0 grid place-items-center text-sm font-bold text-white/70">{t("kitchen.loading")}</p>}
-      <button type="button" className="k-skip rounded-full bg-black/40 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white/90 backdrop-blur hover:bg-black/55" onClick={(e) => { e.stopPropagation(); onSkip(); }} onPointerDown={(e) => e.stopPropagation()}>{t("kitchen.door.skip")}</button>
-      {/* the brass plate at the entrance: not a button on a page, a sign on the door */}
-      <button ref={plate} type="button" aria-label={t("kitchen.door.enter")} onClick={(e) => { e.stopPropagation(); walkIn(); }} onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
-        className="k-plate k-display absolute left-0 top-0 whitespace-nowrap rounded-[5px] px-5 pb-2 pt-1.5 text-[clamp(1.05rem,3.6vw,1.6rem)] leading-tight" style={{ willChange: "transform, opacity" }}>
-        <span className="k-plate-chain" aria-hidden="true" />{t("kitchen.door.enter")}
-      </button>
-      <p className="pointer-events-none absolute inset-x-0 bottom-[4%] px-4 text-center text-[13px] font-semibold tracking-wide text-white/85" style={{ textShadow: "0 1px 10px #000", opacity: Math.max(0, 1 - fade * 3) }}>{t("kitchen.door.hint")}</p>
+    <div ref={root} className="k-door fixed inset-0 z-[70] touch-none select-none overflow-hidden" style={{ perspective: "1800px", perspectiveOrigin: "50% 50%", background: loaded ? "transparent" : "#070a22" }} role="group" aria-label={t("kitchen.door.aria", { brand: theme.brand })}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+      {/* plain colour where the picture does not reach: sky above, street below, night to the sides */}
+      <div ref={(e) => { fills.current[0] = e; }} className="k-fill" style={{ left: 0, right: 0, top: 0, background: "linear-gradient(#0d1b33, #2f5d90 55%, #5890c4)" }} />
+      <div ref={(e) => { fills.current[1] = e; }} className="k-fill" style={{ left: 0, right: 0, bottom: 0, background: "linear-gradient(#524a4c, #1c1b20 45%, #07080d)" }} />
+      <div ref={(e) => { fills.current[2] = e; }} className="k-fill" style={{ left: 0, top: 0, bottom: 0, background: "#040608" }} />
+      <div ref={(e) => { fills.current[3] = e; }} className="k-fill" style={{ right: 0, top: 0, bottom: 0, background: "#050607" }} />
+
+      <div ref={stage} className="absolute left-0 top-0" style={{ width: IW, height: IH, transformOrigin: "0 0", willChange: "transform", opacity: loaded ? 1 : 0, transition: "opacity .5s ease" }}>
+        {/* the shopfront, with the doorway cut out so the live kitchen shows through */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img ref={img} src={`${IMG}/facade.webp`} alt="" draggable={false} width={IW} height={IH} onLoad={() => setLoaded(true)} className="absolute left-0 top-0 max-w-none" />
+        <div ref={reveal} className="k-reveal" style={{ left: LEAF.x + 2, top: LEAF.y + 2, width: LEAF.w - 4, height: LEAF.h - 4 }} />
+        {/* life in the street: the lantern and the lit windows flicker, warm light spills onto the step when the door opens */}
+        <div className="k-glow" style={{ left: 826 - 70, top: 312 - 70, width: 140, height: 140, background: "radial-gradient(circle, rgba(255,196,110,.9), rgba(255,170,80,.25) 45%, transparent 70%)" }} />
+        <div className="k-glow" style={{ left: 285, top: 225, width: 225, height: 270, borderRadius: 40, background: "radial-gradient(ellipse, rgba(255,190,100,.28), transparent 70%)", animationDelay: "-1.2s" }} />
+        <div className="k-glow" style={{ left: 865, top: 225, width: 225, height: 270, borderRadius: 40, background: "radial-gradient(ellipse, rgba(255,190,100,.28), transparent 70%)", animationDelay: "-2.1s" }} />
+        <div ref={spill} className="absolute" style={{ left: LEAF.x - 120, top: LEAF.y + LEAF.h - 4, width: LEAF.w + 240, height: 120, opacity: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(255,198,120,.95), rgba(255,160,70,.35) 45%, transparent 72%)", mixBlendMode: "screen", pointerEvents: "none" }} />
+        {/* the two leaves: they swing on their outer hinges, away from you */}
+        <div className="absolute" style={{ left: LEAF.x, top: LEAF.y, width: LEAF.w, height: LEAF.h, perspective: 640, perspectiveOrigin: "50% 42%" }}>
+          <div ref={leafL} className="k-leaf3d" style={{ left: 0, width: HALF, height: LEAF.h, transformOrigin: "0% 50%", backgroundImage: `url(${IMG}/door-left.webp)` }}><i ref={shadeL} className="k-shade" /></div>
+          <div ref={leafR} className="k-leaf3d" style={{ left: HALF, width: LEAF.w - HALF, height: LEAF.h, transformOrigin: "100% 50%", backgroundImage: `url(${IMG}/door-right.webp)` }}>
+            <i ref={shadeR} className="k-shade k-shade-r" />
+            <span className="k-push-plate k-display" aria-hidden="true">{t("kitchen.door.push")}</span>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" className="k-skip rounded-full bg-black/40 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white/90 backdrop-blur hover:bg-black/55" onClick={onSkip}>{t("kitchen.door.skip")}</button>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-2 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <button ref={btn} type="button" onClick={pushOpen} className="k-plate k-display pointer-events-auto relative inline-flex min-h-[56px] items-center gap-3 whitespace-nowrap rounded-full px-7 text-[clamp(1.1rem,4.4vw,1.5rem)] leading-none" style={{ willChange: "transform, opacity" }}>
+          <ArrowUp size={22} strokeWidth={3} aria-hidden="true" className="k-push-arrow" />{t("kitchen.door.enter")}
+        </button>
+        <p ref={hint} className="text-center text-[13px] font-semibold tracking-wide text-white/85" style={{ textShadow: "0 1px 10px #000" }}>{t("kitchen.door.hint")}</p>
+      </div>
     </div>
   );
 }

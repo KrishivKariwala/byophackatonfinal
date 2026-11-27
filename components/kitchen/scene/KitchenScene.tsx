@@ -21,6 +21,8 @@ export interface SceneProps {
   tags: React.MutableRefObject<(HTMLElement | null)[]>;
   onTap: (i: number) => void; onPlate: (i: number) => void; onAutoFocus: (i: number) => void; onUnfocus: () => void; onHover: (i: number | null) => void;
   onReady: () => void; fontsReady: boolean; portrait: boolean;
+  /** stop drawing frames (the door is closed and nothing can be seen), to save the battery */
+  paused?: boolean;
   /** the element that receives taps and drags (the scroll track sits above the canvas) */
   eventSource: React.RefObject<HTMLElement | null>;
 }
@@ -446,7 +448,7 @@ export default function KitchenScene(p: SceneProps) {
   const forced = typeof window !== "undefined" ? Number(new URLSearchParams(window.location.search).get("dpr")) || 0 : 0;
   const [dpr, setDpr] = useState(forced || Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1));
   return (
-    <Canvas dpr={dpr} camera={{ fov: 58, near: 0.08, far: 40, position: [0, EYE, 0] }} gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
+    <Canvas frameloop={p.paused ? "never" : "always"} dpr={dpr} camera={{ fov: 58, near: 0.08, far: 40, position: [0, EYE, 0] }} gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
       style={{ position: "absolute", inset: 0 }} eventSource={p.eventSource as React.RefObject<HTMLElement>} eventPrefix="client" aria-hidden="true">
       <color attach="background" args={[theme.colors.ink]} />
       <fogExp2 attach="fog" args={[theme.colors.ink, 0.05]} />

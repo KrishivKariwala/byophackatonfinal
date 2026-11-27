@@ -47,6 +47,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
   const [moved, setMoved] = useState(false);
   const [portrait, setPortrait] = useState(false);
   const [t0] = useState(() => Date.now());
+  const [paused, setPaused] = useState(false);
 
   const root = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -77,6 +78,20 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
     fit(); window.addEventListener("resize", fit); return () => window.removeEventListener("resize", fit);
   }, [api]);
   useEffect(() => { api.busy.current = viewer != null || cartOpen || credits; }, [api, viewer, cartOpen, credits]);
+
+  // while the door is closed nothing in the kitchen can be seen: after it has been drawn once (so it is ready), stop drawing frames until the door is touched
+  useEffect(() => {
+    if (phase !== "door" || !ready) { if (phase !== "door") setPaused(false); return; }
+    const h = setTimeout(() => setPaused(true), 2500);
+    return () => clearTimeout(h);
+  }, [phase, ready]);
+  // the site's own header and footer sit under the kitchen: keep them out of keyboard reach, and put focus in the kitchen once we are in
+  useEffect(() => {
+    const main = document.querySelector("main"); const sibs = Array.from(main?.parentElement?.children ?? []).filter((e) => e !== main && /^(HEADER|FOOTER)$/.test(e.tagName));
+    sibs.forEach((e) => e.setAttribute("inert", ""));
+    return () => sibs.forEach((e) => e.removeAttribute("inert"));
+  }, []);
+  useEffect(() => { if (phase === "walk") scroller.current?.focus({ preventScroll: true }); }, [phase]);
 
   // ---- walking and looking
   const pending = useRef<number | null>(null);
@@ -141,7 +156,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
     <div ref={root} className="k-root fixed inset-0 z-[60] overflow-hidden" style={{ ["--k-brand" as string]: theme.colors.brand, ["--k-dark" as string]: theme.colors.brandDark, ["--k-accent" as string]: theme.colors.accent, ["--k-cream" as string]: theme.colors.cream, ["--k-wood" as string]: theme.colors.wood, ["--k-ink" as string]: theme.colors.ink, ["--k-brass" as string]: theme.colors.brass, background: theme.colors.ink } as React.CSSProperties}>
       {sceneOn && (
         <>
-          <KitchenScene theme={theme} api={api} tags={tags} eventSource={root} fontsReady={fontsReady} portrait={portrait}
+          <KitchenScene theme={theme} api={api} tags={tags} eventSource={root} fontsReady={fontsReady} portrait={portrait} paused={paused}
             onTap={(i) => { if (!dragged.current) focusDish(i, true); }} onPlate={(i) => { if (!dragged.current) setViewer(i); }}
             onAutoFocus={(i) => focusDish(i, false)} onUnfocus={() => closeSheet(false)} onHover={setHover} onReady={() => setReady(true)} />
           <div className="k-vignette pointer-events-none absolute inset-0 z-[5]" aria-hidden="true" />
@@ -154,7 +169,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
             <div style={{ height: "560%" }} />
           </div>
           {/* dish name tags, moved over the dishes by the scene every frame */}
-          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true">
+          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true" style={{ opacity: phase === "door" ? 0 : 1, transition: "opacity .6s ease" }}>
             {theme.dishes.map((d, i) => (
               <div key={d.id} className="k-tag" ref={(el) => { tags.current[i] = el; }}>
                 <button type="button" tabIndex={-1} onClick={() => focusDish(i, true)} className="flex items-center gap-2 whitespace-nowrap rounded-full border-2 py-1.5 pl-2.5 pr-3.5 shadow-[0_8px_22px_rgba(0,0,0,.45)]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}>
@@ -246,7 +261,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
         </div>
       )}
 
-      {phase === "door" && <Door theme={theme} onOpening={() => { openedDoor.current = true; api.enter.current = 1; }} onDone={() => { try { sessionStorage.setItem(DOOR_SEEN, "1"); } catch { /* ignore */ } setPhase("walk"); }} onSkip={() => { openedDoor.current = true; api.enter.current = 1; try { sessionStorage.setItem(DOOR_SEEN, "1"); } catch { /* ignore */ } setPhase("walk"); }} />}
+      {phase === "door" && <Door theme={theme} onAwake={() => setPaused(false)} onOpening={() => { openedDoor.current = true; api.enter.current = 1; }} onDone={() => { try { sessionStorage.setItem(DOOR_SEEN, "1"); } catch { /* ignore */ } setPhase("walk"); }} onSkip={() => { openedDoor.current = true; api.enter.current = 1; try { sessionStorage.setItem(DOOR_SEEN, "1"); } catch { /* ignore */ } setPhase("walk"); }} />}
 
       {/* the restaurant's own cursor */}
       <div ref={cursor} className={`k-cursor ${hover != null ? "is-look" : ""}`} aria-hidden="true"><div className="ring k-display">{hover != null ? t("kitchen.look") : ""}</div></div>

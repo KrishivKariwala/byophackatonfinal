@@ -1503,10 +1503,10 @@
  "scan.waiting": "No connection. {n} saved: they will be sent when you are online (kept for up to 10 minutes).",
  "scan.dropped": "A saved scan waited more than 10 minutes and was dropped. Scan it again.",
  "kitchen.back": "Back to dashboard",
- "kitchen.door.enter": "Enter door",
- "kitchen.door.hint": "Tap the sign, or swipe up to walk in",
+ "kitchen.door.enter": "Push to enter",
+ "kitchen.door.hint": "Press and push the door, or tap the button",
  "kitchen.door.skip": "Skip",
- "kitchen.door.aria": "Door of {brand}. Open it to walk into the kitchen.",
+ "kitchen.door.aria": "Door of {brand}. Push it open to walk into the kitchen.",
  "kitchen.anim.off": "Animations off",
  "kitchen.anim.on": "Walk the kitchen",
  "kitchen.hint.walk": "Scroll or swipe to walk. Stop to look at a dish.",
@@ -1569,5 +1569,6 @@
  "kitchen.dish.vegWrap.name": "Roasted Veggies & Mozzarella wrap",
  "kitchen.dish.vegWrap.about": "Ratatouille, mozzarella, jalapeño, lettuce and olive tapenade.",
  "kitchen.dish.periPeri.name": "Peri-Peri Chicken & Mozzarella wrap",
- "kitchen.dish.periPeri.about": "Peri-peri chicken, fresh mozzarella, sliced onions, lettuce and garlic aioli."
+ "kitchen.dish.periPeri.about": "Peri-peri chicken, fresh mozzarella, sliced onions, lettuce and garlic aioli.",
+ "kitchen.door.push": "PUSH"
 }
