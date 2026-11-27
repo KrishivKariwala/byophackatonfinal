@@ -181,7 +181,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
               </div>
             ))}
           </div>
-          {!ready && <p role="status" className="pointer-events-none absolute inset-0 z-[5] grid place-items-center text-sm font-bold text-white/80">{t("kitchen.loading")}</p>}
+          {!ready && phase !== "door" && <p role="status" className="pointer-events-none absolute inset-0 z-[5] grid place-items-center text-sm font-bold text-white/80">{t("kitchen.loading")}</p>}
         </>
       )}
       {phase === "list" && (

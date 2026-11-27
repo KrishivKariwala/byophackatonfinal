@@ -156,7 +156,7 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
       <div ref={(e) => { fills.current[2] = e; }} className="k-fill" style={{ left: 0, top: 0, bottom: 0, background: "#040608" }} />
       <div ref={(e) => { fills.current[3] = e; }} className="k-fill" style={{ right: 0, top: 0, bottom: 0, background: "#050607" }} />
 
-      <div ref={stage} className="absolute left-0 top-0" style={{ width: IW, height: IH, transformOrigin: "0 0", willChange: "transform", opacity: loaded ? 1 : 0, transition: "opacity .5s ease" }}>
+      <div ref={stage} className="absolute left-0 top-0" style={{ width: IW, height: IH, transformOrigin: "0 0", willChange: "transform", opacity: loaded ? 1 : 0 }}>
         {/* the shopfront, with the doorway cut out so the live kitchen shows through */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img ref={img} src={`${IMG}/facade.webp`} alt="" draggable={false} width={IW} height={IH} onLoad={() => setLoaded(true)} className="absolute left-0 top-0 max-w-none" />
