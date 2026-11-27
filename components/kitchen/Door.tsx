@@ -65,7 +65,7 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
       const el = root.current, st = stage.current; if (!el || !st) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now; const time = (now - t0) / 1000;
       const vw = el.clientWidth, vh = el.clientHeight, portrait = vw / vh < 1;
-      const s0 = portrait ? (vw * 0.34) / LEAF.w : Math.max(vw / IW, vh / IH);
+      const s0 = portrait ? Math.min((vw * 0.34) / LEAF.w, (vh * 0.42) / LEAF.h) : Math.max(vw / IW, vh / IH);
       const p0 = { x: vw / 2, y: portrait ? vh * 0.55 : vh * 0.58 };
       const smax = Math.max(2.4, Math.max(vw / (162 * s0), vh / (323 * s0)) * 1.12);
 
