@@ -1,4 +1,11 @@
 // P0 business rules. These numbers must not be relaxed.
+
+/**
+ * Whether 3 no-shows automatically pause a customer's reservations. OFF on the live demo site, where people browse and reserve freely with the
+ * demo accounts (their seeded no-shows were locking the demo customers out). Admin-ordered suspensions still apply. Set NO_SHOW_SUSPENSION=on
+ * to turn it back on; the automated tests always run with it on.
+ */
+export const noShowSuspensionOn = (env: Record<string, string | undefined> = process.env) => env.NODE_ENV === "test" || env.NO_SHOW_SUSPENSION === "on";
 export const RULES = {
   MIN_DISCOUNT_FACTOR: 0.7, // rescue_price <= original_price * 0.70
   MAX_PICKUP_START_HOURS: 12, // pickup start <= 12 h after listing creation
