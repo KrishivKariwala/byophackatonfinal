@@ -43,7 +43,7 @@ export function OutletPicker({ brand, outlets, canAdd }: { brand: string; outlet
               <span className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><Store size={22} aria-hidden="true" /></span>
                 <span className="min-w-0"><span className="k-display block text-[1.7rem] leading-tight" style={{ color: "var(--k-brand)" }}>{o.name.replace(/^.*·\s*/, "")}</span>
                   <span className="block truncate text-xs k-m70">{o.address}</span></span></span>
-              <span className="text-sm font-bold" style={{ color: "var(--k-accent)" }}>{t("kitchen.out.stats", { live: o.live, units: o.units })}</span>
+              <span className="text-sm font-bold" style={{ color: "#a81d1d" }}>{t("kitchen.out.stats", { live: o.live, units: o.units })}</span>
               <span className="mt-auto inline-flex min-h-[48px] items-center justify-between rounded-2xl px-4 text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.out.enter")}<ChevronRight size={20} aria-hidden="true" className="transition group-hover:translate-x-1" /></span>
             </Link>
           </li>
@@ -59,7 +59,7 @@ export function OutletPicker({ brand, outlets, canAdd }: { brand: string; outlet
                   <select className={field} style={{ borderColor: "rgba(0,0,0,.15)" }} value={f.hood} onChange={(e) => setF({ ...f, hood: e.target.value as keyof typeof NEIGHBOURHOODS })}>
                     {Object.keys(NEIGHBOURHOODS).map((h) => <option key={h} value={h}>{h}</option>)}
                   </select></label>
-                {err && <p role="alert" className="text-sm font-semibold" style={{ color: "var(--k-accent)" }}>{err}</p>}
+                {err && <p role="alert" className="text-sm font-semibold" style={{ color: "#a81d1d" }}>{err}</p>}
                 <div className="mt-auto flex gap-2">
                   <button type="button" onClick={() => setAdding(false)} className="min-h-[48px] rounded-2xl border-2 px-4 text-sm font-extrabold" style={{ borderColor: "rgba(0,0,0,.2)" }}>{t("kitchen.out.cancel")}</button>
                   <button disabled={busy} className="min-h-[48px] flex-1 rounded-2xl text-base font-extrabold text-white disabled:opacity-60" style={{ background: "var(--k-accent)" }}>{t("kitchen.out.save")}</button>

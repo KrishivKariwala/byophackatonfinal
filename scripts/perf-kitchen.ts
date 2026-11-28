@@ -17,10 +17,10 @@ async function main() {
   try {
     for (const v of variants) {
       const ctx = await browser.newContext({ viewport: { width: W, height: H }, deviceScaleFactor: 2, locale: "en-IN" });
-      const r = await ctx.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_ravi" } });
+      const r = await ctx.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_paris" } });
       if (!(await r.json()).ok) throw new Error("sign-in failed");
       const page = await ctx.newPage();
-      await page.goto(`${srv.base}/v/kitchen?door=1${v ? "&" + v : ""}`);
+      await page.goto(`${srv.base}/v/kitchen?outlet=o_paris_1&door=1${v ? "&" + v : ""}`);
       await page.waitForSelector(".k-skip", { timeout: 30000 });
       await page.click(".k-skip");
       await page.waitForFunction(`typeof window.__kitchen === "function"`, null, { timeout: 60000 });
