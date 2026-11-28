@@ -75,8 +75,7 @@ export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove,
           <div className="px-5 pb-6 pt-2">
             <p className="flex items-center gap-2 text-base font-bold" style={{ color: "#1a8f3c" }}><Check aria-hidden="true" />{t("kitchen.doneBody", { n: done })}</p>
             {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-accent)" }}>{e}</p>)}
-            <Link href={`/v/board?outlet=${encodeURIComponent(outlet.id)}`} className="mt-5 flex min-h-[52px] items-center justify-center rounded-2xl text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.dashboard")}</Link>
-            <Link href="/v/handover" className="mt-2 flex min-h-[52px] items-center justify-center rounded-2xl border-2 text-base font-extrabold" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}>{t("kitchen.board.scan")}</Link>
+            <Link href="/v" className="mt-5 flex min-h-[52px] items-center justify-center rounded-2xl text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.dashboard")}</Link>
             <Link href="/v/outlets" className="mt-2 flex min-h-[48px] items-center justify-center rounded-2xl text-sm font-extrabold k-m70">{t("kitchen.backOutlets")}</Link>
           </div>
         ) : (

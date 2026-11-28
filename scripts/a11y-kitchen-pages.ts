@@ -1,5 +1,5 @@
 /**
- * Accessibility check (axe-core, WCAG A/AA) of the TEST-BUILD-ONLY restaurant pages (outlet chooser and live board), in English, Hindi and
+ * Accessibility check (axe-core, WCAG A/AA) of the TEST-BUILD-ONLY restaurant pages (the outlet chooser), in English, Hindi and
  * Kannada. These pages do not exist on the live site, so the normal audit (npm run a11y:audit) cannot reach them.
  * Usage: npm run build && npx tsx scripts/a11y-kitchen-pages.ts
  */
@@ -20,7 +20,7 @@ const AXE = fs.readFileSync(createRequire(import.meta.url).resolve("axe-core/axe
       const r = await ctx.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_paris" } });
       if (!(await r.json()).ok) throw new Error("sign-in failed");
       const page = await ctx.newPage();
-      for (const url of ["/v/outlets", "/v/board", "/v/board?outlet=o_paris_1", "/v/handover"]) {
+      for (const url of ["/v/outlets"]) {
         await page.goto(srv.base + url, { waitUntil: "load" }); await page.waitForTimeout(900);
         await page.addScriptTag({ content: AXE });
         const res: { id: string; impact: string; help: string; nodes: unknown[]; detail: string }[] = await page.evaluate(`axe.run(document, { runOnly: { type: "tag", values: ["wcag2a","wcag2aa","wcag21a","wcag21aa"] } }).then(function(r){ return r.violations.map(function(v){ return { id: v.id, impact: v.impact, help: v.help, nodes: v.nodes.length, detail: v.nodes.map(function(x){ return x.target.join(' ') + ' => ' + (x.any[0] && x.any[0].message || ''); }).join(' | ') }; }); })`);

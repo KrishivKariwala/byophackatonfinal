@@ -1,7 +1,7 @@
 /**
  * End-to-end check of the TEST-BUILD restaurant flow (Paris Panini demo account), in real Chrome against a production build:
- * the first page offers the live orders and the pickup-code scan; a listing made for an outlet shows on the board; a customer's order
- * appears there; Mark ready works; the pickup code is accepted on the restaurant-styled hand-over page; the Back arrows go where they say.
+ * the first page has one Live orders button that opens the ordinary Today dashboard (marketplace look: live orders, units left, scan and hand over); a listing made for an outlet is published; a customer's order
+ * appears there; Mark ready works; the pickup code is accepted on the Scan & hand over page; the Back arrows go where they say.
  * Usage: npm run build && npx tsx scripts/e2e-kitchen-flow.ts
  */
 import { chromium } from "playwright-core";
@@ -18,7 +18,7 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     const v = await vc.newPage(); v.on("dialog", (d) => d.accept());
     await v.goto(srv.base + "/v/outlets");
     ok(await v.getByRole("link", { name: /Live orders/ }).first().isVisible(), "the outlet page has a Live orders button");
-    ok(await v.getByRole("link", { name: /Scan and hand over/ }).first().isVisible(), "the outlet page has a Scan and hand over button");
+    ok((await v.getByRole("link", { name: /Scan/ }).count()) === 0, "...and only that one button: no separate scan section");
 
     const now = Date.now(), iso = (ms: number) => new Date(ms).toISOString();
     const mkl = await vc.request.post(srv.base + "/api/vendor/listings", { data: { title: "Laura panini", category: "Meals", diet: "Vegetarian", originalPrice: 300, rescuePrice: 150, qty: 8, outletId: "o_paris_1", preparedAt: iso(now - 600_000), windowStart: iso(now + 5 * 60_000), windowEnd: iso(now + 65 * 60_000), donateRest: false, safetyDeclaration: true } });
@@ -31,16 +31,17 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     ok(code && ref, `the customer has a pickup pass (${ref})`);
 
     await vc.request.post(srv.base + "/api/demo", { data: { action: "clock", minutes: 15 } });
-    await v.goto(srv.base + "/v/board"); await v.getByText(ref!).first().waitFor({ timeout: 15000 });
-    ok(true, "the live orders page shows the customer's order");
-    const card = v.locator("li, div").filter({ hasText: ref! }).filter({ has: v.getByRole("button", { name: /Mark ready/ }) }).last();
-    await card.getByRole("button", { name: /Mark ready/ }).click();
+    await v.getByRole("link", { name: /Live orders/ }).first().click(); await v.waitForURL(/\/v$/, { timeout: 15000 });
+    ok(await v.getByRole("heading", { name: "Today" }).isVisible(), "Live orders opens the Today dashboard, in the website's own look (not the restaurant's)");
+    ok((await v.locator(".k-root").count()) === 0, "...and nothing of the restaurant theme is on that page");
+    await v.getByText(ref!).first().waitFor({ timeout: 15000 }); ok(true, "the customer's order is on the dashboard's Live orders");
+    const card = v.locator("div.card", { hasText: ref! }).first(); await card.getByRole("button", { name: "Mark ready" }).click();
     await cp.getByText("READY FOR YOU").first().waitFor({ timeout: 15000 }); ok(true, "Mark ready works and the customer's pass switches to READY");
 
-    await v.getByRole("link", { name: /Scan and hand over/ }).first().click(); await v.waitForURL(/\/v\/handover/);
+    await v.getByRole("link", { name: /Scan & hand over/ }).first().click(); await v.waitForURL(/\/v\/scan/);
     await v.getByLabel("4-digit pickup code").fill(code!); await v.getByRole("button", { name: "Verify & hand over" }).click();
-    await v.getByText(/VERIFIED/).first().waitFor({ timeout: 15000 }); ok(true, "the pickup code is accepted on the restaurant's hand-over page");
-
+    await v.getByText(/VERIFIED/).first().waitFor({ timeout: 15000 }); ok(true, "the pickup code is accepted on the Scan & hand over page");
+    await v.goto(srv.base + "/v"); await v.getByRole("link", { name: "Back to outlets (test)" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the dashboard has a way back to the outlet page");
 
     // the quantity buttons (4 / 8 / 12) must change the quantity of THIS dish, not jump to the next one (taps used to reach the plate behind the card)
     {
@@ -60,7 +61,6 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
       } else console.log("skip  the 3D kitchen is not available in this browser, so the quantity-button check was skipped");
       await kc.close();
     }
-    await v.getByRole("link", { name: "Back to outlets" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the Back arrow on the hand-over page goes to the outlet page");
     await v.goto(srv.base + "/v/kitchen?outlet=o_paris_1&door=1"); await v.waitForSelector(".k-skip, [data-k-ui]", { timeout: 30000 }); if (await v.locator(".k-skip").count()) await v.click(".k-skip"); // (past the door, if this browser can draw the 3D kitchen)
     await v.getByRole("link", { name: "Back to outlets" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the Back arrow in the kitchen goes to the outlet page");
     await v.getByRole("button", { name: "Back to login" }).click(); await v.waitForURL(/\/signin/, { timeout: 15000 }); ok(true, "the Back arrow on the outlet page signs out and goes to the login page");

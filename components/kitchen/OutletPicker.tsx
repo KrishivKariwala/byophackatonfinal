@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, ChevronRight, Plus, ScanLine, Store } from "lucide-react";
+import { Activity, ChevronRight, Plus, Store } from "lucide-react";
 import { NEIGHBOURHOODS } from "@/lib/geo";
 import { api } from "@/components/client";
 import { useT } from "@/components/I18n";
@@ -36,21 +36,13 @@ export function OutletPicker({ brand, outlets, canAdd, waiting }: { brand: strin
         <p className="mt-2 max-w-xl text-base" style={{ color: "color-mix(in srgb, var(--k-cream) 80%, transparent)" }}>{t("kitchen.out.sub")}</p>
       </div>
 
-      {/* the day-to-day tools, one tap from the first page: who has ordered, and handing a pickup over */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link href="/v/board" className="flex min-h-[84px] items-center gap-4 rounded-[22px] border-[3px] p-4 shadow-[0_14px_36px_rgba(0,0,0,.4)] transition hover:-translate-y-0.5" style={{ background: "var(--k-accent)", borderColor: "var(--k-brass)", color: "#fff" }}>
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20"><Activity size={24} aria-hidden="true" /></span>
-          <span className="min-w-0 flex-1"><span className="k-display block text-[1.5rem] leading-tight">{t("kitchen.board.orders")}</span>
-            <span className="block text-sm font-semibold">{t("kitchen.out.waiting", { n: waiting })} · {t("kitchen.out.ordersHelp")}</span></span>
-          <ChevronRight size={22} aria-hidden="true" />
-        </Link>
-        <Link href="/v/handover" className="flex min-h-[84px] items-center gap-4 rounded-[22px] border-[3px] p-4 shadow-[0_14px_36px_rgba(0,0,0,.4)] transition hover:-translate-y-0.5" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-ink)" }}>
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><ScanLine size={24} aria-hidden="true" /></span>
-          <span className="min-w-0 flex-1"><span className="k-display block text-[1.5rem] leading-tight" style={{ color: "var(--k-brand)" }}>{t("kitchen.board.scan")}</span>
-            <span className="block text-sm font-semibold k-m70">{t("kitchen.out.scanHelp")}</span></span>
-          <ChevronRight size={22} aria-hidden="true" style={{ color: "var(--k-brand)" }} />
-        </Link>
-      </div>
+      {/* one button to the day-to-day dashboard (the marketplace's own Today page: live orders, units left, scan and hand over) */}
+      <Link href="/v" className="flex min-h-[84px] items-center gap-4 rounded-[22px] border-[3px] p-4 shadow-[0_14px_36px_rgba(0,0,0,.4)] transition hover:-translate-y-0.5" style={{ background: "var(--k-accent)", borderColor: "var(--k-brass)", color: "#fff" }}>
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white/20"><Activity size={24} aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1"><span className="k-display block text-[1.5rem] leading-tight">{t("kitchen.board.orders")}</span>
+          <span className="block text-sm font-semibold">{t("kitchen.out.waiting", { n: waiting })} · {t("kitchen.out.ordersHelp")}</span></span>
+        <ChevronRight size={22} aria-hidden="true" />
+      </Link>
 
       <ul className="grid gap-4 sm:grid-cols-2">
         {outlets.map((o) => (

@@ -7,7 +7,7 @@ import "./kitchen.css";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Check, ScanLine, ShoppingBag, Sparkles, X, Footprints } from "lucide-react";
+import { Activity, Check, ShoppingBag, Sparkles, X, Footprints } from "lucide-react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { LanguageMenu } from "@/components/HeaderBar";
 import { BackToOutlets } from "./ThemeFrame";
@@ -198,8 +198,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
           <BackToOutlets />
           <b className="k-display hidden px-1 text-xl sm:block" style={phase === "list" ? { color: "var(--k-brand)" } : { color: "#fff", textShadow: "0 2px 10px #000" }}>Paris Panini</b>
           <span className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full border-2 px-4 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-brand)", borderColor: "var(--k-brass)", color: "#fff" }}>{outletName}</span>
-          <Link href={`/v/board?outlet=${encodeURIComponent(outlet.id)}`} className="pointer-events-auto inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-accent)", borderColor: "var(--k-accent)", color: "#fff" }}><Activity size={16} aria-hidden="true" />{t("kitchen.board.orders")}</Link>
-          <Link href="/v/handover" className="pointer-events-auto inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}><ScanLine size={16} aria-hidden="true" />{t("kitchen.scanShort")}</Link>
+          <Link href="/v" className="pointer-events-auto inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-accent)", borderColor: "var(--k-accent)", color: "#fff" }}><Activity size={16} aria-hidden="true" />{t("kitchen.board.orders")}</Link>
           <div className="pointer-events-auto ml-auto flex items-center gap-1.5">
             <div className="pointer-events-auto rounded-full border-2 px-1 shadow-lg" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}><LanguageMenu current={locale} /></div>
             <button type="button" onClick={toggleAnim} className="flex min-h-[44px] items-center gap-1.5 rounded-full border-2 px-3 text-xs font-extrabold shadow-lg sm:text-sm" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}>
@@ -239,7 +238,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
           <div data-k-ui className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-[22px] border-2 p-2.5 pl-4 shadow-[0_14px_36px_rgba(0,0,0,.45)]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>
             <p className="min-w-0 text-sm" aria-live="polite"><b className="k-display text-base" style={{ color: "var(--k-brand)" }}>{t("kitchen.cart")}</b>
               <span className="block truncate text-xs font-semibold k-m70">{kinds === 0 ? t("kitchen.cart.empty") : t("kitchen.cart.summary", { dishes: kinds, qty: portions })}</span></p>
-            <Link href={`/v/board?outlet=${encodeURIComponent(outlet.id)}`} aria-label={t("kitchen.board.orders")} title={t("kitchen.board.orders")} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Activity size={20} aria-hidden="true" /></Link>
+            <Link href="/v" aria-label={t("kitchen.board.orders")} title={t("kitchen.board.orders")} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Activity size={20} aria-hidden="true" /></Link>
             <button type="button" disabled={kinds === 0} onClick={() => { setCartOpen(true); }} className="flex min-h-[48px] shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl px-4 text-sm font-extrabold text-white disabled:opacity-40" style={{ background: "var(--k-brand)" }}><ShoppingBag size={18} aria-hidden="true" />{t("kitchen.cart.open")}</button>
           </div>
         </div>
