@@ -6,6 +6,7 @@ import { readDb, resetStore } from "../lib/store";
 import { closePool } from "../lib/pg/db";
 import { toUuid } from "../lib/pg/uuid";
 import type { DB } from "../lib/types";
+import { createListing } from "../lib/services";
 
 beforeAll(async () => { await createScratch(false); });
 afterAll(async () => { await closePool(); });
@@ -46,5 +47,29 @@ describe("the Postgres store holds the same data the demo store does", () => {
       }
     }
     expect(problems).toEqual([]);
+  });
+  it("a donation-only listing (rescue price 0, never sold) can be saved and read back", async () => {
+    // Live bug: the database refused these with listings_rescue_price_check, so Publish on a donation-only listing said "Something went wrong".
+    const seed = buildSeed(Date.now());
+    const l = seed.listings[0];
+    seed.listings.push({ ...l, id: "l_donation_only", title: "Donation tray", rescuePrice: 0, donationOnly: true, qtyAvailable: 0, status: "Sold Out" } as any);
+    await resetStore(seed);
+    const back = (await readDb()).listings.find((x) => x.title === "Donation tray");
+    expect(back?.donationOnly).toBe(true);
+    expect(back?.rescuePrice).toBe(0);
+  });
+  it("a vendor can publish a normal (sold) listing and a donation-only one through the real app code", async () => {
+    const seed = buildSeed(Date.now());
+    await resetStore(seed);
+    const vendor = (await readDb()).profiles.find((p) => p.id === "u_vendor1" || p.role === "vendor")!;
+    const now = Date.now();
+    const base = { title: "Croissant Bag (4 pcs)", description: "Butter croissants baked this morning.", category: "Bakery" as const, originalPrice: 360, rescuePrice: 180, qty: 10, diet: "Vegetarian" as const, allergens: ["Gluten", "Milk", "Egg"], preparedAt: new Date(now - 60_000).toISOString(), windowStart: new Date(now + 15 * 60_000).toISOString(), windowEnd: new Date(now + 105 * 60_000).toISOString(), donateRest: true, safetyDeclaration: true };
+    const sold = await createListing(vendor, base);
+    expect(sold.rescuePrice).toBe(180);
+    const gift = await createListing(vendor, { ...base, title: "Donation tray", donationOnly: true });
+    expect(gift.rescuePrice).toBe(0);
+    const back = (await readDb()).listings;
+    expect(back.find((x) => x.id === sold.id)?.status).toBe("Live");
+    expect(back.find((x) => x.id === gift.id)?.donationOnly).toBe(true);
   });
 });

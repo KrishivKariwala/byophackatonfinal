@@ -1,6 +1,6 @@
 import "server-only";
 import type { TxContext } from "./store";
-import { RULES } from "./rules";
+import { RULES, noShowSuspensionOn } from "./rules";
 import { notificationText } from "./notify";
 import { createNoShowBatchTx, iso, listingIn, ngosNear, notifyT, notifyOutletT, outletOf, recordImpact, setResStatus, audit, emitRes, t } from "./core";
 import type { DB } from "./types";
@@ -94,6 +94,7 @@ export function runScheduledJobs(tx: TxContext) {
 
 /** Counts the customer's no-shows in the last 30 days; at 3 their reservations are suspended for 7 days. */
 export function applyNoShowSuspension(tx: TxContext, customerId: string) {
+  if (!noShowSuspensionOn()) return;
   const { db, now } = tx;
   const p = db.profiles.find((x) => x.id === customerId);
   if (!p) return;
