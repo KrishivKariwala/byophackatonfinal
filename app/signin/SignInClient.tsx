@@ -26,7 +26,7 @@ export function SignInClient({ personas }: { personas: Persona[] }) {
     setErr(null);
     try {
       const r = await fn();
-      router.push(r.home ?? (redirectFor ? redirectFor(r.role) : HOME[r.role]));
+      if (r.home) router.replace(r.home); else router.push(redirectFor ? redirectFor(r.role) : HOME[r.role]); // (restaurant home: replace, so the browser Back button cannot return to this page)
       router.refresh();
     } catch (e) {
       setErr((e as Error).message);

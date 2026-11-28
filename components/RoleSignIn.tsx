@@ -1,4 +1,5 @@
 "use client";
+import { markStaticArrival } from "@/lib/arrival";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -77,7 +78,7 @@ export function RoleSignIn({ role, actor, skipName, next, refCode }: { role: Rol
         {/* the back button is pinned to the corner so the text group below sits in the true centre of the panel.
             The animated element is a plain wrapper: a CSS opacity transition on the link itself would fight GSAP's fade. */}
         <div className="rs-fade absolute left-6 top-6 sm:left-10 sm:top-8">
-          <Link href="/" className="inline-flex min-h-[44px] items-center gap-2 rounded-full border-2 border-current px-4 text-sm font-semibold transition hover:bg-black/10">
+          <Link href="/" onClick={markStaticArrival} className="inline-flex min-h-[44px] items-center gap-2 rounded-full border-2 border-current px-4 text-sm font-semibold transition hover:bg-black/10">
             <ArrowLeft size={16} aria-hidden="true" />{t("rs.pickOther")}
           </Link>
         </div>

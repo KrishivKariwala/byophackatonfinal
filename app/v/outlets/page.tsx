@@ -24,5 +24,5 @@ export default async function Outlets() {
   });
   const mine = new Set(scope.outlets.map((o) => o.id));
   const waiting = db.reservations.filter((r) => mine.has(r.outletId) && (r.status === "Reserved" || r.status === "Ready")).length;
-  return <ThemeFrame theme={themeForVendor(v.id)}><OutletPicker brand={v.businessName} outlets={cards} canAdd={scope.can("outlet.manage")} waiting={waiting} /></ThemeFrame>;
+  return <ThemeFrame theme={themeForVendor(v.id)} back="none"><OutletPicker brand={v.businessName} outlets={cards} canAdd={scope.can("outlet.manage")} waiting={waiting} /></ThemeFrame>;
 }

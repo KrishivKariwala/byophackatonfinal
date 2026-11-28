@@ -1,4 +1,5 @@
 "use client";
+import { ARRIVE_KEY, SEEN_KEY } from "@/lib/arrival";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -29,7 +30,6 @@ gsap.registerPlugin(useGSAP, SplitText);
 const CX = 300, CY = 300;
 const R_OUT = 236; // pie radius
 const R_HUB = 62;
-const SEEN_KEY = "sap-intro-seen";
 const GOLD = "#F4B63F";
 const rad = (d: number) => (d * Math.PI) / 180;
 const polar = (a: number, r: number) => ({ x: CX + r * Math.cos(rad(a)), y: CY + r * Math.sin(rad(a)) });
@@ -153,11 +153,14 @@ export function PlateHero() {
       let seen = false;
       try { seen = !!sessionStorage.getItem(SEEN_KEY); } catch { /* storage blocked: treat as first visit */ }
       const reduced = window.matchMedia(REDUCED).matches;
-      const playIntro = !seen && !reduced && !html.hasAttribute("data-sap-intro") && !!root.current?.querySelector(".intro-root");
+      // arriving by the logo / a Back link: show the page as it is (and count the intro as seen, so it never plays later in this tab)
+      let still = false;
+      try { still = sessionStorage.getItem(ARRIVE_KEY) === "1"; sessionStorage.removeItem(ARRIVE_KEY); if (still) sessionStorage.setItem(SEEN_KEY, "1"); } catch { /* ignore */ }
+      const playIntro = !still && !seen && !reduced && !html.hasAttribute("data-sap-intro") && !!root.current?.querySelector(".intro-root");
       if (!playIntro) {
         setShowIntro(false);
         html.setAttribute("data-sap-intro", "skip");
-        if (reduced) html.removeAttribute("data-sap-quick"); // reduced motion: show the page as-is, nothing to hide
+        if (reduced || still) html.removeAttribute("data-sap-quick"); // reduced motion or a plain arrival: show the page as-is, nothing to hide
       }
 
       const mm = gsap.matchMedia();
@@ -230,7 +233,7 @@ export function PlateHero() {
           const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") gsap.to(tl, { timeScale: 12, duration: 0.25, overwrite: true }); };
           window.addEventListener("keydown", onKey);
           cleanups.push(() => window.removeEventListener("keydown", onKey));
-        } else {
+        } else if (!still) {
           // ------------------------------------------------------------------ quick re-entry (refresh / returning visitors)
           // No loader, no curtains. One thing after the other: first the wheel whirls and settles (power3.out starts fast
           // and ends at rest; 1.5 turns lands it upright) while the headline letters rise into place, THEN the gold wave

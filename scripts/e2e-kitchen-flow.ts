@@ -61,10 +61,39 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
       } else console.log("skip  the 3D kitchen is not available in this browser, so the quantity-button check was skipped");
       await kc.close();
     }
-    await v.goto(srv.base + "/v/kitchen?outlet=o_paris_1&door=1"); await v.waitForSelector(".k-skip, [data-k-ui]", { timeout: 30000 }); if (await v.locator(".k-skip").count()) await v.click(".k-skip"); // (past the door, if this browser can draw the 3D kitchen)
+    // the door scene (the restaurant "animation") has its own Back arrow, and so does the kitchen
+    await v.goto(srv.base + "/v/kitchen?outlet=o_paris_1&door=1"); await v.waitForSelector(".k-skip, [data-k-ui]", { timeout: 30000 });
+    if (await v.locator(".k-skip").count()) {
+      ok(await v.getByRole("link", { name: "Back to outlets" }).isVisible(), "the door scene has a Back arrow");
+      await v.getByRole("link", { name: "Back to outlets" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "...and it goes to the outlet page");
+      await v.goto(srv.base + "/v/kitchen?outlet=o_paris_1&door=1"); await v.waitForSelector(".k-skip"); await v.click(".k-skip");
+    }
     await v.getByRole("link", { name: "Back to outlets" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the Back arrow in the kitchen goes to the outlet page");
-    await v.getByRole("button", { name: "Back to login" }).click(); await v.waitForURL(/\/signin/, { timeout: 15000 }); ok(true, "the Back arrow on the outlet page signs out and goes to the login page");
-    const after = await vc.request.get(srv.base + "/v/outlets", { maxRedirects: 0 }); ok(after.status() === 307, "after Back, the outlet page needs a new sign-in");
+    ok((await v.getByRole("link", { name: /Back to/ }).count()) === 0, "the outlet page itself has no Back arrow that could land on the demo accounts");
+    await v.getByRole("button", { name: "Switch restaurant account" }).click(); await v.waitForURL(/\/signin/, { timeout: 15000 }); ok(true, "Switch restaurant account signs out and shows the demo accounts");
+    const after = await vc.request.get(srv.base + "/v/outlets", { maxRedirects: 0 }); ok(after.status() === 307, "after switching, the outlet page needs a new sign-in");
+
+    // signing in from the demo accounts page replaces it in the history, so the browser's own Back button cannot return to it
+    {
+      const sc = await browser.newContext({ viewport: { width: 1200, height: 900 }, locale: "en-IN" }); const sp = await sc.newPage();
+      await sp.goto(srv.base + "/signin"); await sp.getByRole("button", { name: /Marc/ }).first().click(); await sp.waitForURL(/\/v\/outlets$/, { timeout: 20000 });
+      await sp.goBack(); await sp.waitForTimeout(800); ok(!/\/signin/.test(sp.url()), `the browser Back button does not return to the demo accounts page (it went to ${new URL(sp.url()).pathname})`);
+      await sc.close();
+    }
+
+    // the logo goes to the main screen WITHOUT replaying the opening or whirling animation, even in a brand-new tab
+    {
+      const lc = await browser.newContext({ viewport: { width: 1280, height: 800 }, locale: "en-IN" });
+      await lc.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_priya" } });
+      const lp = await lc.newPage(); await lp.goto(srv.base + "/c"); await lp.waitForSelector("header a[href='/']");
+      await lp.locator("header a[href='/']").first().click(); await lp.waitForURL(srv.base + "/");
+      await lp.waitForTimeout(250);
+      const st = await lp.evaluate(`(function(){ var i = document.querySelector(".intro-root"); var p = document.querySelector(".plate-wrap"); var h = document.querySelector(".hero-fade"); return { intro: !!i && getComputedStyle(i).display !== "none", plateOpacity: p ? getComputedStyle(p).opacity : null, plateTransform: p ? (p.style.transform || "") : null, heroOpacity: h ? getComputedStyle(h).opacity : null }; })()`) as { intro: boolean; plateOpacity: string | null; plateTransform: string | null; heroOpacity: string | null };
+      ok(!st.intro, "no opening animation after the logo, even in a new tab");
+      ok(st.plateOpacity === "1" && st.heroOpacity === "1" && !/rotate/.test(st.plateTransform ?? ""), `the main screen is simply there (plate opacity ${st.plateOpacity}, headline opacity ${st.heroOpacity}, no whirl)`);
+      const h1 = lp.locator("h1").first(); ok((await h1.isVisible()) && /surplus/i.test(await h1.innerText()) && /dinner/i.test(await h1.innerText()), "and it shows the headline (Tonight's surplus, someone's dinner)");
+      await lc.close();
+    }
     console.log("\nall steps passed");
   } finally { await browser.close(); await srv.stop(); }
 })().catch((e) => { console.error("FAIL", e.message); process.exit(1); });

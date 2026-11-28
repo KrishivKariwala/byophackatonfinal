@@ -263,6 +263,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
       )}
 
       {phase === "door" && <Door theme={theme} onAwake={() => setPaused(false)} onOpening={() => { openedDoor.current = true; api.enter.current = 1; }} onDone={() => { try { sessionStorage.setItem(DOOR_SEEN, "1"); } catch { /* ignore */ } setPhase("walk"); }} onSkip={() => { openedDoor.current = true; api.enter.current = 1; try { sessionStorage.setItem(DOOR_SEEN, "1"); } catch { /* ignore */ } setPhase("walk"); }} />}
+      {phase === "door" && <div data-k-ui className="pointer-events-none absolute left-2.5 top-2.5 z-[90] sm:left-3 sm:top-3"><BackToOutlets /></div>}
 
       {/* the restaurant's own cursor */}
       <div ref={cursor} className={`k-cursor ${hover != null ? "is-look" : ""}`} aria-hidden="true"><div className="ring k-display">{hover != null ? t("kitchen.look") : ""}</div></div>

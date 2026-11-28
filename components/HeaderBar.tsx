@@ -1,4 +1,5 @@
 "use client";
+import { markStaticArrival } from "@/lib/arrival";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -124,7 +125,7 @@ export function HeaderShell({ homeLabel, menu, menuLabel, language, bell, accoun
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-logobg/95 backdrop-blur">
       <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-1.5 sm:gap-3 sm:px-6">
-        <Link href="/" aria-label={homeLabel} className="shrink-0"><Logo width={64} priority /></Link>
+        <Link href="/" aria-label={homeLabel} className="shrink-0" onClick={markStaticArrival}><Logo width={64} priority /></Link>
         {menu.length > 0 && <NavMenu items={menu} label={menuLabel} />}
         <div className="ml-auto flex items-center gap-1">{language}{bell}{account ?? signIn}</div>
       </div>

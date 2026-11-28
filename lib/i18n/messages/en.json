@@ -1502,7 +1502,6 @@
  "rerr.too_many_schedules": "You can have up to {max} schedules.",
  "scan.waiting": "No connection. {n} saved: they will be sent when you are online (kept for up to 10 minutes).",
  "scan.dropped": "A saved scan waited more than 10 minutes and was dropped. Scan it again.",
- "kitchen.back": "Back to login",
  "kitchen.door.enter": "Push to enter",
  "kitchen.door.hint": "Press and push the door, or tap the button",
  "kitchen.door.skip": "Skip",
@@ -1588,5 +1587,6 @@
  "kitchen.backOutlets": "Back to outlets",
  "kitchen.out.waiting": "{n} orders waiting",
  "kitchen.out.ordersHelp": "The Today dashboard: who has reserved, what is ready, units left, and scan and hand over.",
- "kitchen.dash.back": "Back to outlets (test)"
+ "kitchen.dash.back": "Back to outlets (test)",
+ "kitchen.switchAccount": "Switch restaurant account"
 }
