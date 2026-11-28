@@ -354,6 +354,6 @@ export function buildSeed(T: number): DB {
     deliveryRequests: [], certificates: [], moderationActions: [],
   };
   seedP2(db, T);
-  if (kitchenEnabled()) ensureKitchen(db, T); // test version only: the demo restaurant owner with Paris Panini, Smash Guys and Pita Bakery
+  if (kitchenEnabled()) ensureKitchen(db, T); // test version only: the demo restaurant owner with Paris Panini, Smash Guys and The Pizza Bakery
   return db;
 }

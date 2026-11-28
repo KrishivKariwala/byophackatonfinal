@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { readDb } from "@/lib/store";
 import { getActor } from "@/lib/session";
-import { SELF_ROLES, SKIP_PERSONA, homeFor, type SelfRole } from "@/lib/auth";
+import { OTHER_DEMO_VENDORS, SELF_ROLES, homeFor, skipPersonaFor, type SelfRole } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { RoleSignIn } from "@/components/RoleSignIn";
 import { SignInClient } from "./SignInClient";
@@ -35,12 +35,12 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     const actor = await getActor();
     const next = /^\/join\/[\w-]{10,}$/.test(sp.next ?? "") ? sp.next! : undefined; // only invite links may be returned to
     if (actor && actor.role === role && !sp.switch) redirect(next ?? homeFor(db, actor)); // already signed in on this side: go straight there
-    const skip = label(pid(SKIP_PERSONA[role]));
+    const skip = label(pid(skipPersonaFor(role)));
     const skipName = skip.org ? `${skip.name.split(" (")[0]} · ${skip.org}` : skip.name.split(" (")[0];
     return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} refCode={/^[A-Za-z0-9]{4,16}$/.test(sp.ref ?? "") ? sp.ref!.toUpperCase() : undefined} />;
   }
 
-  const personas = [...(kitchenEnabled() ? ["u_paris"] : []), "u_priya", "u_arjun", "u_sana", "u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
+  const personas = [...(kitchenEnabled() ? ["u_paris"] : []), "u_priya", "u_arjun", "u_sana", "u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"].filter((id) => !(kitchenEnabled() && OTHER_DEMO_VENDORS.includes(id)))
     .map(pid)
     .filter((id) => db.profiles.some((p) => p.id === id))
     .map(label);

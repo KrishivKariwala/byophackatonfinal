@@ -20,6 +20,10 @@ export const HOME: Record<Role, string> = { customer: "/c", vendor: "/v", ngo: "
 
 /** The ready-made, already-approved demo account each side's Skip button signs in as. */
 export const SKIP_PERSONA: Record<SelfRole, string> = { customer: "u_priya", vendor: "u_ravi", ngo: "u_joseph" };
+/** TEST VERSION ONLY: the restaurant owner is the one demo vendor. The other demo vendor accounts (and their manager and staff) are not offered and cannot be signed into. */
+export const OTHER_DEMO_VENDORS = ["u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3"];
+export const skipPersonaFor = (role: SelfRole): string => (kitchenEnabled() && role === "vendor" ? "u_paris" : SKIP_PERSONA[role]);
+export const demoSignInBlocked = (id: string): boolean => kitchenEnabled() && OTHER_DEMO_VENDORS.includes(id);
 
 /** Compares phone numbers by their last 10 digits, so "+91 98765 43210" and "9876543210" are the same person. */
 export function normalizePhone(s: string): string {
@@ -68,7 +72,8 @@ export function skipLogin(role: string) {
   return write((tx): { profile: Profile; home: string } => {
     if (role === "admin") throw new RuleError("forbidden", "Admin access is provisioned, not self-selected.", 403, undefined, "forbidden_admin_access_provisioned");
     if (!SELF_ROLES.includes(role as SelfRole)) throw new RuleError("role_invalid", "Choose Customer, Vendor or NGO.");
-    const wanted = pgEnabled() ? toUuid(SKIP_PERSONA[role as SelfRole]) : SKIP_PERSONA[role as SelfRole];   // (the database store keeps the demo ids as fixed uuids)
+    const who = skipPersonaFor(role as SelfRole);
+    const wanted = pgEnabled() ? toUuid(who) : who;   // (the database store keeps the demo ids as fixed uuids)
     const p = tx.db.profiles.find((x) => x.id === wanted && x.demo);
     if (!p) throw new RuleError("not_found", "The demo account for this side is missing. Run npm run seed.", 404, undefined, "not_found_demo_account_side");
     audit(tx, p.id, "demo_skip_login", "profile", p.id, `skip button on the ${role} sign-in`);

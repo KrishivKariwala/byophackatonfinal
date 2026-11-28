@@ -3,7 +3,7 @@ import { pgEnabled } from "@/lib/pg/db";
 import { toUuid } from "@/lib/pg/uuid";
 import { RuleError } from "@/lib/rules";
 import { readDb } from "@/lib/store";
-import { homeFor } from "@/lib/auth";
+import { demoSignInBlocked, homeFor } from "@/lib/auth";
 import { kitchenEnabled } from "@/lib/kitchen-themes";
 import { setSession } from "@/lib/session";
 
@@ -12,6 +12,7 @@ export async function POST(req: Request) {
   return handle(async () => {
     if (process.env.DATA_MODE && process.env.DATA_MODE !== "demo") throw new RuleError("forbidden", "Demo sign-in is disabled.", 403, undefined, "forbidden_demo_sign_disabled");
     const { userId } = await body<{ userId: string }>(req);
+    if (demoSignInBlocked(String(userId))) throw new RuleError("not_found", "Demo user not found.", 404, undefined, "not_found_demo_user_not"); // test version: only the restaurant owner is a demo vendor
     // the demo people have readable ids ("u_priya"); on the database store the same ids map to fixed uuids
     const wanted = pgEnabled() ? toUuid(String(userId)) : userId;
     const db = await readDb();

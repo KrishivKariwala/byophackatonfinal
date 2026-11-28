@@ -13,6 +13,18 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
   const browser = await chromium.launch({ channel: "chrome", headless: true, args: ["--use-angle=metal", "--enable-gpu-rasterization", "--ignore-gpu-blocklist"] });
   try {
     const mk = async (uid: string) => { const c = await browser.newContext({ viewport: { width: 1200, height: 900 }, locale: "en-IN" }); const r = await c.request.post(srv.base + "/api/auth/demo", { data: { userId: uid } }); const j = await r.json(); if (!j.ok) throw new Error("sign-in " + uid); return { c, home: j.data?.home as string | undefined }; };
+    // the restaurant owner is the ONLY demo vendor: no Ravi, Anita, Kabir, Mala, Imran or Latha to pick, and the vendor Skip button signs in as him
+    {
+      const pc = await browser.newContext({ viewport: { width: 1200, height: 900 }, locale: "en-IN" }); const pp = await pc.newPage();
+      await pp.goto(srv.base + "/signin"); await pp.getByRole("button", { name: /Abhijit/ }).first().waitFor({ timeout: 15000 });
+      const text = await pp.locator("main").innerText();
+      ok(/Abhijit "AB" Gupta/.test(text), "the demo accounts list has the restaurant owner, Abhijit \"AB\" Gupta");
+      ok(!/Ravi|Anita|Kabir|Mala|Imran|Latha/.test(text), "...and none of the other demo vendors (Ravi, Anita, Kabir, Mala, Imran, Latha)");
+      const refused = await pc.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_ravi" } }); ok(refused.status() === 404, "signing in as another demo vendor is refused");
+      await pp.goto(srv.base + "/signin?role=vendor"); await pp.getByRole("button", { name: /Skip, use demo vendor/ }).click(); await pp.waitForURL(/\/v\/outlets$/, { timeout: 20000 });
+      ok(((await pp.locator("h1").first().innerText()).trim()) === 'Abhijit "AB" Gupta', "the vendor Skip button signs in as Abhijit \"AB\" Gupta and lands on his page");
+      await pc.close();
+    }
     const { c: vc, home } = await mk("u_paris");
     ok(home === "/v/outlets", "signing in as the restaurant lands on the outlet page");
     const v = await vc.newPage(); v.on("dialog", (d) => d.accept());
@@ -22,7 +34,7 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     const live = v.getByRole("link", { name: /Live orders/ }).first(); ok(await live.isVisible(), "the page has a Live orders button");
     ok((await v.getByRole("link", { name: /Scan/ }).count()) === 0, "...and only that one button: no separate scan section");
     const box = async (loc: ReturnType<typeof v.locator>) => (await loc.boundingBox())!;
-    const names = ["Paris Panini", "Smash Guys", "Pita Bakery"]; const sec = (n: string) => v.locator(`section[aria-label="${n}"]`);
+    const names = ["Paris Panini", "Smash Guys", "The Pizza Bakery"]; const sec = (n: string) => v.locator(`section[aria-label="${n}"]`);
     for (const n of names) ok(await sec(n).isVisible(), `restaurant box: ${n}`);
     const ys = await Promise.all(names.map(async (n) => (await box(sec(n))).y)), xs = await Promise.all(names.map(async (n) => Math.round((await box(sec(n))).x)));
     ok(ys[0] < ys[1] && ys[1] < ys[2] && new Set(xs).size === 1, "the restaurants are stacked one below the other, in order");
@@ -30,7 +42,7 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     ok(lb.y + lb.height <= hr.y && hr.y < ys[0], "Live orders sits high, with a line under it, above the restaurants");
     ok((await v.locator(".k-root").count()) === 1 && await sec("Paris Panini").evaluate((e) => e.classList.contains("k-root")), "only the Paris Panini box wears the restaurant look; the page itself is the website's");
     ok((await sec("Paris Panini").getByRole("link", { name: /Enter kitchen/ }).count()) === 2, "Paris Panini has its two outlets with Enter kitchen");
-    for (const n of ["Smash Guys", "Pita Bakery"]) ok((await sec(n).getByText("Kitchen coming soon").count()) === 2 && (await sec(n).getByRole("link", { name: /Enter kitchen/ }).count()) === 0, `${n}: two outlets, plain, kitchen coming soon`);
+    for (const n of ["Smash Guys", "The Pizza Bakery"]) ok((await sec(n).getByText("Kitchen coming soon").count()) === 2 && (await sec(n).getByRole("link", { name: /Enter kitchen/ }).count()) === 0, `${n}: two outlets, plain, kitchen coming soon`);
     // add an outlet to one restaurant, and a whole new restaurant
     await sec("Smash Guys").getByRole("button", { name: "Add an outlet" }).click();
     await v.getByLabel("Outlet name").fill("Indiranagar"); await v.getByLabel("Address").fill("100 Feet Road, Indiranagar, Bengaluru (demo)"); await v.getByRole("button", { name: "Add this outlet" }).click();
