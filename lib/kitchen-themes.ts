@@ -71,8 +71,15 @@ export function kitchenEnabled() {
   return process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
 }
 
-/** which restaurant look each demo restaurant account gets. Every restaurant account will have its own entry here; the first one is the default. */
-export const VENDOR_THEME: Record<string, string> = { v_paris: "paris-panini" };
+/**
+ * A vendor can run several restaurants, each with several outlets. An outlet's name is "<restaurant> · <area>" (for example "Paris Panini · Indiranagar"), so
+ * the restaurant is the part before the dot and no extra data is stored. A restaurant with an entry here has its own look and 3D kitchen; one without is shown
+ * plain on the outlet page and has no 3D kitchen yet (it gets one when its look and photos are added).
+ */
+export const RESTAURANT_THEME: Record<string, string> = { "Paris Panini": "paris-panini" };
+export const SEP = " · ";
+export const restaurantOf = (outlet: { name?: string; address: string }, fallback: string): string => (outlet.name?.includes(SEP) ? outlet.name.split(SEP)[0] : fallback).trim();
+export const areaOf = (outlet: { name?: string; address: string }): string => (outlet.name?.includes(SEP) ? outlet.name.split(SEP).slice(1).join(SEP) : outlet.name ?? outlet.address).trim();
+export const themeForRestaurant = (restaurant: string): KitchenTheme | null => KITCHEN_THEMES[RESTAURANT_THEME[restaurant] ?? ""] ?? null;
 /** the CSS variables that dress a page in a restaurant's own colours */
 export const themeVars = (t: KitchenTheme): Record<string, string> => ({ "--k-brand": t.colors.brand, "--k-dark": t.colors.brandDark, "--k-accent": t.colors.accent, "--k-cream": t.colors.cream, "--k-wood": t.colors.wood, "--k-ink": t.colors.ink, "--k-brass": t.colors.brass });
-export const themeForVendor = (vendorId: string): KitchenTheme => KITCHEN_THEMES[VENDOR_THEME[vendorId] ?? ""] ?? PARIS_PANINI;

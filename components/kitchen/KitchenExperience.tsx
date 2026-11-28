@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, Check, ShoppingBag, Sparkles, X, Footprints } from "lucide-react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { LanguageMenu } from "@/components/HeaderBar";
-import { BackToOutlets } from "./ThemeFrame";
+import { BackToOutlets } from "./BackToOutlets";
 import { useT } from "@/components/I18n";
 import { Door } from "./Door";
 import { DishSheet } from "./DishSheet";

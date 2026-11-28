@@ -6,7 +6,7 @@ import { co2eFor, kgFor } from "./impact-config";
 import { NEIGHBOURHOODS, type Neighbourhood } from "./geo";
 import { sha256 } from "./crypto";
 import { seedP2 } from "./seed-p2";
-import { seedKitchen } from "./seed-kitchen";
+import { ensureKitchen } from "./seed-kitchen";
 import { kitchenEnabled } from "./kitchen-themes";
 
 /**
@@ -354,6 +354,6 @@ export function buildSeed(T: number): DB {
     deliveryRequests: [], certificates: [], moderationActions: [],
   };
   seedP2(db, T);
-  if (kitchenEnabled()) seedKitchen(db, T); // test version only: a Paris Panini demo restaurant
+  if (kitchenEnabled()) ensureKitchen(db, T); // test version only: the demo restaurant owner with Paris Panini, Smash Guys and Pita Bakery
   return db;
 }

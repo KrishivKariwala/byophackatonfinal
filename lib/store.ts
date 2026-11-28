@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import type { DB, LiveEvent } from "./types";
 import { buildSeed } from "./seed";
-import { seedKitchen } from "./seed-kitchen";
+import { ensureKitchen } from "./seed-kitchen";
 import { kitchenEnabled } from "./kitchen-themes";
 import { lastWrite, pgEnabled, setAfterCommit } from "./pg/db";
 import { pgRead, pgReplaceAll, pgTransaction } from "./pg/store";
@@ -85,8 +85,8 @@ export function migrate(db: DB): DB {
     if (!db.memberships.some((m) => m.userId === v.ownerId && m.vendorId === v.id && m.role === "owner" && !m.revokedAt))
       db.memberships.push({ id: `m_${v.id}_owner`, userId: v.ownerId, vendorId: v.id, role: "owner", createdAt: v.createdAt });
   }
-  // test version only: a store written before the Paris Panini demo restaurant existed gets it added
-  if (kitchenEnabled() && !db.vendors.some((v) => v.id === "v_paris")) seedKitchen(db, Date.now());
+  // test version only: a store written by an earlier version gets the demo restaurant owner and all of its restaurants and outlets (safe to repeat)
+  if (kitchenEnabled()) ensureKitchen(db, Date.now());
   return db;
 }
 

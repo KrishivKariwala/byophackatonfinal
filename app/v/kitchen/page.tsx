@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { requirePage } from "@/lib/guard";
 import { now, readDb } from "@/lib/store";
 import { vendorScope } from "@/lib/p2/scope";
-import { kitchenEnabled, themeForVendor } from "@/lib/kitchen-themes";
+import { kitchenEnabled, restaurantOf, themeForRestaurant } from "@/lib/kitchen-themes";
 import { KitchenExperience } from "@/components/kitchen/KitchenExperience";
 
 export const dynamic = "force-dynamic";
@@ -21,5 +21,7 @@ export default async function Kitchen({ searchParams }: { searchParams: Promise<
   if (!outlet && scope.outlets.length > 1) redirect("/v/outlets"); // more than one outlet and none chosen: choose first
   const db = await readDb();
   const chosen = outlet ?? scope.outlets[0];
-  return <KitchenExperience theme={themeForVendor(v.id)} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} outletId={chosen.id} serverNow={now(db)} showDoor={sp.door === "1"} />;
+  const theme = themeForRestaurant(restaurantOf(chosen, v.businessName.replace(/\s*\(Demo\)\s*$/, "")));
+  if (!theme) redirect("/v/outlets"); // this restaurant has no look or 3D kitchen yet
+  return <KitchenExperience theme={theme} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} outletId={chosen.id} serverNow={now(db)} showDoor={sp.door === "1"} />;
 }

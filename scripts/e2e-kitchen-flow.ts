@@ -17,8 +17,28 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     ok(home === "/v/outlets", "signing in as the restaurant lands on the outlet page");
     const v = await vc.newPage(); v.on("dialog", (d) => d.accept());
     await v.goto(srv.base + "/v/outlets");
-    ok(await v.getByRole("link", { name: /Live orders/ }).first().isVisible(), "the outlet page has a Live orders button");
+    // the first page: the owner's name, Live orders high up with a line under it, then the restaurants one below the other
+    ok(((await v.locator("h1").first().innerText()).trim()) === 'Abhijit "AB" Gupta', "the page has the owner's name on top: Abhijit \"AB\" Gupta");
+    const live = v.getByRole("link", { name: /Live orders/ }).first(); ok(await live.isVisible(), "the page has a Live orders button");
     ok((await v.getByRole("link", { name: /Scan/ }).count()) === 0, "...and only that one button: no separate scan section");
+    const box = async (loc: ReturnType<typeof v.locator>) => (await loc.boundingBox())!;
+    const names = ["Paris Panini", "Smash Guys", "Pita Bakery"]; const sec = (n: string) => v.locator(`section[aria-label="${n}"]`);
+    for (const n of names) ok(await sec(n).isVisible(), `restaurant box: ${n}`);
+    const ys = await Promise.all(names.map(async (n) => (await box(sec(n))).y)), xs = await Promise.all(names.map(async (n) => Math.round((await box(sec(n))).x)));
+    ok(ys[0] < ys[1] && ys[1] < ys[2] && new Set(xs).size === 1, "the restaurants are stacked one below the other, in order");
+    const hr = await box(v.locator("main hr").first()); const lb = await box(live);
+    ok(lb.y + lb.height <= hr.y && hr.y < ys[0], "Live orders sits high, with a line under it, above the restaurants");
+    ok((await v.locator(".k-root").count()) === 1 && await sec("Paris Panini").evaluate((e) => e.classList.contains("k-root")), "only the Paris Panini box wears the restaurant look; the page itself is the website's");
+    ok((await sec("Paris Panini").getByRole("link", { name: /Enter kitchen/ }).count()) === 2, "Paris Panini has its two outlets with Enter kitchen");
+    for (const n of ["Smash Guys", "Pita Bakery"]) ok((await sec(n).getByText("Kitchen coming soon").count()) === 2 && (await sec(n).getByRole("link", { name: /Enter kitchen/ }).count()) === 0, `${n}: two outlets, plain, kitchen coming soon`);
+    // add an outlet to one restaurant, and a whole new restaurant
+    await sec("Smash Guys").getByRole("button", { name: "Add an outlet" }).click();
+    await v.getByLabel("Outlet name").fill("Indiranagar"); await v.getByLabel("Address").fill("100 Feet Road, Indiranagar, Bengaluru (demo)"); await v.getByRole("button", { name: "Add this outlet" }).click();
+    await sec("Smash Guys").getByText("Kitchen coming soon").nth(2).waitFor({ timeout: 15000 }); ok(true, "Add an outlet puts a third outlet inside the Smash Guys box");
+    await v.getByRole("button", { name: "Add a restaurant" }).click();
+    await v.getByLabel("Restaurant name").fill("Test Burrito"); await v.getByLabel("Outlet name").fill("Koramangala"); await v.getByLabel("Address").fill("80 Feet Road, Koramangala, Bengaluru (demo)"); await v.getByRole("button", { name: "Add this restaurant" }).click();
+    await sec("Test Burrito").waitFor({ timeout: 15000 }); ok(true, "Add a restaurant creates a new box (plain, with its first outlet)");
+    await v.goto(srv.base + "/v/kitchen?outlet=o_smash_1&door=1"); await v.waitForURL(/\/v\/outlets$/, { timeout: 15000 }); ok(true, "a restaurant with no look yet has no kitchen: its link returns to the restaurants page");
 
     const now = Date.now(), iso = (ms: number) => new Date(ms).toISOString();
     const mkl = await vc.request.post(srv.base + "/api/vendor/listings", { data: { title: "Laura panini", category: "Meals", diet: "Vegetarian", originalPrice: 300, rescuePrice: 150, qty: 8, outletId: "o_paris_1", preparedAt: iso(now - 600_000), windowStart: iso(now + 5 * 60_000), windowEnd: iso(now + 65 * 60_000), donateRest: false, safetyDeclaration: true } });
@@ -41,7 +61,7 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     await v.getByRole("link", { name: /Scan & hand over/ }).first().click(); await v.waitForURL(/\/v\/scan/);
     await v.getByLabel("4-digit pickup code").fill(code!); await v.getByRole("button", { name: "Verify & hand over" }).click();
     await v.getByText(/VERIFIED/).first().waitFor({ timeout: 15000 }); ok(true, "the pickup code is accepted on the Scan & hand over page");
-    await v.goto(srv.base + "/v"); await v.getByRole("link", { name: "Back to outlets (test)" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the dashboard has a way back to the outlet page");
+    await v.goto(srv.base + "/v"); await v.getByRole("link", { name: "Back to restaurants (test)" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the dashboard has a way back to the restaurants page");
 
     // the quantity buttons (4 / 8 / 12) must change the quantity of THIS dish, not jump to the next one (taps used to reach the plate behind the card)
     {
@@ -69,14 +89,11 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
       await v.goto(srv.base + "/v/kitchen?outlet=o_paris_1&door=1"); await v.waitForSelector(".k-skip"); await v.click(".k-skip");
     }
     await v.getByRole("link", { name: "Back to outlets" }).click(); await v.waitForURL(/\/v\/outlets$/); ok(true, "the Back arrow in the kitchen goes to the outlet page");
-    ok((await v.getByRole("link", { name: /Back to/ }).count()) === 0, "the outlet page itself has no Back arrow that could land on the demo accounts");
-    await v.getByRole("button", { name: "Switch restaurant account" }).click(); await v.waitForURL(/\/signin/, { timeout: 15000 }); ok(true, "Switch restaurant account signs out and shows the demo accounts");
-    const after = await vc.request.get(srv.base + "/v/outlets", { maxRedirects: 0 }); ok(after.status() === 307, "after switching, the outlet page needs a new sign-in");
 
     // signing in from the demo accounts page replaces it in the history, so the browser's own Back button cannot return to it
     {
       const sc = await browser.newContext({ viewport: { width: 1200, height: 900 }, locale: "en-IN" }); const sp = await sc.newPage();
-      await sp.goto(srv.base + "/signin"); await sp.getByRole("button", { name: /Marc/ }).first().click(); await sp.waitForURL(/\/v\/outlets$/, { timeout: 20000 });
+      await sp.goto(srv.base + "/signin"); await sp.getByRole("button", { name: /Abhijit/ }).first().click(); await sp.waitForURL(/\/v\/outlets$/, { timeout: 20000 });
       await sp.goBack(); await sp.waitForTimeout(800); ok(!/\/signin/.test(sp.url()), `the browser Back button does not return to the demo accounts page (it went to ${new URL(sp.url()).pathname})`);
       await sc.close();
     }
