@@ -87,6 +87,11 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
     fit(); window.addEventListener("resize", fit); return () => window.removeEventListener("resize", fit);
   }, [api]);
   useEffect(() => { api.busy.current = viewer != null || cartOpen || credits; }, [api, viewer, cartOpen, credits]);
+  // while the cart, the photo viewer or the credits are open, everything behind them is out of reach of the keyboard and screen readers (it is covered anyway)
+  useEffect(() => {
+    const modal = viewer != null || cartOpen || credits;
+    root.current?.querySelectorAll("[data-k-bg]").forEach((e) => { if (modal) e.setAttribute("inert", ""); else e.removeAttribute("inert"); });
+  }, [viewer, cartOpen, credits, phase, sheet]);
 
   // while the door is closed nothing in the kitchen can be seen: after it has been drawn once (so it is ready), stop drawing frames until the door is touched
   useEffect(() => {
@@ -170,7 +175,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
             onAutoFocus={(i) => focusDish(i, false)} onUnfocus={() => closeSheet(false)} onHover={setHover} onReady={() => setReady(true)} />
           <div className="k-vignette pointer-events-none absolute inset-0 z-[5]" aria-hidden="true" />
           {/* the scroll track: scroll or swipe anywhere over the kitchen to walk; drag sideways to look around */}
-          <div ref={scroller} role="region" tabIndex={0} aria-label={aria} className="k-scene-area absolute inset-0 z-10 overflow-y-auto"
+          <div ref={scroller} data-k-bg role="region" tabIndex={0} aria-label={aria} className="k-scene-area absolute inset-0 z-10 overflow-y-auto"
             style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
             onScroll={(e) => { const el = e.currentTarget; api.progress.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); if (!moved && el.scrollTop > 30) setMoved(true);
               if (pending.current != null) { if (settle.current) clearTimeout(settle.current); settle.current = setTimeout(() => { const i = pending.current; pending.current = null; if (i != null) focusDish(i, false); }, 220); } }}
@@ -178,10 +183,10 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
             <div style={{ height: `${Math.round(theme.scrollPerDish * theme.dishes.length)}%` }} />
           </div>
           {/* dish name tags, moved over the dishes by the scene every frame */}
-          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true" style={{ opacity: phase === "door" ? 0 : 1, transition: "opacity .6s ease" }}>
+          <div data-k-bg className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true" style={{ opacity: phase === "door" ? 0 : 1, transition: "opacity .6s ease" }}>
             {theme.dishes.map((d, i) => (
               <div key={d.id} data-k-ui className="k-tag" ref={(el) => { tags.current[i] = el; }}>
-                <button type="button" tabIndex={-1} onClick={() => focusDish(i, true)} className="flex items-center gap-2 whitespace-nowrap rounded-full border-2 py-1.5 pl-2.5 pr-3.5 shadow-[0_8px_22px_rgba(0,0,0,.45)]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}>
+                <button type="button" tabIndex={-1} onClick={() => focusDish(i, true)} className="flex min-h-[44px] items-center gap-2 whitespace-nowrap rounded-full border-2 py-1.5 pl-2.5 pr-3.5 shadow-[0_8px_22px_rgba(0,0,0,.45)]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}>
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.veg ? "#1a8f3c" : "#c0392b" }} />
                   <span className="k-display text-[15px] leading-none">{t(d.nameKey)}</span>
                   <span className="text-xs font-bold k-m70">₹{d.full}</span>
@@ -202,7 +207,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
 
       {/* top bar */}
       {phase !== "door" && phase !== "boot" && (
-        <header data-k-ui className="pointer-events-none absolute inset-x-0 top-0 z-40 flex flex-wrap items-center gap-1.5 p-2.5 sm:gap-2 sm:p-3">
+        <header data-k-ui data-k-bg className="pointer-events-none absolute inset-x-0 top-0 z-40 flex flex-wrap items-center gap-1.5 p-2.5 sm:gap-2 sm:p-3">
           <BackToOutlets />
           <b className="k-display hidden px-1 text-xl sm:block" style={phase === "list" ? { color: "var(--k-brand)" } : { color: "#fff", textShadow: "0 2px 10px #000" }}>{theme.name}</b>
           <span className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full border-2 px-4 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-brand)", borderColor: "var(--k-brass)", color: "#fff" }}>{outletName}</span>
@@ -225,11 +230,11 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
 
       {/* dish dots: jump to a dish */}
       {phase === "walk" && (
-        <nav data-k-ui aria-label={t("kitchen.list.title")} className="absolute left-2 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2.5">
+        <nav data-k-ui aria-label={t("kitchen.list.title")} data-k-bg className="absolute left-0.5 top-1/2 z-30 flex -translate-y-1/2 flex-col">
           {theme.dishes.map((d, i) => (
-            <button key={d.id} type="button" aria-label={t(d.nameKey)} aria-current={sheet === i} onClick={() => focusDish(i, true)} className="group flex h-8 w-8 items-center justify-center">
+            <button key={d.id} type="button" aria-label={t(d.nameKey)} aria-current={sheet === i} onClick={() => focusDish(i, true)} className="group flex h-11 w-11 items-center justify-center">
               <span className="block rounded-full border-2 transition-all" style={{ width: sheet === i ? 16 : 11, height: sheet === i ? 16 : 11, borderColor: "var(--k-cream)", background: cart[d.id] ? "var(--k-accent)" : sheet === i ? "var(--k-brass)" : "transparent" }} />
-              <span className="pointer-events-none absolute left-9 hidden whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold group-hover:inline-block group-focus-visible:inline-block" style={{ background: "var(--k-cream)", color: "var(--k-brand)" }}>{t(d.nameKey)}</span>
+              <span className="pointer-events-none absolute left-11 hidden whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold group-hover:inline-block group-focus-visible:inline-block" style={{ background: "var(--k-cream)", color: "var(--k-brand)" }}>{t(d.nameKey)}</span>
             </button>
           ))}
         </nav>
@@ -242,17 +247,16 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
 
       {/* cart bar */}
       {(phase === "walk" || phase === "list") && (
-        <div className={`absolute inset-x-3 bottom-3 z-30 flex justify-center ${sheet != null ? "max-sm:hidden" : ""}`} style={{ pointerEvents: "none" }}>
+        <div data-k-bg className={`absolute inset-x-3 bottom-3 z-30 flex justify-center ${sheet != null ? "max-sm:hidden" : ""}`} style={{ pointerEvents: "none" }}>
           <div data-k-ui className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-[22px] border-2 p-2.5 pl-4 shadow-[0_14px_36px_rgba(0,0,0,.45)]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>
             <p className="min-w-0 text-sm" aria-live="polite"><b className="k-display text-base" style={{ color: "var(--k-brand)" }}>{t("kitchen.cart")}</b>
               <span className="block truncate text-xs font-semibold k-m70">{kinds === 0 ? t("kitchen.cart.empty") : t("kitchen.cart.summary", { dishes: kinds, qty: portions })}</span></p>
-            <Link href="/v" aria-label={t("kitchen.board.orders")} title={t("kitchen.board.orders")} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Activity size={20} aria-hidden="true" /></Link>
             <button type="button" disabled={kinds === 0} onClick={() => { setCartOpen(true); }} className="flex min-h-[48px] shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl px-4 text-sm font-extrabold text-white disabled:opacity-40" style={{ background: "var(--k-brand)" }}><ShoppingBag size={18} aria-hidden="true" />{t("kitchen.cart.open")}</button>
           </div>
         </div>
       )}
       {(phase === "walk" || phase === "list") && (
-        <button type="button" data-k-ui onClick={() => setCredits(true)} className="absolute bottom-[84px] right-3 z-20 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-bold text-white/85 hover:bg-black/55 sm:bottom-4">{t("kitchen.credits")}</button>
+        <button type="button" data-k-ui data-k-bg onClick={() => setCredits(true)} className="absolute bottom-[84px] right-3 z-20 min-h-[44px] rounded-full bg-black/55 px-3.5 text-xs font-bold text-white hover:bg-black/70 sm:bottom-3">{t("kitchen.credits")}</button>
       )}
       {toast && <p role="status" className="k-pop absolute left-1/2 top-20 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-xl" style={{ background: "#15803d" }}><Check size={16} aria-hidden="true" />{toast}</p>}
 

@@ -26,9 +26,9 @@ export function ListMode({ theme, cart, onQty, onPhotos }: { theme: KitchenTheme
                   <p className="line-clamp-2 text-xs k-m70">{t(d.aboutKey)}</p>
                 </div>
                 <div className="flex flex-col items-center gap-1">
-                  <button type="button" aria-label={t("kitchen.qty.more")} onClick={() => onQty(d.id, Math.min(500, (q || 0) + (q ? 1 : 4)))} className="grid h-10 w-10 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><Plus size={18} aria-hidden="true" /></button>
+                  <button type="button" aria-label={t("kitchen.qty.more")} onClick={() => onQty(d.id, Math.min(500, (q || 0) + (q ? 1 : 4)))} className="grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><Plus size={18} aria-hidden="true" /></button>
                   <output className="k-display h-6 text-lg tabular-nums" aria-live="polite">{q || ""}</output>
-                  <button type="button" aria-label={t("kitchen.qty.less")} disabled={!q} onClick={() => onQty(d.id, q - 1)} className="grid h-9 w-9 place-items-center rounded-full border-2 disabled:opacity-30" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Minus size={16} aria-hidden="true" /></button>
+                  <button type="button" aria-label={t("kitchen.qty.less")} disabled={!q} onClick={() => onQty(d.id, q - 1)} className="grid h-11 w-11 place-items-center rounded-full border-2 disabled:opacity-30" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Minus size={16} aria-hidden="true" /></button>
                 </div>
               </li>
             );

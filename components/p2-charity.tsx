@@ -77,7 +77,7 @@ export function ReceiptsPanel({ rows, from, to }: { rows: ReceiptRow[]; from: st
       {rows.length === 0 ? (
         <div className="card p-8 text-center"><h2 className="editorial text-2xl">{t("rcpt.none")}</h2><p className="mt-1 text-sm text-muted">{t("rcpt.noneHelp")}</p></div>
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="card relative overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <caption className="sr-only">{t("rcpt.title")}</caption>
             <thead className="border-b border-line text-xs uppercase text-muted"><tr><th className="p-3">{t("rcpt.number")}</th><th className="p-3">{t("rcpt.date")}</th><th className="p-3">{t("rcpt.item")}</th><th className="p-3">{t("rcpt.with")}</th><th className="p-3">{t("rcpt.value")}</th><th className="p-3"><span className="sr-only">{t("common.download")}</span></th></tr></thead>

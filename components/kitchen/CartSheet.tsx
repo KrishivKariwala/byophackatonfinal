@@ -68,7 +68,7 @@ export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove,
         <header className="flex items-center justify-between gap-3 px-5 pb-2 pt-4">
           <div><h2 className="k-display text-[1.7rem] leading-none" style={{ color: "var(--k-brand)" }}>{done ? t("kitchen.done") : t("kitchen.cart.title")}</h2>
             <p className="mt-1 text-xs font-bold uppercase tracking-[.14em] k-m60">{theme.brand} · {outlet.name}</p></div>
-          <button type="button" aria-label={t("kitchen.close")} onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full bg-black/5 hover:bg-black/10"><X size={20} aria-hidden="true" /></button>
+          <button type="button" aria-label={t("kitchen.close")} onClick={onClose} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/5 hover:bg-black/10"><X size={20} aria-hidden="true" /></button>
         </header>
 
         {done ? (
@@ -91,21 +91,21 @@ export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove,
                       <p className="text-xs k-m70">{t("kitchen.rescue", { price: rescue, orig: dish.full, pct: Math.round((1 - rescue / dish.full) * 100) })}</p>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <button type="button" aria-label={t("kitchen.qty.less")} onClick={() => (qty > 1 ? onQty(dish.id, qty - 1) : onRemove(dish.id))} className="grid h-10 w-10 place-items-center rounded-full border-2" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Minus size={16} aria-hidden="true" /></button>
+                      <button type="button" aria-label={t("kitchen.qty.less")} onClick={() => (qty > 1 ? onQty(dish.id, qty - 1) : onRemove(dish.id))} className="grid h-11 w-11 place-items-center rounded-full border-2" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Minus size={16} aria-hidden="true" /></button>
                       <output className="k-display w-8 text-center text-xl tabular-nums" aria-live="polite">{qty}</output>
-                      <button type="button" aria-label={t("kitchen.qty.more")} onClick={() => onQty(dish.id, Math.min(500, qty + 1))} className="grid h-10 w-10 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><Plus size={16} aria-hidden="true" /></button>
+                      <button type="button" aria-label={t("kitchen.qty.more")} onClick={() => onQty(dish.id, Math.min(500, qty + 1))} className="grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><Plus size={16} aria-hidden="true" /></button>
                     </div>
                   </li>
                 ))}
               </ul>
 
               <fieldset className="mt-3">
-                <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-[.12em] k-m60">{t("kitchen.when")}</legend>
-                <div className="flex flex-wrap gap-1.5">{START.map((m) => <button key={m} type="button" aria-pressed={!exact && startMin === m} onClick={() => { setExact(null); setStartMin(m); }} className="min-h-[40px] rounded-full border-2 px-3 text-sm font-bold" style={!exact && startMin === m ? { background: "var(--k-brand)", borderColor: "var(--k-brand)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)" }}>{t("kitchen.startsIn", { n: m })}</button>)}</div>
-                <p className="mb-1 mt-3 text-[11px] font-bold uppercase tracking-[.12em] k-m60">{t("kitchen.openFor")}</p>
-                <div className="flex flex-wrap gap-1.5">{LENGTH.map((m) => <button key={m} type="button" aria-pressed={!exact && lenMin === m} onClick={() => { setExact(null); setLenMin(m); }} className="min-h-[40px] rounded-full border-2 px-3 text-sm font-bold" style={!exact && lenMin === m ? { background: "var(--k-brand)", borderColor: "var(--k-brand)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)" }}>{t("kitchen.hours", { n: m / 60 })}</button>)}</div>
+                <legend className="mb-1.5 text-xs font-bold uppercase tracking-[.1em] k-m60">{t("kitchen.when")}</legend>
+                <div className="flex flex-wrap gap-1.5">{START.map((m) => <button key={m} type="button" aria-pressed={!exact && startMin === m} onClick={() => { setExact(null); setStartMin(m); }} className="min-h-[44px] rounded-full border-2 px-3.5 text-sm font-bold" style={!exact && startMin === m ? { background: "var(--k-brand)", borderColor: "var(--k-brand)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)" }}>{t("kitchen.startsIn", { n: m })}</button>)}</div>
+                <p className="mb-1 mt-3 text-xs font-bold uppercase tracking-[.1em] k-m60">{t("kitchen.openFor")}</p>
+                <div className="flex flex-wrap gap-1.5">{LENGTH.map((m) => <button key={m} type="button" aria-pressed={!exact && lenMin === m} onClick={() => { setExact(null); setLenMin(m); }} className="min-h-[44px] rounded-full border-2 px-3.5 text-sm font-bold" style={!exact && lenMin === m ? { background: "var(--k-brand)", borderColor: "var(--k-brand)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)" }}>{t("kitchen.hours", { n: m / 60 })}</button>)}</div>
                 <details className="mt-2" onToggle={(e) => { if ((e.currentTarget as HTMLDetailsElement).open && !exact) { const s = nowMs() + startMin * 60_000; setExact({ start: toLocal(s), end: toLocal(s + lenMin * 60_000) }); } }}>
-                  <summary className="cursor-pointer text-sm font-bold underline" style={{ color: "var(--k-brand)" }}>{t("kitchen.exactTimes")}</summary>
+                  <summary className="flex min-h-[44px] cursor-pointer items-center text-sm font-bold underline" style={{ color: "var(--k-brand)" }}>{t("kitchen.exactTimes")}</summary>
                   {exact && <div className="mt-2 grid grid-cols-2 gap-2">
                     <input type="datetime-local" aria-label={t("vform.pickupFrom")} className="min-h-[44px] rounded-xl border-2 bg-white px-2 text-sm" value={exact.start} onChange={(e) => setExact({ ...exact, start: e.target.value })} />
                     <input type="datetime-local" aria-label={t("vform.until")} className="min-h-[44px] rounded-xl border-2 bg-white px-2 text-sm" value={exact.end} onChange={(e) => setExact({ ...exact, end: e.target.value })} />
@@ -116,9 +116,9 @@ export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove,
               <div className="mt-4 rounded-2xl border-2 p-3" style={{ borderColor: "rgba(0,0,0,.12)", background: "rgba(255,255,255,.55)" }}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="flex items-center gap-2 text-sm font-bold" style={{ color: "#1a6a3a" }}><ShieldCheck size={18} aria-hidden="true" />{t("kitchen.safety")}</p>
-                  <button type="button" aria-expanded={declOpen} onClick={() => setDeclOpen(!declOpen)} className="text-sm font-bold underline" style={{ color: "var(--k-brand)" }}>{t("kitchen.safetyRead")}</button>
+                  <button type="button" aria-expanded={declOpen} onClick={() => setDeclOpen(!declOpen)} className="min-h-[44px] px-2 text-sm font-bold underline" style={{ color: "var(--k-brand)" }}>{t("kitchen.safetyRead")}</button>
                 </div>
-                {declOpen && <p className="mt-2 text-xs leading-snug k-m80"><b>{t("vform.declaration")}</b> {t("vform.declarationBody")}</p>}
+                {declOpen && <p className="mt-2 text-sm leading-snug k-m80"><b>{t("vform.declaration")}</b> {t("vform.declarationBody")}</p>}
               </div>
               {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-alert)" }}>{e}</p>)}
             </div>

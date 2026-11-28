@@ -18,8 +18,8 @@ export function ApprovalActions({ kind, id }: { kind: "vendor" | "ngo"; id: stri
   return (
     <span className="flex flex-col gap-1">
       <span className="flex gap-2">
-        <button className="btn-primary !min-h-[40px] !py-2" disabled={busy} onClick={() => act("Approved")}>{t("admin.approve")}</button>
-        <button className="btn-outline !min-h-[40px] !py-2" disabled={busy} onClick={() => act("Rejected")}>{t("admin.reject")}</button>
+        <button className="btn-primary !min-h-[44px] !py-2" disabled={busy} onClick={() => act("Approved")}>{t("admin.approve")}</button>
+        <button className="btn-outline !min-h-[44px] !py-2" disabled={busy} onClick={() => act("Rejected")}>{t("admin.reject")}</button>
       </span>
       {err && <span role="alert" className="text-xs text-tomato">{err}</span>}
     </span>

@@ -44,7 +44,7 @@ export function DishSheet({ dish, name, about, qty, allergens, inCart, onQty, on
         </button>
 
         <details className="mt-2 rounded-2xl border-2 px-3 py-1.5" style={{ borderColor: "rgba(0,0,0,.12)" }}>
-          <summary className="cursor-pointer list-none text-[13px] font-bold k-m80">
+          <summary className="flex min-h-[44px] cursor-pointer list-none flex-col justify-center text-[13px] font-bold k-m80">
             <span className="uppercase tracking-[.1em] k-m55">{t("kitchen.contains")}</span>
             <span className="mt-0.5 block" style={{ color: "var(--k-alert)" }}>{allergens.length ? allergens.map((a) => tOr(t, `allergen.${a}`, a)).join(" · ") : "—"}</span>
           </summary>
@@ -52,7 +52,7 @@ export function DishSheet({ dish, name, about, qty, allergens, inCart, onQty, on
             {ALLERGENS.map((a) => {
               const on = allergens.includes(a);
               return <button key={a} type="button" aria-pressed={on} onClick={() => onAllergens(on ? allergens.filter((x) => x !== a) : [...allergens, a])}
-                className="min-h-[36px] rounded-full border-2 px-3 text-xs font-bold" style={on ? { background: "var(--k-accent)", borderColor: "var(--k-accent)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)", color: "var(--k-ink)" }}>{tOr(t, `allergen.${a}`, a)}</button>;
+                className="min-h-[44px] rounded-full border-2 px-3.5 text-[13px] font-bold" style={on ? { background: "var(--k-accent)", borderColor: "var(--k-accent)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)", color: "var(--k-ink)" }}>{tOr(t, `allergen.${a}`, a)}</button>;
             })}
           </div>
         </details>
@@ -65,7 +65,7 @@ export function DishSheet({ dish, name, about, qty, allergens, inCart, onQty, on
               <input aria-label={t("kitchen.howMany")} inputMode="numeric" value={qty} onChange={(e) => onQty(Math.min(MAX_QTY, Math.max(1, Number(e.target.value.replace(/\D/g, "")) || 1)))} className="k-display h-12 w-16 rounded-xl border-2 bg-white text-center text-2xl tabular-nums" style={{ borderColor: "rgba(0,0,0,.15)" }} />
               <button type="button" aria-label={t("kitchen.qty.more")} onClick={() => onQty(Math.min(MAX_QTY, qty + 1))} className="grid h-12 w-12 place-items-center rounded-full text-white" style={{ background: "var(--k-brand)" }}><Plus size={20} aria-hidden="true" /></button>
             </div>
-            <div className="flex gap-1.5">{[4, 8, 12].map((q) => <button key={q} type="button" onClick={() => onQty(q)} className="h-10 min-w-[40px] rounded-full border-2 px-2 text-sm font-extrabold" style={qty === q ? { background: "var(--k-brand)", borderColor: "var(--k-brand)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)" }}>{q}</button>)}</div>
+            <div className="flex gap-1.5">{[4, 8, 12].map((q) => <button key={q} type="button" onClick={() => onQty(q)} className="h-11 min-w-[44px] rounded-full border-2 px-2 text-sm font-extrabold" style={qty === q ? { background: "var(--k-brand)", borderColor: "var(--k-brand)", color: "#fff" } : { borderColor: "rgba(0,0,0,.18)" }}>{q}</button>)}</div>
           </div>
         </div>
 

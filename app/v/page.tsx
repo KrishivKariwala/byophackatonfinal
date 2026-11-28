@@ -88,7 +88,7 @@ export default async function VendorHome() {
       {!approved && (
         <div role="status" className="rounded-2xl border-2 border-tomato bg-cream p-4 text-sm text-burgundy">
           <b>{t("vdash.appStatus", { status: statusLabel(t, v.status) })}</b> {v.status === "Rejected" ? `${t("vdash.reason", { reason: v.rejectionReason ?? "" })} ` : ""}
-          {t("vdash.onlyApproved")} <Link className="font-semibold underline" href="/v/onboarding">{v.status === "Rejected" ? t("vdash.updateResubmit") : t("vdash.viewApp")}</Link>
+          {t("vdash.onlyApproved")} <Link className="inline-flex min-h-[44px] items-center font-semibold underline" href="/v/onboarding">{v.status === "Rejected" ? t("vdash.updateResubmit") : t("vdash.viewApp")}</Link>
         </div>
       )}
 

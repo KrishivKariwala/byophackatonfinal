@@ -90,7 +90,7 @@ export function RestaurantHub({ owner, waiting, groups, canAdd }: { owner: strin
                   <h3 className={theme ? "k-display leading-tight" : "text-2xl font-extrabold text-ink"} style={theme ? { fontSize: theme.hub.titleSize } : undefined}>{g.name}</h3>
                   <p className={theme ? "text-sm font-bold" : "text-sm font-semibold text-muted"} style={theme ? { color: theme.hub.sub } : undefined}>{g.outlets.length === 1 ? t("kitchen.rest.outlets1") : t("kitchen.rest.outlets", { n: g.outlets.length })}</p>
                 </div>
-                <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+                <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2">
                   {g.outlets.map((o) => {
                     const body = (
                       <>
@@ -103,14 +103,14 @@ export function RestaurantHub({ owner, waiting, groups, canAdd }: { owner: strin
                       </>
                     );
                     return theme ? (
-                      <li key={o.id} className="flex">
+                      <li key={o.id} className="flex min-w-0">
                         <Link href={`/v/kitchen?outlet=${encodeURIComponent(o.id)}&door=1`} className="group flex w-full flex-col gap-3 rounded-[22px] border-2 p-4 transition hover:-translate-y-0.5" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-ink)" }}>
                           {body}
                           <span className="mt-auto inline-flex min-h-[46px] items-center justify-between rounded-2xl px-4 text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.out.enter")}<ChevronRight size={20} aria-hidden="true" /></span>
                         </Link>
                       </li>
                     ) : (
-                      <li key={o.id} className="flex">
+                      <li key={o.id} className="flex min-w-0">
                         <div className="flex w-full flex-col gap-3 rounded-2xl border border-line bg-white p-4">
                           {body}
                           <span className="mt-auto inline-flex min-h-[44px] items-center rounded-xl bg-sand px-4 text-sm font-bold text-ink">{t("kitchen.rest.soon")}</span>

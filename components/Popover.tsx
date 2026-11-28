@@ -39,7 +39,7 @@ export function Popover({ label, icon, children, align = "right", className = ""
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button ref={btn} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={visibleText && !label.toLowerCase().includes(visibleText.toLowerCase()) ? `${visibleText}, ${label}` : label} onClick={toggle}
-        className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-burgundy transition hover:bg-cream ${open ? "bg-cream" : ""} ${buttonClass}`}>
+        className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full px-3 text-sm font-semibold text-burgundy transition hover:bg-cream ${open ? "bg-cream" : ""} ${buttonClass}`}>
         {icon}
       </button>
       {open && (

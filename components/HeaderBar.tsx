@@ -14,7 +14,7 @@ export function LanguageMenu({ current }: { current: Locale }) {
   const router = useRouter();
   const { t } = useT();
   return (
-    <Popover label={t("lang.label")} visibleText={current.toUpperCase()} icon={<><Globe size={18} aria-hidden="true" /><span className="text-xs font-bold uppercase">{current}</span></>}>
+    <Popover label={t("lang.label")} visibleText={current.toUpperCase()} icon={<><Globe size={18} aria-hidden="true" /><span className="text-xs font-bold uppercase max-[479px]:hidden">{current}</span></>}>
       {(close) => (
         <ul className="flex flex-col">
           {LOCALES.map((l) => (
@@ -42,7 +42,7 @@ export function NavMenu({ items, label }: { items: MenuItem[]; label: string }) 
   const path = usePathname();
   const current = items.filter((i) => path === i.href || path.startsWith(`${i.href}/`)).sort((a, b) => b.href.length - a.href.length)[0];
   return (
-    <Popover label={label} visibleText={current?.label ?? label} align="left" buttonClass="!bg-white border border-line" icon={<><LayoutGrid size={18} aria-hidden="true" /><span>{current?.label ?? label}</span><ChevronDown size={14} aria-hidden="true" /></>}>
+    <Popover label={label} visibleText={current?.label ?? label} align="left" buttonClass="!bg-white border border-line" icon={<><LayoutGrid size={18} aria-hidden="true" /><span className="max-w-[3.6rem] truncate sm:max-w-none max-[359px]:hidden">{current?.label ?? label}</span><ChevronDown size={14} aria-hidden="true" /></>}>
       {(close) => (
         <ul className="flex flex-col">
           {items.map((i) => (

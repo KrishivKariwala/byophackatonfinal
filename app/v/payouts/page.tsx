@@ -22,7 +22,7 @@ export default async function Payouts() {
       {p.rows.length === 0 ? (
         <div className="card flex flex-col items-center gap-2 p-8 text-center"><Wallet size={32} className="text-tomato" aria-hidden="true" /><h2 className="editorial text-2xl">{t("payouts.emptyTitle")}</h2><p className="text-sm text-muted">{t("payouts.emptyBody")}</p></div>
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="card relative overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-sm">
             <caption className="sr-only">{t("payouts.caption")}</caption>
             <thead className="border-b border-line text-xs uppercase text-muted"><tr><th className="p-3">{t("payouts.date")}</th><th className="p-3">{t("payouts.orders")}</th><th className="p-3">{t("payouts.gross")}</th><th className="p-3">{t("payouts.fee", { pct: p.feePercent })}</th><th className="p-3">{t("payouts.net")}</th><th className="p-3">{t("payouts.cash")}</th></tr></thead>

@@ -12,10 +12,10 @@ export function OutletSwitcher({ outlets, selected }: { outlets: { id: string; l
   const { t } = useT();
   if (outlets.length < 2) return null;
   return (
-    <label className="inline-flex items-center gap-2 text-xs font-semibold text-burgundy">
+    <label className="inline-flex min-w-0 max-w-full items-center gap-2 text-xs font-semibold text-burgundy">
       <Building2 size={16} aria-hidden="true" />{t("org.outlet")}
       <select
-        className="input !min-h-[44px] !w-auto !py-2" value={selected}
+        className="input !min-h-[44px] !w-auto min-w-0 !max-w-[55vw] !py-2 sm:!max-w-none" value={selected}
         onChange={(e) => { document.cookie = `sap_outlet=${e.target.value}; path=/; max-age=31536000; samesite=lax`; router.refresh(); }}
       >
         <option value="all">{t("org.allOutlets")}</option>

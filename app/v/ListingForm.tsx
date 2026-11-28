@@ -174,7 +174,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
           <div className="flex flex-wrap gap-2">
             {ALLERGENS.map((a) => {
               const on = f.allergens.includes(a);
-              return <button type="button" key={a} aria-pressed={on} onClick={() => set("allergens", on ? f.allergens.filter((x) => x !== a) : [...f.allergens, a])} className={`chip border-2 !py-2 ${on ? "border-tomato bg-tomato text-white" : "border-line bg-white text-burgundy"}`}>{tOr(tr, `allergen.${a}`, a)}</button>;
+              return <button type="button" key={a} aria-pressed={on} onClick={() => set("allergens", on ? f.allergens.filter((x) => x !== a) : [...f.allergens, a])} className={`chip min-h-[44px] border-2 !px-3 !py-2 ${on ? "border-tomato bg-tomato text-white" : "border-line bg-white text-burgundy"}`}>{tOr(tr, `allergen.${a}`, a)}</button>;
             })}
           </div>
         </fieldset>
@@ -229,7 +229,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
               <button type="button" aria-label={tr("vform.increase")} className="h-12 w-12 rounded-xl bg-tomato text-2xl text-white" onClick={() => set("qty", f.qty + 1)}>+</button>
             </div>
           </div>
-          <div className="flex gap-2">{[5, 10, 15, 20].map((q) => <button type="button" key={q} onClick={() => set("qty", q)} className="chip flex-1 justify-center border-2 border-line bg-white !py-2 text-burgundy">{q}</button>)}</div>
+          <div className="flex gap-2">{[5, 10, 15, 20].map((q) => <button type="button" key={q} onClick={() => set("qty", q)} className="chip min-h-[44px] flex-1 justify-center border-2 border-line bg-white !py-2 text-burgundy">{q}</button>)}</div>
           <div className="grid grid-cols-2 gap-3">
             <label className="label">{tr("vform.pickupFrom")}<input type="datetime-local" className="input" required value={times.start} onChange={(e) => setTimes({ ...times, start: e.target.value })} /></label>
             <label className="label">{tr("vform.until")}<input type="datetime-local" className="input" required value={times.end} onChange={(e) => setTimes({ ...times, end: e.target.value })} /></label>
@@ -239,7 +239,7 @@ export function ListingForm({ mode, listingId, init, templates = [], serverNow, 
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="font-semibold text-muted">{tr("vform.startSoon")}</span>
             {[5, 15, 30].map((m) => (
-              <button type="button" key={m} className="chip border-2 border-line bg-white !py-1.5 text-burgundy" onClick={() => {
+              <button type="button" key={m} className="chip min-h-[44px] border-2 border-line bg-white !px-3 !py-1.5 text-burgundy" onClick={() => {
                 const drift = serverNow - t0, s = serverNow + (Date.now() - t0) + m * 60_000;
                 const len = times.start && times.end ? Math.max(30, (new Date(times.end).getTime() - new Date(times.start).getTime()) / 60_000) : 90;
                 setTimes({ ...times, start: toLocal(s - drift), end: toLocal(s + len * 60_000 - drift) });

@@ -82,8 +82,8 @@ export function Discover({ initial, hasMapKey }: { initial: EnrichedListing[]; h
           <h1 className="display text-4xl text-tomato sm:text-5xl">{t("disc.heading")}</h1>
         </div>
         <div className="flex rounded-xl bg-sand p-1" role="tablist" aria-label={t("disc.view")}>
-          <button role="tab" aria-selected={view === "list"} onClick={() => setView("list")} className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold ${view === "list" ? "bg-white" : "text-muted"}`}><List size={16} aria-hidden="true" />{t("disc.list")}</button>
-          <button role="tab" aria-selected={view === "map"} onClick={() => setView("map")} className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold ${view === "map" ? "bg-white" : "text-muted"}`}><MapIcon size={16} aria-hidden="true" />{t("disc.map")}</button>
+          <button role="tab" aria-selected={view === "list"} onClick={() => setView("list")} className={`flex min-h-[44px] items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold ${view === "list" ? "bg-white" : "text-muted"}`}><List size={16} aria-hidden="true" />{t("disc.list")}</button>
+          <button role="tab" aria-selected={view === "map"} onClick={() => setView("map")} className={`flex min-h-[44px] items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold ${view === "map" ? "bg-white" : "text-muted"}`}><MapIcon size={16} aria-hidden="true" />{t("disc.map")}</button>
         </div>
       </div>
 
