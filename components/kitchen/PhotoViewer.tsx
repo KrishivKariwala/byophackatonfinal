@@ -25,7 +25,7 @@ export function PhotoViewer({ dish, name, onClose }: { dish: KitchenDish; name: 
 
   const p = dish.photos[cur];
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-[#05071d]/95 k-pop" role="dialog" aria-modal="true" aria-label={name}>
+    <div data-k-ui className="fixed inset-0 z-[80] flex flex-col bg-[#05071d]/95 k-pop" role="dialog" aria-modal="true" aria-label={name}>
       <div className="flex items-center justify-between gap-3 p-4 text-white">
         <p className="k-display text-xl sm:text-2xl">{name}</p>
         <button type="button" aria-label={t("kitchen.close")} onClick={onClose} className="grid h-11 w-11 place-items-center rounded-full bg-white/10 hover:bg-white/20"><X size={22} aria-hidden="true" /></button>

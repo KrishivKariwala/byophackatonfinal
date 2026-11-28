@@ -1599,5 +1599,10 @@
  "kitchen.board.left": "{total} ರಲ್ಲಿ",
  "kitchen.board.pickup": "ಪಿಕಪ್ {window}",
  "kitchen.board.ready": "ಸಿದ್ಧ ಎಂದು ಗುರುತಿಸಿ",
- "kitchen.board.toHand": "ಸಿದ್ಧ: ಹಸ್ತಾಂತರಿಸಲು ಪಾಸ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ"
+ "kitchen.board.toHand": "ಸಿದ್ಧ: ಹಸ್ತಾಂತರಿಸಲು ಪಾಸ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ",
+ "kitchen.backOutlets": "ಔಟ್‌ಲೆಟ್‌ಗಳಿಗೆ ಹಿಂತಿರುಗಿ",
+ "kitchen.out.waiting": "{n} ಆರ್ಡರ್‌ಗಳು ಕಾಯುತ್ತಿವೆ",
+ "kitchen.out.scanHelp": "ಗ್ರಾಹಕರ ಪಿಕ್‌ಅಪ್ ಕೋಡ್ ನಮೂದಿಸಿ ಅಥವಾ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ.",
+ "kitchen.scanShort": "ಕೋಡ್ ಸ್ಕ್ಯಾನ್",
+ "kitchen.out.ordersHelp": "ಯಾರು ಕಾಯ್ದಿರಿಸಿದ್ದಾರೆ, ಏನು ಸಿದ್ಧ, ಎಷ್ಟು ಯೂನಿಟ್ ಉಳಿದಿವೆ."
 }

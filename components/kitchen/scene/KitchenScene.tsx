@@ -225,6 +225,8 @@ function Lamps() {
 }
 
 // ---------------------------------------------------------------- the five dishes
+/** The cards, sheets and buttons drawn over the kitchen are marked data-k-ui. The scene listens on the whole page, so without this a tap on one of them also reached the plate behind it (e.g. the 8 and 12 buttons jumped to the next dish). */
+const overUi = (e: { nativeEvent?: Event }) => !!(e.nativeEvent?.target as Element | null)?.closest?.("[data-k-ui]");
 function Dish({ index, dish, focused, onTap, onPlate, onHover }: { index: number; dish: KitchenTheme["dishes"][number]; focused: React.MutableRefObject<number | null>; onTap: (i: number) => void; onPlate: (i: number) => void; onHover: (i: number | null) => void }) {
   const map = useTexture(dish.plate);
   useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8; return map; }, [map]);
@@ -257,7 +259,10 @@ function Dish({ index, dish, focused, onTap, onPlate, onHover }: { index: number
       </group>
       <Steam count={10} height={0.5} spread={0.1} size={0.14} opacity={0.16} origin={[0, 0.85, 0.05]} />
       {/* an invisible ball around the plate catches taps; it never moves, so the plate cannot dodge the pointer */}
-      <mesh position={[0, 0.5, 0.05]} onClick={(e) => { e.stopPropagation(); if (focused.current === index) onPlate(index); else onTap(index); }} onPointerOver={(e) => { e.stopPropagation(); hov.current = true; onHover(index); }} onPointerOut={() => { hov.current = false; onHover(null); }}>
+      <mesh position={[0, 0.5, 0.05]} onClick={(e) => { if (overUi(e)) return; e.stopPropagation(); if (focused.current === index) onPlate(index); else onTap(index); }}
+        onPointerOver={(e) => { if (overUi(e)) return; e.stopPropagation(); hov.current = true; onHover(index); }}
+        onPointerMove={(e) => { const ui = overUi(e); if (ui && hov.current) { hov.current = false; onHover(null); } else if (!ui && !hov.current) { hov.current = true; onHover(index); } }}
+        onPointerOut={() => { hov.current = false; onHover(null); }}>
         <sphereGeometry args={[0.46, 10, 8]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>

@@ -15,7 +15,7 @@ export function DishSheet({ dish, name, about, qty, allergens, inCart, onQty, on
   const { t } = useT();
   return (
     <div className="pointer-events-none absolute inset-x-2 bottom-2 z-30 flex justify-center sm:inset-x-auto sm:bottom-auto sm:right-6 sm:top-1/2 sm:-translate-y-1/2">
-      <section role="dialog" aria-label={name} className="k-rise pointer-events-auto w-full max-w-[440px] rounded-[26px] border-[3px] p-3.5 shadow-[0_24px_60px_rgba(0,0,0,.55)] sm:w-[400px] sm:p-5" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>
+      <section data-k-ui role="dialog" aria-label={name} className="k-rise pointer-events-auto w-full max-w-[440px] rounded-[26px] border-[3px] p-3.5 shadow-[0_24px_60px_rgba(0,0,0,.55)] sm:w-[400px] sm:p-5" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]">

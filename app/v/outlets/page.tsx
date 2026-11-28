@@ -22,5 +22,7 @@ export default async function Outlets() {
     const live = db.listings.filter((l) => l.outletId === o.id && l.status === "Live");
     return { id: o.id, name: o.name ?? o.address, address: o.address, live: live.length, units: live.reduce((s, l) => s + l.qtyAvailable, 0) };
   });
-  return <ThemeFrame theme={themeForVendor(v.id)}><OutletPicker brand={v.businessName} outlets={cards} canAdd={scope.can("outlet.manage")} /></ThemeFrame>;
+  const mine = new Set(scope.outlets.map((o) => o.id));
+  const waiting = db.reservations.filter((r) => mine.has(r.outletId) && (r.status === "Reserved" || r.status === "Ready")).length;
+  return <ThemeFrame theme={themeForVendor(v.id)}><OutletPicker brand={v.businessName} outlets={cards} canAdd={scope.can("outlet.manage")} waiting={waiting} /></ThemeFrame>;
 }

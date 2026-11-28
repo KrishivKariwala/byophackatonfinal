@@ -1599,5 +1599,10 @@
  "kitchen.board.left": "कुल {total} में से",
  "kitchen.board.pickup": "पिकअप {window}",
  "kitchen.board.ready": "तैयार करें",
- "kitchen.board.toHand": "तैयार: सौंपने के लिए पास स्कैन करें"
+ "kitchen.board.toHand": "तैयार: सौंपने के लिए पास स्कैन करें",
+ "kitchen.backOutlets": "आउटलेट पर वापस जाएँ",
+ "kitchen.out.waiting": "{n} ऑर्डर इंतज़ार में",
+ "kitchen.out.scanHelp": "ग्राहक का पिकअप कोड डालें या स्कैन करें।",
+ "kitchen.scanShort": "कोड स्कैन करें",
+ "kitchen.out.ordersHelp": "किसने रिज़र्व किया, क्या तैयार है और कितने यूनिट बचे हैं।"
 }

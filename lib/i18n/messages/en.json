@@ -1599,5 +1599,10 @@
  "kitchen.board.left": "of {total}",
  "kitchen.board.pickup": "Pickup {window}",
  "kitchen.board.ready": "Mark ready",
- "kitchen.board.toHand": "Ready: scan the pass to hand over"
+ "kitchen.board.toHand": "Ready: scan the pass to hand over",
+ "kitchen.backOutlets": "Back to outlets",
+ "kitchen.out.waiting": "{n} orders waiting",
+ "kitchen.out.scanHelp": "Enter or scan the customer's pickup code.",
+ "kitchen.scanShort": "Scan code",
+ "kitchen.out.ordersHelp": "Who has reserved, what is ready, how many units are left."
 }

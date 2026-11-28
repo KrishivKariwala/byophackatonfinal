@@ -42,14 +42,14 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
   const cardStyle = { background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-ink)" } as const;
 
   return (
-    <ThemeFrame theme={theme}>
+    <ThemeFrame theme={theme} back="outlets">
       <div className="flex flex-col gap-6">
         <div>
           <p className="text-xs font-bold uppercase tracking-[.16em]" style={{ color: "var(--k-brass)" }}>{v.businessName}{picked ? ` · ${short(picked.id)}` : ""}</p>
           <h1 className="k-display text-[2.2rem] leading-[1.05] sm:text-5xl" style={{ color: "var(--k-cream)" }}>{t("kitchen.board.title")}</h1>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link href={kitchenHref} className="inline-flex min-h-[50px] items-center rounded-2xl px-5 text-base font-extrabold text-white" style={{ background: "var(--k-accent)" }}>{t("kitchen.board.kitchen")}</Link>
-            <Link href="/v/scan" className="inline-flex min-h-[50px] items-center rounded-2xl border-2 px-5 text-base font-extrabold" style={{ borderColor: "var(--k-brass)", color: "var(--k-cream)" }}>{t("kitchen.board.scan")}</Link>
+            <Link href="/v/handover" className="inline-flex min-h-[50px] items-center rounded-2xl border-2 px-5 text-base font-extrabold" style={{ borderColor: "var(--k-brass)", color: "var(--k-cream)" }}>{t("kitchen.board.scan")}</Link>
             <Link href="/v/outlets" className="inline-flex min-h-[50px] items-center rounded-2xl border-2 px-5 text-base font-extrabold" style={{ borderColor: "var(--k-brass)", color: "var(--k-cream)" }}>{t("kitchen.board.switch")}</Link>
           </div>
           {scope.outlets.length > 1 && (
@@ -81,7 +81,7 @@ export default async function Board({ searchParams }: { searchParams: Promise<{ 
                     <span className="text-base font-semibold">{r.qty} × {l?.title}{scope.outlets.length > 1 && <span className="text-xs k-m60"> · {short(r.outletId)}</span>}</span>
                     {l && <span className="text-xs k-m70">{t("kitchen.board.pickup", { window: fmt.window(l.windowStart, l.windowEnd) })}</span>}
                     {r.status === "Reserved" && canFulfil && <ActionButton path={`/api/vendor/orders/${r.id}/ready`} label={t("kitchen.board.ready")} className="mt-1 inline-flex min-h-[48px] items-center justify-center rounded-2xl px-5 text-base font-extrabold text-white [background:var(--k-brand)]" />}
-                    {r.status === "Ready" && <Link href="/v/scan" className="mt-1 inline-flex min-h-[48px] items-center justify-center rounded-2xl border-2 px-5 text-base font-extrabold" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}>{t("kitchen.board.toHand")}</Link>}
+                    {r.status === "Ready" && <Link href="/v/handover" className="mt-1 inline-flex min-h-[48px] items-center justify-center rounded-2xl border-2 px-5 text-base font-extrabold" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}>{t("kitchen.board.toHand")}</Link>}
                   </li>
                 );
               })}
