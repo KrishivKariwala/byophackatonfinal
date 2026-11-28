@@ -7,9 +7,10 @@ import "./kitchen.css";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, ShoppingBag, Sparkles, X, Footprints } from "lucide-react";
+import { Activity, Check, ChevronDown, ShoppingBag, Sparkles, X, Footprints } from "lucide-react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { LanguageMenu } from "@/components/HeaderBar";
+import { BackToLogin } from "./ThemeFrame";
 import { useT } from "@/components/I18n";
 import { Door } from "./Door";
 import { DishSheet } from "./DishSheet";
@@ -29,7 +30,7 @@ const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } ca
 function webglOk() { try { const c = document.createElement("canvas"); return !!(c.getContext("webgl2") || c.getContext("webgl")); } catch { return false; } }
 
 /** The vendor's kitchen: a door, then a scroll-driven walk past the dishes. Everything the page says is ordinary HTML (so every language works). */
-export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { theme: KitchenTheme; outlets: { id: string; label: string }[]; serverNow: number; showDoor: boolean }) {
+export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoor }: { theme: KitchenTheme; outlets: { id: string; label: string }[]; outletId: string; serverNow: number; showDoor: boolean }) {
   const { t, locale } = useT();
   const [phase, setPhase] = useState<Phase>("boot");
   const [why, setWhy] = useState<"" | "webgl">("");
@@ -38,7 +39,6 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
   const [draft, setDraft] = useState<CartEntry>({ qty: 4, allergens: [] });
   const [viewer, setViewer] = useState<number | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
-  const [outletId, setOutletId] = useState(theme.outlets[0].id);
   const [hover, setHover] = useState<number | null>(null);
   const [fontsReady, setFontsReady] = useState(false);
   const [ready, setReady] = useState(false);
@@ -56,7 +56,8 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
   const dragged = useRef(false);
   const openedDoor = useRef(false);
   const api = useRef<WalkApi>({ progress: { current: 0 }, focus: { current: null }, look: { current: { x: 0, y: 0 } }, enter: { current: 0 }, busy: { current: false }, rest: { current: null }, shift: { current: { x: 0.17, y: 0 } } }).current;
-  const outlet = theme.outlets.find((o) => o.id === outletId) ?? theme.outlets[0];
+  const outlet = outlets.find((o) => o.id === outletId) ?? outlets[0];
+  const outletName = outlet.label.replace(/^.*·\s*/, "");
 
   // ---- first look: does this device want the animation?
   useEffect(() => {
@@ -194,13 +195,11 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
       {/* top bar */}
       {phase !== "door" && phase !== "boot" && (
         <header className="pointer-events-none absolute inset-x-0 top-0 z-40 flex flex-wrap items-center gap-1.5 p-2.5 sm:gap-2 sm:p-3">
-          <Link href="/v" aria-label={t("kitchen.back")} title={t("kitchen.back")} className="pointer-events-auto grid h-11 w-11 place-items-center rounded-full border-2 shadow-lg" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}><ArrowLeft size={20} aria-hidden="true" /></Link>
+          <BackToLogin />
           <b className="k-display hidden px-1 text-xl text-white sm:block" style={{ textShadow: "0 2px 10px #000" }}>Paris Panini</b>
-          <div role="group" aria-label={t("kitchen.outlet")} className="pointer-events-auto flex gap-1.5 max-sm:order-last max-sm:basis-full">
-            {theme.outlets.map((o) => <button key={o.id} type="button" aria-pressed={o.id === outletId} onClick={() => setOutletId(o.id)} className="min-h-[40px] whitespace-nowrap rounded-full border-2 px-3.5 text-xs font-extrabold shadow-lg sm:text-sm" style={o.id === outletId ? { background: "var(--k-brand)", borderColor: "var(--k-brass)", color: "#fff" } : { background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-ink)" }}>{o.name}</button>)}
-          </div>
+          <Link href="/v/outlets" aria-label={`${t("kitchen.board.switch")}: ${outletName}`} className="pointer-events-auto inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-4 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-brand)", borderColor: "var(--k-brass)", color: "#fff" }}>{outletName}<ChevronDown size={16} aria-hidden="true" /></Link>
           <div className="pointer-events-auto ml-auto flex items-center gap-1.5">
-            <LanguageMenu current={locale} />
+            <div className="pointer-events-auto rounded-full border-2 px-1 shadow-lg" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}><LanguageMenu current={locale} /></div>
             <button type="button" onClick={toggleAnim} className="flex min-h-[44px] items-center gap-1.5 rounded-full border-2 px-3 text-xs font-extrabold shadow-lg sm:text-sm" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)", color: "var(--k-brand)" }}>
               {phase === "list" ? <Footprints size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}<span>{phase === "list" ? t("kitchen.anim.on") : t("kitchen.anim.off")}</span>
             </button>
@@ -238,6 +237,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
           <div className="pointer-events-auto flex w-full max-w-md items-center justify-between gap-3 rounded-[22px] border-2 p-2.5 pl-4 shadow-[0_14px_36px_rgba(0,0,0,.45)]" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>
             <p className="min-w-0 text-sm" aria-live="polite"><b className="k-display text-base" style={{ color: "var(--k-brand)" }}>{t("kitchen.cart")}</b>
               <span className="block truncate text-xs font-semibold k-m70">{kinds === 0 ? t("kitchen.cart.empty") : t("kitchen.cart.summary", { dishes: kinds, qty: portions })}</span></p>
+            <Link href={`/v/board?outlet=${encodeURIComponent(outlet.id)}`} aria-label={t("kitchen.board.orders")} title={t("kitchen.board.orders")} className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border-2" style={{ borderColor: "var(--k-brand)", color: "var(--k-brand)" }}><Activity size={20} aria-hidden="true" /></Link>
             <button type="button" disabled={kinds === 0} onClick={() => { setCartOpen(true); }} className="flex min-h-[48px] shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl px-4 text-sm font-extrabold text-white disabled:opacity-40" style={{ background: "var(--k-brand)" }}><ShoppingBag size={18} aria-hidden="true" />{t("kitchen.cart.open")}</button>
           </div>
         </div>
@@ -248,7 +248,7 @@ export function KitchenExperience({ theme, outlets, serverNow, showDoor }: { the
       {toast && <p role="status" className="k-pop absolute left-1/2 top-20 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-xl" style={{ background: "#1a8f3c" }}><Check size={16} aria-hidden="true" />{toast}</p>}
 
       {viewer != null && <PhotoViewer dish={theme.dishes[viewer]} name={t(theme.dishes[viewer].nameKey)} onClose={() => setViewer(null)} />}
-      {cartOpen && <CartSheet theme={theme} cart={cart} outlet={outlet} outlets={outlets} serverNow={serverNow} t0={t0} onQty={setQty} onRemove={(id) => setQty(id, 0)} onClose={() => setCartOpen(false)} onPublished={() => setCart({})} />}
+      {cartOpen && <CartSheet theme={theme} cart={cart} outlet={{ id: outlet.id, name: outletName }} serverNow={serverNow} t0={t0} onQty={setQty} onRemove={(id) => setQty(id, 0)} onClose={() => setCartOpen(false)} onPublished={() => setCart({})} />}
       {credits && (
         <div className="fixed inset-0 z-[85] grid place-items-center bg-black/55 p-4 k-pop" role="dialog" aria-modal="true" aria-label={t("kitchen.credits")}>
           <section className="max-h-[88svh] w-full max-w-lg overflow-auto rounded-3xl border-[3px] p-5" style={{ background: "var(--k-cream)", borderColor: "var(--k-brass)" }}>

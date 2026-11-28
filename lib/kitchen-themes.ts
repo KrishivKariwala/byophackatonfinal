@@ -23,11 +23,9 @@ export interface KitchenDish {
   /** every reference photo; the viewer lets people click through them */
   photos: KitchenPhoto[];
 }
-export interface KitchenOutlet { id: string; name: string }
 export interface KitchenTheme {
   id: string; brand: string; tagline: string;
   colors: { brand: string; brandDark: string; accent: string; cream: string; wood: string; ink: string; brass: string };
-  outlets: KitchenOutlet[];
   dishes: KitchenDish[];
 }
 
@@ -39,10 +37,6 @@ export const PARIS_PANINI: KitchenTheme = {
   brand: "Paris Panini (Demo)",
   tagline: "gourmet sandwiches & wraps",
   colors: { brand: "#2a3a9e", brandDark: "#141c52", accent: "#d92b2b", cream: "#f6efe0", wood: "#d6a566", ink: "#0d1033", brass: "#c9a24b" },
-  outlets: [
-    { id: "indiranagar", name: "Indiranagar" },
-    { id: "sanjay-nagar", name: "Sanjay Nagar" },
-  ],
   dishes: [
     {
       id: "laura", nameKey: "kitchen.dish.laura.name", aboutKey: "kitchen.dish.laura.about", veg: true, half: 195, full: 300, category: "Meals", allergens: ["Gluten", "Milk", "Nuts"], plate: `${D}/plate-laura.webp`,
@@ -69,7 +63,16 @@ export const PARIS_PANINI: KitchenTheme = {
 
 export const KITCHEN_THEMES: Record<string, KitchenTheme> = { [PARIS_PANINI.id]: PARIS_PANINI };
 
-/** The 3D kitchen is a TEST feature: it exists on preview deployments and local development only, never on the live site. */
+/**
+ * The 3D kitchen is a TEST feature: it exists on Vercel preview deployments and on `next dev`, never on the live site, in tests, or when a
+ * script (such as the database seeder) runs.
+ */
 export function kitchenEnabled() {
-  return process.env.VERCEL_ENV === "preview" || (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test");
+  return process.env.VERCEL_ENV === "preview" || process.env.NODE_ENV === "development";
 }
+
+/** which restaurant look each demo restaurant account gets. Every restaurant account will have its own entry here; the first one is the default. */
+export const VENDOR_THEME: Record<string, string> = { v_paris: "paris-panini" };
+/** the CSS variables that dress a page in a restaurant's own colours */
+export const themeVars = (t: KitchenTheme): Record<string, string> => ({ "--k-brand": t.colors.brand, "--k-dark": t.colors.brandDark, "--k-accent": t.colors.accent, "--k-cream": t.colors.cream, "--k-wood": t.colors.wood, "--k-ink": t.colors.ink, "--k-brass": t.colors.brass });
+export const themeForVendor = (vendorId: string): KitchenTheme => KITCHEN_THEMES[VENDOR_THEME[vendorId] ?? ""] ?? PARIS_PANINI;

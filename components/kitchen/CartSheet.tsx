@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Minus, Plus, ShieldCheck, X } from "lucide-react";
-import type { KitchenOutlet, KitchenTheme } from "@/lib/kitchen-themes";
+import type { KitchenTheme } from "@/lib/kitchen-themes";
 import { api } from "@/components/client";
 import { useT } from "@/components/I18n";
 import { suggestedRescuePrice } from "@/lib/rules";
@@ -20,8 +20,8 @@ const E = en as Record<string, string>;
  * The cart as an ordinary, quick form in the restaurant's own look: the dishes with their quantities, when people can pick up, and Publish.
  * Price is set for you (half price, within the 30%-off rule), the food-safety declaration is added automatically, and each dish becomes a real listing.
  */
-export function CartSheet({ theme, cart, outlet, outlets, serverNow, t0, onQty, onRemove, onClose, onPublished }: {
-  theme: KitchenTheme; cart: Record<string, CartEntry>; outlet: KitchenOutlet; outlets: { id: string; label: string }[]; serverNow: number; t0: number;
+export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove, onClose, onPublished }: {
+  theme: KitchenTheme; cart: Record<string, CartEntry>; outlet: { id: string; name: string }; serverNow: number; t0: number;
   onQty: (id: string, n: number) => void; onRemove: (id: string) => void; onClose: () => void; onPublished: () => void;
 }) {
   const { t } = useT();
@@ -38,13 +38,11 @@ export function CartSheet({ theme, cart, outlet, outlets, serverNow, t0, onQty, 
   const items = useMemo(() => theme.dishes.filter((d) => cart[d.id]).map((d) => ({ dish: d, ...cart[d.id], rescue: suggestedRescuePrice(d.full) })), [theme, cart]);
   const portions = items.reduce((a, i) => a + i.qty, 0);
   const sum = items.reduce((a, i) => a + i.qty * i.rescue, 0);
-  const outletIndex = Math.max(0, theme.outlets.findIndex((o) => o.id === outlet.id));
 
   const publish = async () => {
     setBusy(true); setErrors([]);
     const start = exact ? new Date(exact.start).getTime() : nowMs() + startMin * 60_000;
     const end = exact ? new Date(exact.end).getTime() : start + lenMin * 60_000;
-    const target = outlets[outletIndex] ?? outlets[0];
     const failed: string[] = []; let ok = 0;
     for (const it of items) {
       const name = E[it.dish.nameKey] ?? it.dish.id;
@@ -54,7 +52,7 @@ export function CartSheet({ theme, cart, outlet, outlets, serverNow, t0, onQty, 
           originalPrice: it.dish.full, rescuePrice: it.rescue, donationOnly: false, qty: it.qty, diet: it.dish.veg ? "Vegetarian" : "Non-vegetarian",
           allergens: it.allergens, surpriseBag: false, storageNote: "", donateRest: true,
           windowStart: new Date(start).toISOString(), windowEnd: new Date(end).toISOString(), preparedAt: new Date(nowMs() - 20 * 60_000).toISOString(),
-          safetyDeclaration: true, ...(outlets.length > 1 && target ? { outletId: target.id } : {}),
+          safetyDeclaration: true, outletId: outlet.id,
         });
         ok++;
       } catch (e) { failed.push(t("kitchen.failed", { name: t(it.dish.nameKey), error: (e as Error).message })); }
@@ -77,7 +75,7 @@ export function CartSheet({ theme, cart, outlet, outlets, serverNow, t0, onQty, 
           <div className="px-5 pb-6 pt-2">
             <p className="flex items-center gap-2 text-base font-bold" style={{ color: "#1a8f3c" }}><Check aria-hidden="true" />{t("kitchen.doneBody", { n: done })}</p>
             {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-accent)" }}>{e}</p>)}
-            <Link href="/v" className="mt-5 flex min-h-[52px] items-center justify-center rounded-2xl text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.dashboard")}</Link>
+            <Link href={`/v/board?outlet=${encodeURIComponent(outlet.id)}`} className="mt-5 flex min-h-[52px] items-center justify-center rounded-2xl text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.dashboard")}</Link>
           </div>
         ) : (
           <>

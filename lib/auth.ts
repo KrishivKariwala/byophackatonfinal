@@ -31,7 +31,7 @@ export function normalizePhone(s: string): string {
 export function homeFor(db: DB, p: Profile): string {
   if (p.role === "vendor" && !resolveOrg(db, p)) return "/v/onboarding"; // owners, and (P2) managers / staff of an organization, go to the dashboard
   if (p.role === "ngo" && !db.ngos.some((n) => n.ownerId === p.id)) return "/n/onboarding";
-  if (p.role === "vendor" && kitchenEnabled()) return "/v/kitchen?door=1"; // TEST VERSION ONLY: signing in as a vendor opens the restaurant's door (never on the live site)
+  if (p.role === "vendor" && kitchenEnabled()) return "/v/outlets"; // TEST VERSION ONLY: a vendor signs in, picks an outlet, then walks through the restaurant's door (never on the live site)
   return HOME[p.role];
 }
 

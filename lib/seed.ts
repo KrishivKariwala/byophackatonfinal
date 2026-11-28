@@ -6,6 +6,8 @@ import { co2eFor, kgFor } from "./impact-config";
 import { NEIGHBOURHOODS, type Neighbourhood } from "./geo";
 import { sha256 } from "./crypto";
 import { seedP2 } from "./seed-p2";
+import { seedKitchen } from "./seed-kitchen";
+import { kitchenEnabled } from "./kitchen-themes";
 
 /**
  * Clearly fictional Bengaluru demo data. Every business and NGO name carries "(Demo)".
@@ -352,5 +354,6 @@ export function buildSeed(T: number): DB {
     deliveryRequests: [], certificates: [], moderationActions: [],
   };
   seedP2(db, T);
+  if (kitchenEnabled()) seedKitchen(db, T); // test version only: a Paris Panini demo restaurant
   return db;
 }

@@ -8,6 +8,7 @@ import { SignInClient } from "./SignInClient";
 import { getT } from "@/lib/i18n/server";
 import { pgEnabled } from "@/lib/pg/db";
 import { toUuid } from "@/lib/pg/uuid";
+import { kitchenEnabled } from "@/lib/kitchen-themes";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata() {
@@ -39,7 +40,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
     return <RoleSignIn role={role} actor={actor ? { name: actor.name, role: actor.role } : null} skipName={skipName} next={next} refCode={/^[A-Za-z0-9]{4,16}$/.test(sp.ref ?? "") ? sp.ref!.toUpperCase() : undefined} />;
   }
 
-  const personas = ["u_priya", "u_arjun", "u_sana", "u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
+  const personas = [...(kitchenEnabled() ? ["u_paris"] : []), "u_priya", "u_arjun", "u_sana", "u_ravi", "u_mgr1", "u_staff1", "u_staff2", "u_vendor2", "u_vendor3", "u_joseph", "u_ngo2", "u_ngo4", "u_admin"]
     .map(pid)
     .filter((id) => db.profiles.some((p) => p.id === id))
     .map(label);
