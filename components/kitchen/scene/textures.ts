@@ -186,3 +186,81 @@ export function posterTexture(kind: number) {
   g.fillStyle = "#141414"; g.font = "34px Anton, Impact, sans-serif"; g.textAlign = "center"; g.fillText(kind % 3 === 2 ? "MILK BUNS" : "SMASH GUYS", 128, 282);
   return tex(c, 1, 1, false);
 }
+
+// ---------------------------------------------------------------- the Smash Guys room, more realistic: glazed tile with a recessed grout, porcelain floor, tufted leather with real dents, soft contact shadows
+function plain(c: HTMLCanvasElement, rx = 1, ry = 1, srgb = true) {
+  const t = new THREE.CanvasTexture(c); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; t.anisotropy = 8;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t;
+}
+const shade = (hex: string, k: number) => { const n = parseInt(hex.slice(1), 16), f = (v: number) => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; };
+
+/** glazed square tiles (8 x 8 to a picture): each tile a touch different, with a glaze highlight, and a thin recessed grout. `map` is the colour, `bump` the height. */
+export function glossTileSet(color: string, grout: string, opts: { gap?: number; vary?: number } = {}) {
+  const gap = opts.gap ?? 1.4, vary = opts.vary ?? 0.07, N = 8, S = 512, T = S / N;
+  const [c, g] = canvas(S, S); g.fillStyle = grout; g.fillRect(0, 0, S, S);
+  const [b, h] = canvas(S, S); h.fillStyle = "#000"; h.fillRect(0, 0, S, S);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const x0 = x * T + gap, y0 = y * T + gap, w = T - gap * 2, k = 1 + (rnd() - 0.5) * 2 * vary;
+    g.fillStyle = shade(color, k); g.beginPath(); g.roundRect(x0, y0, w, w, 3); g.fill();
+    const gr = g.createLinearGradient(x0, y0, x0 + w, y0 + w); gr.addColorStop(0, "rgba(255,255,255,.30)"); gr.addColorStop(0.45, "rgba(255,255,255,.02)"); gr.addColorStop(1, "rgba(0,0,0,.20)");
+    g.fillStyle = gr; g.beginPath(); g.roundRect(x0, y0, w, w, 3); g.fill();
+    const hh = h.createRadialGradient(x0 + w / 2, y0 + w / 2, w * 0.1, x0 + w / 2, y0 + w / 2, w * 0.75); hh.addColorStop(0, "#bdbdbd"); hh.addColorStop(1, "#8a8a8a");
+    h.fillStyle = hh; h.beginPath(); h.roundRect(x0, y0, w, w, 3); h.fill();
+  }
+  noise(g, S, S, 3000, 0.05); noise(g, S, S, 900, 0.05, true);
+  return { map: plain(c), bump: plain(b, 1, 1, false) };
+}
+
+/** big grey porcelain floor tiles (2 x 2 to a picture), a little speckle, a roughness map so the polish is uneven like a real floor */
+export function porcelainSet() {
+  const S = 512, N = 2, T = S / N;
+  const [c, g] = canvas(S, S); g.fillStyle = "#3d3d42"; g.fillRect(0, 0, S, S);
+  const [r, q] = canvas(S, S); q.fillStyle = "#bbb"; q.fillRect(0, 0, S, S);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const l = 132 + Math.floor(rnd() * 22); g.fillStyle = `rgb(${l},${l - 1},${l + 3})`; g.fillRect(x * T + 2, y * T + 2, T - 4, T - 4);
+    const gr = g.createLinearGradient(x * T, y * T, x * T + T, y * T + T); gr.addColorStop(0, "rgba(255,255,255,.10)"); gr.addColorStop(1, "rgba(0,0,0,.14)"); g.fillStyle = gr; g.fillRect(x * T + 2, y * T + 2, T - 4, T - 4);
+  }
+  for (let i = 0; i < 4000; i++) { const l = 80 + Math.floor(rnd() * 120); g.fillStyle = `rgba(${l},${l},${l},${0.12 + rnd() * 0.25})`; g.fillRect(rnd() * S, rnd() * S, 1 + rnd() * 1.8, 1 + rnd() * 1.8); }
+  for (let i = 0; i < 260; i++) { q.fillStyle = `rgba(${rnd() > 0.5 ? "255,255,255" : "90,90,90"},${rnd() * 0.25})`; q.beginPath(); q.ellipse(rnd() * S, rnd() * S, 8 + rnd() * 40, 5 + rnd() * 20, rnd() * 3, 0, Math.PI * 2); q.fill(); }
+  return { map: plain(c), rough: plain(r, 1, 1, false) };
+}
+
+/** tufted leather: the colour with creases, and a height map with a dent at every button and puffed diamonds between them */
+export function leatherSet(color = "#7d1a20") {
+  const S = 256, cell = 128;
+  const [c, g] = canvas(S, S); g.fillStyle = color; g.fillRect(0, 0, S, S);
+  const [b, h] = canvas(S, S); h.fillStyle = "#555"; h.fillRect(0, 0, S, S);
+  for (let gy = -1; gy <= 2; gy++) for (let gx = -1; gx <= 2; gx++) for (const [ox, oy] of [[0, 0], [cell / 2, cell / 2]]) {
+    const x = gx * cell + ox, y = gy * cell + oy, r = cell / 2;
+    for (const [ctx2, light, dark] of [[g, "rgba(255,225,215,.30)", "rgba(10,0,0,.55)"], [h, "#eee", "#111"]] as const) {
+      ctx2.save(); ctx2.beginPath(); ctx2.moveTo(x, y - r); ctx2.lineTo(x + r, y); ctx2.lineTo(x, y + r); ctx2.lineTo(x - r, y); ctx2.closePath(); ctx2.clip();
+      const gr = ctx2.createRadialGradient(x, y, 3, x, y, r * 0.95); gr.addColorStop(0, light); gr.addColorStop(0.55, ctx2 === g ? "rgba(255,255,255,.04)" : "#999"); gr.addColorStop(1, dark);
+      ctx2.fillStyle = gr; ctx2.fillRect(x - r, y - r, 2 * r, 2 * r); ctx2.restore();
+    }
+  }
+  g.fillStyle = "#2a0509"; for (let y = 0; y <= S; y += 64) for (let x = 0; x <= S; x += 64) if ((x / 64 + y / 64) % 2 === 0) { g.beginPath(); g.arc(x, y, 5.5, 0, Math.PI * 2); g.fill(); h.fillStyle = "#000"; h.beginPath(); h.arc(x, y, 8, 0, Math.PI * 2); h.fill(); }
+  noise(g, S, S, 1400, 0.06); noise(g, S, S, 500, 0.05, true);
+  for (let i = 0; i < 220; i++) { g.strokeStyle = `rgba(0,0,0,${rnd() * 0.07})`; g.lineWidth = 1; g.beginPath(); const x = rnd() * S, y = rnd() * S; g.moveTo(x, y); g.lineTo(x + rnd() * 18 - 9, y + rnd() * 18 - 9); g.stroke(); }
+  return { map: plain(c), bump: plain(b, 1, 1, false) };
+}
+
+/** a vertical shadow gradient (dark at the foot, clear at the top) used as an alpha map: the darkening where a wall meets the floor or ceiling */
+export function foldTexture() {
+  const [c, g] = canvas(8, 128); const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, "#000"); gr.addColorStop(0.35, "#242424"); gr.addColorStop(1, "#fff");
+  g.fillStyle = gr; g.fillRect(0, 0, 8, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; return t;
+}
+
+/** a table-tent card: the dish's name in big black capitals and its price, so it can be read from the aisle */
+export function tentCardTexture(name: string, price: string, veg: boolean, fontsOk: boolean) {
+  const [c, g] = canvas(768, 420); g.fillStyle = "#f6d457"; g.fillRect(0, 0, 768, 420);
+  const gr = g.createLinearGradient(0, 0, 0, 420); gr.addColorStop(0, "rgba(255,255,255,.35)"); gr.addColorStop(1, "rgba(0,0,0,.12)"); g.fillStyle = gr; g.fillRect(0, 0, 768, 420);
+  g.strokeStyle = "#141414"; g.lineWidth = 14; g.strokeRect(10, 10, 748, 400);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  const fam = fontsOk ? "'Anton', Impact, sans-serif" : "Impact, sans-serif";
+  const words = name.toUpperCase(); let size = 150; g.font = `${size}px ${fam}`; while (g.measureText(words).width > 640 && size > 60) { size -= 6; g.font = `${size}px ${fam}`; }
+  g.fillStyle = "#141414"; g.fillText(words, 384, 150);
+  g.fillStyle = "#c8201b"; g.fillRect(150, 238, 468, 6);
+  g.fillStyle = "#141414"; g.font = `120px ${fam}`; g.fillText(price, 384, 322);
+  g.fillStyle = veg ? "#0f6a28" : "#a93226"; g.beginPath(); g.arc(60, 360, 22, 0, Math.PI * 2); g.fill(); g.fillStyle = "#f6d457"; g.beginPath(); g.arc(60, 360, 9, 0, Math.PI * 2); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t;
+}

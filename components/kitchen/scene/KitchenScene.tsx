@@ -234,17 +234,17 @@ function Dish({ index, dish, layout, focused, onTap, onPlate, onHover }: { index
   useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8; return map; }, [map]);
   const g = useRef<THREE.Group>(null), tilt = useRef<THREE.Group>(null), pool = useRef<THREE.Mesh>(null), hov = useRef(false);
   const soft = useMemo(() => TX.softTexture(), []);
-  const pose = layout.dish(index);
+  const pose = layout.dish(index), tr = layout.tray;
   useFrame(({ pointer }, d) => {
     if (!tilt.current || !g.current) return;
     const f = focused.current === index;
-    const a = f ? 1.2 : hov.current ? 0.98 : 0.8;
+    const a = f ? 1.2 : hov.current ? tr.tilt + 0.18 : tr.tilt;
     const rx = THREE.MathUtils.damp(tilt.current.rotation.x, a - Math.PI / 2, 5, d);
     tilt.current.rotation.x = rx;
     tilt.current.rotation.y = THREE.MathUtils.damp(tilt.current.rotation.y, f ? -pointer.x * 0.35 : 0, 5, d);
-    tilt.current.position.y = THREE.MathUtils.damp(tilt.current.position.y, f ? 0.56 : 0.43, 5, d);
+    tilt.current.position.y = THREE.MathUtils.damp(tilt.current.position.y, (f ? 0.56 : 0.43) + tr.lift, 5, d);
     tilt.current.position.z = THREE.MathUtils.damp(tilt.current.position.z, f ? 0.2 : 0, 5, d);
-    const s = THREE.MathUtils.damp(tilt.current.scale.x, f ? 1.14 : hov.current ? 1.07 : 1, 6, d);
+    const s = THREE.MathUtils.damp(tilt.current.scale.x, tr.scale * (f ? 1.14 : hov.current ? 1.07 : 1), 6, d);
     tilt.current.scale.setScalar(s);
     if (pool.current) (pool.current.material as THREE.MeshBasicMaterial).opacity = THREE.MathUtils.damp((pool.current.material as THREE.MeshBasicMaterial).opacity, f ? 0.5 : 0.22, 4, d);
   });
@@ -252,20 +252,20 @@ function Dish({ index, dish, layout, focused, onTap, onPlate, onHover }: { index
     <group ref={g} position={[pose.x, pose.y, pose.z]} rotation-y={pose.yaw}>
       <mesh ref={pool} rotation-x={-Math.PI / 2} position-y={0.004}><planeGeometry args={[1.9, 1.9]} /><meshBasicMaterial map={soft} color="#ffb259" transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} /></mesh>
       <mesh rotation-x={-Math.PI / 2} position-y={0.006}><planeGeometry args={[0.95, 0.95]} /><meshBasicMaterial map={soft} color="#000" transparent opacity={0.55} depthWrite={false} /></mesh>
-      <group ref={tilt} position={[0, 0.43, 0]} rotation-x={0.8 - Math.PI / 2}>
+      <group ref={tilt} position={[0, 0.43 + tr.lift, 0]} rotation-x={tr.tilt - Math.PI / 2} scale={tr.scale}>
         {/* the stand that props the tray up */}
-        <mesh position={[0, -0.12, -0.2]} rotation-x={0.2}><cylinderGeometry args={[0.018, 0.018, 0.6, 6]} /><meshStandardMaterial color="#8d939b" metalness={0.9} roughness={0.3} /></mesh>
-        <mesh position-z={-0.02} rotation-x={Math.PI / 2}><cylinderGeometry args={[0.385, 0.385, 0.035, 48]} /><meshStandardMaterial color="#c3c8cf" metalness={0.9} roughness={0.28} /></mesh>
+        <mesh castShadow position={[0, -0.12, -0.2]} rotation-x={0.2}><cylinderGeometry args={[0.018, 0.018, 0.6, 6]} /><meshStandardMaterial color="#8d939b" metalness={0.9} roughness={0.3} /></mesh>
+        <mesh castShadow position-z={-0.02} rotation-x={Math.PI / 2}><cylinderGeometry args={[0.385, 0.385, 0.035, 48]} /><meshStandardMaterial color="#c3c8cf" metalness={0.9} roughness={0.28} /></mesh>
         <mesh position-z={0.0}><torusGeometry args={[0.37, 0.016, 10, 56]} /><meshStandardMaterial color="#d9dde2" metalness={0.95} roughness={0.22} /></mesh>
         <mesh position-z={0.004}><circleGeometry args={[0.352, 72]} /><meshBasicMaterial map={map} toneMapped={false} /></mesh>
       </group>
       <Steam count={10} height={0.5} spread={0.1} size={0.14} opacity={0.16} origin={[0, 0.85, 0.05]} />
       {/* an invisible ball around the plate catches taps; it never moves, so the plate cannot dodge the pointer */}
-      <mesh position={[0, 0.5, 0.05]} onClick={(e) => { if (overUi(e)) return; e.stopPropagation(); if (focused.current === index) onPlate(index); else onTap(index); }}
+      <mesh position={[0, 0.5 + tr.lift, 0.05]} onClick={(e) => { if (overUi(e)) return; e.stopPropagation(); if (focused.current === index) onPlate(index); else onTap(index); }}
         onPointerOver={(e) => { if (overUi(e)) return; e.stopPropagation(); hov.current = true; onHover(index); }}
         onPointerMove={(e) => { const ui = overUi(e); if (ui && hov.current) { hov.current = false; onHover(null); } else if (!ui && !hov.current) { hov.current = true; onHover(index); } }}
         onPointerOut={() => { hov.current = false; onHover(null); }}>
-        <sphereGeometry args={[0.46, 10, 8]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        <sphereGeometry args={[0.46 * tr.scale, 10, 8]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -292,13 +292,13 @@ function SteamImpl({ count, height, spread, size, opacity, origin, axis = "y" }:
 }
 
 // ---------------------------------------------------------------- lights, environment and camera
-function Env() {
+function Env({ intensity = 0.3 }: { intensity?: number }) {
   const { gl, scene } = useThree();
   useEffect(() => {
     const pm = new THREE.PMREMGenerator(gl); const env = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environment = env; scene.environmentIntensity = 0.3;
+    scene.environment = env; scene.environmentIntensity = intensity;
     return () => { scene.environment = null; env.dispose(); pm.dispose(); };
-  }, [gl, scene]);
+  }, [gl, scene, intensity]);
   return null;
 }
 
@@ -316,13 +316,13 @@ function Lights({ api, layout }: { api: WalkApi; layout: Layout }) {
     const a = 1 - Math.exp(-4 * d);
     cur.current.p.lerp(goal.p, a); cur.current.t.lerp(goal.t, a);
     cur.current.k = THREE.MathUtils.damp(cur.current.k, f != null ? 1 : 0.6, 4, d);
-    if (spot.current) { spot.current.position.copy(cur.current.p); spot.current.intensity = 26 * cur.current.k + 8; target.position.copy(cur.current.t); }
+    if (spot.current) { spot.current.position.copy(cur.current.p); spot.current.intensity = diner ? 52 * cur.current.k + 20 : 26 * cur.current.k + 8; target.position.copy(cur.current.t); }
   });
   return (
     <>
-      <hemisphereLight args={diner ? ["#fff0c8", "#2a2418", 0.55] : ["#ffe0b8", "#1a2050", 0.3]} />
+      <hemisphereLight args={diner ? ["#fff0d0", "#2a2418", 0.4] : ["#ffe0b8", "#1a2050", 0.3]} />
       {!diner && <pointLight position={[0, 1.85, 0]} intensity={20} distance={7.5} decay={2} color="#ffb867" />}
-      <spotLight ref={spot} angle={0.5} penumbra={0.85} distance={7} decay={1.6} color={diner ? "#fff0cc" : "#ffe0b0"} target={target} />
+      <spotLight ref={spot} angle={diner ? 0.42 : 0.5} penumbra={0.85} distance={7} decay={1.6} color={diner ? "#fff0cc" : "#ffe0b0"} target={target} castShadow={diner} shadow-mapSize={[1024, 1024]} shadow-bias={-0.0004} shadow-normalBias={0.02} shadow-camera-near={0.3} shadow-camera-far={8} />
       <primitive object={target} />
     </>
   );
@@ -377,8 +377,10 @@ function Rig({ api, layout, tags, onAutoFocus, onUnfocus, portrait }: Pick<Scene
     const t = clock.elapsedTime;
     const moving = Math.abs(p - s.t);
     y += Math.sin(t * 1.5) * 0.004 + Math.sin(t * 9) * 0.006 * Math.min(1, moving * 90);
+    // walking in a real room: a slow sway of the head side to side while the walk is moving (diner only)
+    const sway = layout.id === "diner" ? Math.sin(t * 0.9) * 0.012 * Math.min(1, moving * 60 + 0.25) : 0;
     cam.position.set(x, y, z);
-    cam.rotation.set(pitch + s.ly * damp, yaw + s.lx * damp, Math.sin(t * 0.8) * 0.0025, "YXZ");
+    cam.rotation.set(pitch + s.ly * damp, yaw + s.lx * damp + sway, Math.sin(t * 0.8) * 0.0025, "YXZ");
 
     // the opening push-in when the door opens
     const en = s.enter * s.enter * (3 - 2 * s.enter);
@@ -509,14 +511,14 @@ function KitchenSceneInner(p: SceneProps) {
   const adapt = !forcedDpr && forcedFx == null;
   const probe = useMemo(() => ({ dpr, fx }), [dpr, fx]);
   return (
-    <Canvas frameloop={p.paused ? "never" : "always"} dpr={dpr} camera={{ fov: 58, near: 0.08, far: 40, position: [0, EYE, 0] }} gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
+    <Canvas shadows={theme.layout === "diner"} frameloop={p.paused ? "never" : "always"} dpr={dpr} camera={{ fov: 58, near: 0.08, far: 40, position: [0, EYE, 0] }} gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.95 }}
         style={{ position: "absolute", inset: 0 }} eventSource={p.eventSource as React.RefObject<HTMLElement>} eventPrefix="client" aria-hidden="true">
         <QualityCtx.Provider value={{ fx }}>
         <color attach="background" args={[theme.colors.ink]} />
         <fogExp2 attach="fog" args={[theme.colors.ink, theme.layout === "diner" ? 0.017 : 0.05]} />
         {adapt && <PerformanceMonitor flipflops={4} bounds={(hz) => [hz * 0.7, hz * 0.93]} onDecline={() => { if (dpr > 1.01) setDpr((d) => Math.max(1, d - 0.25)); else setFx(false); }} onIncline={() => { if (!fx) setFx(true); else setDpr((d) => Math.min(base, d + 0.25)); }} />}
         <PerfProbe info={probe} />
-        <Env />
+        <Env intensity={theme.layout === "diner" ? 0.62 : 0.3} />
         <Lights api={api} layout={layoutFor(theme)} />
         <TapPosition />
         <Suspense fallback={null}>

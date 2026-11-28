@@ -29,6 +29,8 @@ export interface Layout {
   tagRange: [number, number];
   /** how far the camera may be from a scroll position and still count as "at" a dish */
   stopWindow: number;
+  /** how the tray that shows the dish stands: its size, how far it is raised on its stand, and how far it leans back (radians) */
+  tray: { scale: number; lift: number; tilt: number };
 }
 
 // ---------------------------------------------------------------- round (Paris Panini): the exact numbers the scene always used
@@ -55,6 +57,7 @@ export const roundLayout: Layout = {
   spot: (i) => { const [x, z] = polar(DISH_R - 1.1, DISH_TH[i]), [tx, tz] = polar(DISH_R, DISH_TH[i]); return { pos: [x, 2.9, z], target: [tx, COUNTER_TOP + 0.35, tz] }; },
   tagRange: [6.3, 4.4],
   stopWindow: 0.04,
+  tray: { scale: 1, lift: 0, tilt: 0.8 },
 };
 
 // ---------------------------------------------------------------- diner (Smash Guys): a straight hall, walked towards -z
@@ -64,7 +67,7 @@ export const roundLayout: Layout = {
  */
 export const DINER = {
   X_LEFT: -2.2, X_RIGHT: 2.45, Z_NEAR: 3.6, H: 3.3,
-  AISLE_X: -0.35, TABLE_X: 1.2, TABLE_R: 0.55, TRAY_X: 1.12, TABLE_TOP: 0.76,
+  AISLE_X: -0.25, TABLE_X: 1.2, TABLE_R: 0.55, TRAY_X: 1.12, TABLE_TOP: 0.76,
   Z_FIRST: 1.0, SPACING: 1.6, LEAD: 0.6, Z_START: 3.0,
 } as const;
 export const dinerZ = (i: number) => DINER.Z_FIRST - DINER.SPACING * i;
@@ -76,17 +79,18 @@ export function makeDinerLayout(count: number): Layout {
     id: "diner",
     count,
     pForDish: pFor,
-    dish: (i) => ({ x: DINER.TRAY_X, y: DINER.TABLE_TOP, z: dinerZ(i), yaw: -Math.PI / 2 }),
-    tag: (i) => [DINER.TRAY_X, DINER.TABLE_TOP + 0.78, dinerZ(i)],
+    // each tray is turned a third of the way towards the visitor coming down the hall, so it faces them as they approach instead of standing edge-on
+    dish: (i) => ({ x: DINER.TRAY_X, y: DINER.TABLE_TOP, z: dinerZ(i), yaw: -Math.PI / 2 + 0.62 }),
+    tag: (i) => [DINER.TRAY_X, DINER.TABLE_TOP + 1.28, dinerZ(i)],
     walk: (s) => {
       const z = lerp(DINER.Z_START, zEnd, s);
       // looking a little to the right (at the tables) while walking; straighter at the start so the whole hall is seen from the door
-      const yaw = lerp(-0.12, -0.34, smoothstep(0, 0.16, s));
+      const yaw = lerp(-0.12, -0.5, smoothstep(0, 0.16, s));
       return { x: DINER.AISLE_X, y: EYE, z, yaw, pitch: -0.07 };
     },
     focus: (i) => {
       const fx = DINER.AISLE_X - 0.2, fz = dinerZ(i) + 0.95, tx = DINER.TRAY_X, tz = dinerZ(i), fy = EYE - 0.1;
-      return { x: fx, y: fy, z: fz, yaw: Math.atan2(-(tx - fx), -(tz - fz)), pitch: Math.atan2(DINER.TABLE_TOP + 0.55 - fy, Math.hypot(tx - fx, tz - fz)) };
+      return { x: fx, y: fy, z: fz, yaw: Math.atan2(-(tx - fx), -(tz - fz)), pitch: Math.atan2(DINER.TABLE_TOP + 0.7 - fy, Math.hypot(tx - fx, tz - fz)) };
     },
     nearest: (_x, z) => {
       let best = 0, bd = 99;
@@ -96,6 +100,7 @@ export function makeDinerLayout(count: number): Layout {
     spot: (i) => ({ pos: [DINER.TRAY_X - 0.7, 2.75, dinerZ(i) + 0.35], target: [DINER.TRAY_X, DINER.TABLE_TOP + 0.35, dinerZ(i)] }),
     tagRange: [4.7, 3.1],
     stopWindow: 0.035,
+    tray: { scale: 1.32, lift: 0.14, tilt: 1.0 },
   };
 }
 
