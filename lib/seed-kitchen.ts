@@ -3,7 +3,7 @@ import type { DB, Outlet, Vendor } from "./types";
 
 /**
  * TEST VERSION ONLY (see kitchenEnabled): a demo restaurant owner who runs three restaurants, each with outlets: Paris Panini (which already has its look and
- * 3D kitchen), Smash Guys and The Pizza Bakery (plain for now). One vendor account owns them all; an outlet's name is "<restaurant> · <area>", which is how the
+ * 3D kitchen), Smash Guys (also with its own look and 3D kitchen) and The Pizza Bakery (plain for now). One vendor account owns them all; an outlet's name is "<restaurant> · <area>", which is how the
  * outlet page groups them. The people and businesses here are fictional demo data like everything else in the seed.
  */
 export const KITCHEN_OWNER_NAME = 'Abhijit "AB" Gupta (Demo vendor)';
@@ -12,8 +12,9 @@ export const KITCHEN_OWNER_NAME = 'Abhijit "AB" Gupta (Demo vendor)';
 const OUTLETS: { id: string; restaurant: string; area: string; hood: keyof typeof NEIGHBOURHOODS; address: string; dLat: number; dLng: number }[] = [
   { id: "o_paris_1", restaurant: "Paris Panini", area: "Indiranagar", hood: "Indiranagar", address: "12th Main, HAL 2nd Stage, Indiranagar, Bengaluru (demo)", dLat: 0.001, dLng: 0.002 },
   { id: "o_paris_2", restaurant: "Paris Panini", area: "Sanjay Nagar", hood: "Indiranagar", address: "4th Cross, 80 Feet Rd, RMV 2nd Stage, Bengaluru (demo)", dLat: 0.062, dLng: -0.067 },
-  { id: "o_smash_1", restaurant: "Smash Guys", area: "Koramangala", hood: "Koramangala", address: "5th Block, Koramangala, Bengaluru (demo)", dLat: 0.001, dLng: 0.001 },
-  { id: "o_smash_2", restaurant: "Smash Guys", area: "HSR Layout", hood: "HSR Layout", address: "27th Main, Sector 1, HSR Layout, Bengaluru (demo)", dLat: -0.001, dLng: 0.002 },
+  // Smash Guys' two outlets are the first and last on its real menu: 12th Main, Indiranagar and Sector 1, HSR Layout (o_smash_1 used to be in Koramangala; ensureKitchen moves it)
+  { id: "o_smash_1", restaurant: "Smash Guys", area: "Indiranagar", hood: "Indiranagar", address: "12th Main, Indiranagar, Bengaluru (demo)", dLat: -0.002, dLng: 0.004 },
+  { id: "o_smash_2", restaurant: "Smash Guys", area: "HSR Layout", hood: "HSR Layout", address: "Sector 1, HSR Layout, Bengaluru (demo)", dLat: -0.001, dLng: 0.002 },
   { id: "o_pita_1", restaurant: "The Pizza Bakery", area: "Jayanagar", hood: "Jayanagar", address: "4th Block, Jayanagar, Bengaluru (demo)", dLat: 0.001, dLng: -0.001 },
   { id: "o_pita_2", restaurant: "The Pizza Bakery", area: "Whitefield", hood: "Whitefield", address: "ITPL Main Road, Whitefield, Bengaluru (demo)", dLat: -0.001, dLng: 0.001 },
 ];
@@ -35,8 +36,11 @@ export function ensureKitchen(db: DB, T: number) {
   }
   for (const o of OUTLETS) {
     const have = db.outlets.find((x) => x.id === o.id);
-    if (have) { have.name = `${o.restaurant} · ${o.area}`; continue; } // already there: keep it, but make sure it carries the current restaurant name
     const c = NEIGHBOURHOODS[o.hood];
+    if (have) { // already there: keep it (and anything listed under it), but make sure it carries the current name and place
+      have.name = `${o.restaurant} · ${o.area}`; have.address = o.address; have.neighbourhood = o.hood; have.lat = +(c.lat + o.dLat).toFixed(5); have.lng = +(c.lng + o.dLng).toFixed(5);
+      continue;
+    }
     const outlet: Outlet = { id: o.id, vendorId: v.id, name: `${o.restaurant} · ${o.area}`, address: o.address, neighbourhood: o.hood, lat: +(c.lat + o.dLat).toFixed(5), lng: +(c.lng + o.dLng).toFixed(5), payAtPickup: true, hours: "10:00-23:00" };
     db.outlets.push(outlet);
   }

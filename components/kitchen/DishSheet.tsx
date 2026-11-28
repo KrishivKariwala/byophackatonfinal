@@ -19,7 +19,7 @@ export function DishSheet({ dish, name, about, qty, allergens, inCart, onQty, on
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[.14em]">
-              <span className="inline-flex items-center gap-1.5" style={{ color: dish.veg ? "#1a8f3c" : "#c0392b" }}>
+              <span className="inline-flex items-center gap-1.5" style={{ color: dish.veg ? "var(--k-veg)" : "var(--k-nonveg)" }}>
                 <span aria-hidden="true" className="grid h-3.5 w-3.5 place-items-center rounded-[3px] border-2" style={{ borderColor: "currentColor" }}><span className="h-1.5 w-1.5 rounded-full" style={{ background: "currentColor" }} /></span>
                 {dish.veg ? t("kitchen.veg") : t("kitchen.nonveg")}
               </span>
@@ -46,7 +46,7 @@ export function DishSheet({ dish, name, about, qty, allergens, inCart, onQty, on
         <details className="mt-2 rounded-2xl border-2 px-3 py-1.5" style={{ borderColor: "rgba(0,0,0,.12)" }}>
           <summary className="cursor-pointer list-none text-[13px] font-bold k-m80">
             <span className="uppercase tracking-[.1em] k-m55">{t("kitchen.contains")}</span>
-            <span className="mt-0.5 block" style={{ color: "var(--k-accent)" }}>{allergens.length ? allergens.map((a) => tOr(t, `allergen.${a}`, a)).join(" · ") : "—"}</span>
+            <span className="mt-0.5 block" style={{ color: "var(--k-alert)" }}>{allergens.length ? allergens.map((a) => tOr(t, `allergen.${a}`, a)).join(" · ") : "—"}</span>
           </summary>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {ALLERGENS.map((a) => {

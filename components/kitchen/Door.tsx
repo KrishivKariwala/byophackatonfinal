@@ -12,12 +12,7 @@ import { useT } from "@/components/I18n";
  * pulled (it only opens inward, away from you). Behind the opening is the LIVE kitchen: the doorway is a real hole in the picture, so as
  * the leaves swing away you see the kitchen, then the whole front zooms past you and you are inside.
  */
-const IW = 1376, IH = 768;                                   // the shopfront picture
-const LEAF = { x: 606, y: 302, w: 166, h: 327 };             // the two door leaves, in picture pixels
-const HALF = Math.round(LEAF.w / 2);
-const DC = { x: LEAF.x + LEAF.w / 2, y: LEAF.y + LEAF.h / 2 };
 const OPEN = 84;                                             // degrees: how far the leaves swing away
-const IMG = "/kitchen/paris-panini";
 
 type Sp = { x: number; v: number };
 /** a damped spring toward `target`, integrated in small steps so it is stable at any frame rate */
@@ -41,6 +36,9 @@ const buzz = (ms: number) => { try { const ua = (navigator as Navigator & { user
 
 export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: KitchenTheme; onAwake: () => void; onOpening: () => void; onDone: () => void; onSkip: () => void }) {
   const { t } = useT();
+  // the shopfront picture, the two door leaves and where they are (picture pixels) come from the restaurant's theme
+  const { w: IW, h: IH, leaf: LEAF, dir: IMG, fills: bg, glows, plateTop, spill: spillBg } = theme.door;
+  const HALF = Math.round(LEAF.w / 2), DC = { x: LEAF.x + LEAF.w / 2, y: LEAF.y + LEAF.h / 2 };
   const root = useRef<HTMLDivElement>(null), stage = useRef<HTMLDivElement>(null), leafL = useRef<HTMLDivElement>(null), leafR = useRef<HTMLDivElement>(null);
   const shadeL = useRef<HTMLElement>(null), shadeR = useRef<HTMLElement>(null), spill = useRef<HTMLDivElement>(null), reveal = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null);
   const fills = useRef<(HTMLDivElement | null)[]>([]), hint = useRef<HTMLParagraphElement>(null);
@@ -67,7 +65,7 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
       const vw = el.clientWidth, vh = el.clientHeight, portrait = vw / vh < 1;
       const s0 = portrait ? Math.min((vw * 0.34) / LEAF.w, (vh * 0.42) / LEAF.h) : Math.max(vw / IW, vh / IH);
       const p0 = { x: vw / 2, y: portrait ? vh * 0.55 : vh * 0.58 };
-      const smax = Math.max(2.4, Math.max(vw / (162 * s0), vh / (323 * s0)) * 1.12);
+      const smax = Math.max(2.4, Math.max(vw / ((LEAF.w - 4) * s0), vh / ((LEAF.h - 4) * s0)) * 1.12);
 
       // the door: a spring toward closed or open, or glued to the finger while it is being dragged
       if (!s.drag) {
@@ -111,6 +109,7 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
     };
     raf = requestAnimationFrame(frame); if (img.current?.complete && img.current.naturalWidth) setLoaded(true);
     return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the door's picture and measures come from the theme, which never changes while the door is on screen
   }, []);
 
   // pressing and pushing: respond on touch-down, follow the hand 1:1, hand over its speed on release
@@ -148,13 +147,13 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
   }, []);
 
   return (
-    <div ref={root} className="k-door fixed inset-0 z-[70] touch-none select-none overflow-hidden" style={{ perspective: "1800px", perspectiveOrigin: "50% 50%", background: loaded ? "transparent" : "#070a22" }} role="group" aria-label={t("kitchen.door.aria", { brand: theme.brand })}
+    <div ref={root} className="k-door fixed inset-0 z-[70] touch-none select-none overflow-hidden" style={{ perspective: "1800px", perspectiveOrigin: "50% 50%", background: loaded ? "transparent" : bg.loading }} role="group" aria-label={t("kitchen.door.aria", { brand: theme.brand })}
       onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
       {/* plain colour where the picture does not reach: sky above, street below, night to the sides */}
-      <div ref={(e) => { fills.current[0] = e; }} className="k-fill" style={{ left: 0, right: 0, top: 0, background: "linear-gradient(#0d1b33, #2f5d90 55%, #5890c4)" }} />
-      <div ref={(e) => { fills.current[1] = e; }} className="k-fill" style={{ left: 0, right: 0, bottom: 0, background: "linear-gradient(#524a4c, #1c1b20 45%, #07080d)" }} />
-      <div ref={(e) => { fills.current[2] = e; }} className="k-fill" style={{ left: 0, top: 0, bottom: 0, background: "#040608" }} />
-      <div ref={(e) => { fills.current[3] = e; }} className="k-fill" style={{ right: 0, top: 0, bottom: 0, background: "#050607" }} />
+      <div ref={(e) => { fills.current[0] = e; }} className="k-fill" style={{ left: 0, right: 0, top: 0, background: bg.top }} />
+      <div ref={(e) => { fills.current[1] = e; }} className="k-fill" style={{ left: 0, right: 0, bottom: 0, background: bg.bottom }} />
+      <div ref={(e) => { fills.current[2] = e; }} className="k-fill" style={{ left: 0, top: 0, bottom: 0, background: bg.left }} />
+      <div ref={(e) => { fills.current[3] = e; }} className="k-fill" style={{ right: 0, top: 0, bottom: 0, background: bg.right }} />
 
       <div ref={stage} className="absolute left-0 top-0" style={{ width: IW, height: IH, transformOrigin: "0 0", willChange: "transform", opacity: loaded ? 1 : 0 }}>
         {/* the shopfront, with the doorway cut out so the live kitchen shows through */}
@@ -162,16 +161,14 @@ export function Door({ theme, onAwake, onOpening, onDone, onSkip }: { theme: Kit
         <img ref={img} src={`${IMG}/facade.webp`} alt="" draggable={false} width={IW} height={IH} onLoad={() => setLoaded(true)} className="absolute left-0 top-0 max-w-none" />
         <div ref={reveal} className="k-reveal" style={{ left: LEAF.x + 2, top: LEAF.y + 2, width: LEAF.w - 4, height: LEAF.h - 4 }} />
         {/* life in the street: the lantern and the lit windows flicker, warm light spills onto the step when the door opens */}
-        <div className="k-glow" style={{ left: 826 - 70, top: 312 - 70, width: 140, height: 140, background: "radial-gradient(circle, rgba(255,196,110,.9), rgba(255,170,80,.25) 45%, transparent 70%)" }} />
-        <div className="k-glow" style={{ left: 285, top: 225, width: 225, height: 270, borderRadius: 40, background: "radial-gradient(ellipse, rgba(255,190,100,.28), transparent 70%)", animationDelay: "-1.2s" }} />
-        <div className="k-glow" style={{ left: 865, top: 225, width: 225, height: 270, borderRadius: 40, background: "radial-gradient(ellipse, rgba(255,190,100,.28), transparent 70%)", animationDelay: "-2.1s" }} />
-        <div ref={spill} className="absolute" style={{ left: LEAF.x - 120, top: LEAF.y + LEAF.h - 4, width: LEAF.w + 240, height: 120, opacity: 0, background: "radial-gradient(ellipse at 50% 0%, rgba(255,198,120,.95), rgba(255,160,70,.35) 45%, transparent 72%)", mixBlendMode: "screen", pointerEvents: "none" }} />
+        {glows.map((g, i) => <div key={i} className="k-glow" style={{ left: g.x, top: g.y, width: g.w, height: g.h, background: g.bg, ...(g.radius != null ? { borderRadius: g.radius } : {}), ...(g.delay ? { animationDelay: g.delay } : {}) }} />)}
+        <div ref={spill} className="absolute" style={{ left: LEAF.x - 120, top: LEAF.y + LEAF.h - 4, width: LEAF.w + 240, height: 120, opacity: 0, background: `radial-gradient(ellipse at 50% 0%, ${spillBg})`, mixBlendMode: "screen", pointerEvents: "none" }} />
         {/* the two leaves: they swing on their outer hinges, away from you */}
         <div className="absolute" style={{ left: LEAF.x, top: LEAF.y, width: LEAF.w, height: LEAF.h, perspective: 640, perspectiveOrigin: "50% 42%" }}>
           <div ref={leafL} className="k-leaf3d" style={{ left: 0, width: HALF, height: LEAF.h, transformOrigin: "0% 50%", backgroundImage: `url(${IMG}/door-left.webp)` }}><i ref={shadeL} className="k-shade" /></div>
           <div ref={leafR} className="k-leaf3d" style={{ left: HALF, width: LEAF.w - HALF, height: LEAF.h, transformOrigin: "100% 50%", backgroundImage: `url(${IMG}/door-right.webp)` }}>
             <i ref={shadeR} className="k-shade k-shade-r" />
-            <span className="k-push-plate k-display" aria-hidden="true">{t("kitchen.door.push")}</span>
+            <span className="k-push-plate k-display" style={{ top: plateTop }} aria-hidden="true">{t("kitchen.door.push")}</span>
           </div>
         </div>
       </div>

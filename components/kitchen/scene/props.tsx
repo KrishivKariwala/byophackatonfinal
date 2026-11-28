@@ -5,6 +5,7 @@ import { useMemo, useRef } from "react";
 import { COUNTER_OUT, COUNTER_TOP, DEG, DISH_R, DISH_TH, polar } from "./constants";
 import { useMats } from "./materials";
 import { useFx } from "./quality";
+import * as TX from "./textures";
 
 /** Props with a purpose: the ingredients of each dish stand behind it, and the kitchen is busy (fire, steam, a turning spit, a ticking clock). */
 const at = (r: number, th: number, y: number): [number, number, number] => { const [x, z] = polar(r, th); return [x, y, z]; };
@@ -72,7 +73,7 @@ function Pot({ p, r = 0.15, h = 0.2, copper = true, content = "#6b3a1e", steam =
 type PuffsProps = { origin: [number, number, number]; count: number; height: number; size: number; spread?: number; opacity?: number };
 export function Puffs(p: PuffsProps) { return useFx() ? <PuffsImpl {...p} /> : null; }
 function PuffsImpl({ origin, count, height, size, spread = 0.08, opacity = 0.22 }: PuffsProps) {
-  const m = useMats();
+  const soft = useMemo(() => TX.softTexture(), []); // its own soft texture, so puffs also work in rooms that have no material set
   const geo = useMemo(() => { const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3)); g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(count * 3), 3)); return g; }, [count]);
   useFrame(({ clock }) => {
     const t = clock.elapsedTime, pos = geo.attributes.position as THREE.BufferAttribute, col = geo.attributes.color as THREE.BufferAttribute;
@@ -83,7 +84,7 @@ function PuffsImpl({ origin, count, height, size, spread = 0.08, opacity = 0.22 
     }
     pos.needsUpdate = true; col.needsUpdate = true;
   });
-  return <points geometry={geo} frustumCulled={false}><pointsMaterial map={m.soft} size={size} sizeAttenuation vertexColors transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} /></points>;
+  return <points geometry={geo} frustumCulled={false}><pointsMaterial map={soft} size={size} sizeAttenuation vertexColors transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} /></points>;
 }
 
 /** orange sparks jumping off the hot grill */

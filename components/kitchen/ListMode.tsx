@@ -21,7 +21,7 @@ export function ListMode({ theme, cart, onQty, onPhotos }: { theme: KitchenTheme
                   <img src={d.plate} alt="" className="h-[68px] w-[68px] rounded-full border-2 object-cover" style={{ borderColor: "var(--k-brass)" }} loading="lazy" />
                 </button>
                 <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: d.veg ? "#1a8f3c" : "#c0392b" }}><span aria-hidden="true">●</span>{d.veg ? t("kitchen.veg") : t("kitchen.nonveg")}</p>
+                  <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: d.veg ? "var(--k-veg)" : "var(--k-nonveg)" }}><span aria-hidden="true">●</span>{d.veg ? t("kitchen.veg") : t("kitchen.nonveg")}</p>
                   <p className="k-display text-[1.1rem] leading-tight" style={{ color: "var(--k-brand)" }}>{t(d.nameKey)}</p>
                   <p className="line-clamp-2 text-xs k-m70">{t(d.aboutKey)}</p>
                 </div>

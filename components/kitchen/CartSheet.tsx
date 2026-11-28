@@ -73,8 +73,8 @@ export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove,
 
         {done ? (
           <div className="px-5 pb-6 pt-2">
-            <p className="flex items-center gap-2 text-base font-bold" style={{ color: "#1a8f3c" }}><Check aria-hidden="true" />{t("kitchen.doneBody", { n: done })}</p>
-            {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-accent)" }}>{e}</p>)}
+            <p className="flex items-center gap-2 text-base font-bold" style={{ color: "var(--k-veg)" }}><Check aria-hidden="true" />{t("kitchen.doneBody", { n: done })}</p>
+            {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-alert)" }}>{e}</p>)}
             <Link href="/v" className="mt-5 flex min-h-[52px] items-center justify-center rounded-2xl text-base font-extrabold text-white" style={{ background: "var(--k-brand)" }}>{t("kitchen.dashboard")}</Link>
             <Link href="/v/outlets" className="mt-2 flex min-h-[48px] items-center justify-center rounded-2xl text-sm font-extrabold k-m70">{t("kitchen.backOutlets")}</Link>
           </div>
@@ -120,7 +120,7 @@ export function CartSheet({ theme, cart, outlet, serverNow, t0, onQty, onRemove,
                 </div>
                 {declOpen && <p className="mt-2 text-xs leading-snug k-m80"><b>{t("vform.declaration")}</b> {t("vform.declarationBody")}</p>}
               </div>
-              {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-accent)" }}>{e}</p>)}
+              {errors.map((e) => <p key={e} role="alert" className="mt-2 text-sm font-semibold" style={{ color: "var(--k-alert)" }}>{e}</p>)}
             </div>
             <footer className="border-t-2 border-black/10 p-4" style={{ background: "rgba(255,255,255,.5)" }}>
               <p className="mb-2 text-center text-sm font-bold" style={{ color: "var(--k-ink)" }}>{t("kitchen.total", { qty: portions, sum })}</p>

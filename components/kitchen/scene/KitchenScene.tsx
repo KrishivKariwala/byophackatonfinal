@@ -5,7 +5,9 @@ import { PerformanceMonitor, useTexture } from "@react-three/drei";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { Suspense, memo, useEffect, useMemo, useRef, useState } from "react";
 import type { KitchenTheme } from "@/lib/kitchen-themes";
-import { AISLE_R, COUNTER_IN, COUNTER_OUT, COUNTER_TOP, DEG, DISH_R, DISH_TH, DOOR_TH, EYE, FOCUS_LEAD, FOCUS_R, ISLAND_R, ROOM_R, WALL_H, lerp, lerpAngle, pForDish, pathTheta, polar, smoothstep, type WalkApi } from "./constants";
+import { AISLE_R, COUNTER_IN, COUNTER_OUT, COUNTER_TOP, DEG, DISH_TH, DOOR_TH, EYE, ISLAND_R, ROOM_R, WALL_H, lerp, lerpAngle, polar, smoothstep, type WalkApi } from "./constants";
+import { layoutFor, type Layout } from "./layouts";
+import DinerWorld from "./DinerWorld";
 import * as TX from "./textures";
 import { QualityCtx, pickDpr, useFx } from "./quality";
 import { MatsProvider, useBuildMats, useMats } from "./materials";
@@ -227,12 +229,12 @@ function Lamps() {
 // ---------------------------------------------------------------- the five dishes
 /** The cards, sheets and buttons drawn over the kitchen are marked data-k-ui. The scene listens on the whole page, so without this a tap on one of them also reached the plate behind it (e.g. the 8 and 12 buttons jumped to the next dish). */
 const overUi = (e: { nativeEvent?: Event }) => !!(e.nativeEvent?.target as Element | null)?.closest?.("[data-k-ui]");
-function Dish({ index, dish, focused, onTap, onPlate, onHover }: { index: number; dish: KitchenTheme["dishes"][number]; focused: React.MutableRefObject<number | null>; onTap: (i: number) => void; onPlate: (i: number) => void; onHover: (i: number | null) => void }) {
+function Dish({ index, dish, layout, focused, onTap, onPlate, onHover }: { index: number; dish: KitchenTheme["dishes"][number]; layout: Layout; focused: React.MutableRefObject<number | null>; onTap: (i: number) => void; onPlate: (i: number) => void; onHover: (i: number | null) => void }) {
   const map = useTexture(dish.plate);
   useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8; return map; }, [map]);
   const g = useRef<THREE.Group>(null), tilt = useRef<THREE.Group>(null), pool = useRef<THREE.Mesh>(null), hov = useRef(false);
   const soft = useMemo(() => TX.softTexture(), []);
-  const th = DISH_TH[index];
+  const pose = layout.dish(index);
   useFrame(({ pointer }, d) => {
     if (!tilt.current || !g.current) return;
     const f = focused.current === index;
@@ -247,7 +249,7 @@ function Dish({ index, dish, focused, onTap, onPlate, onHover }: { index: number
     if (pool.current) (pool.current.material as THREE.MeshBasicMaterial).opacity = THREE.MathUtils.damp((pool.current.material as THREE.MeshBasicMaterial).opacity, f ? 0.5 : 0.22, 4, d);
   });
   return (
-    <group ref={g} position={at(DISH_R, th, COUNTER_TOP)} rotation-y={-th}>
+    <group ref={g} position={[pose.x, pose.y, pose.z]} rotation-y={pose.yaw}>
       <mesh ref={pool} rotation-x={-Math.PI / 2} position-y={0.004}><planeGeometry args={[1.9, 1.9]} /><meshBasicMaterial map={soft} color="#ffb259" transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} /></mesh>
       <mesh rotation-x={-Math.PI / 2} position-y={0.006}><planeGeometry args={[0.95, 0.95]} /><meshBasicMaterial map={soft} color="#000" transparent opacity={0.55} depthWrite={false} /></mesh>
       <group ref={tilt} position={[0, 0.43, 0]} rotation-x={0.8 - Math.PI / 2}>
@@ -300,24 +302,27 @@ function Env() {
   return null;
 }
 
-function Lights({ api }: { api: WalkApi }) {
+function Lights({ api, layout }: { api: WalkApi; layout: Layout }) {
   const spot = useRef<THREE.SpotLight>(null), target = useMemo(() => new THREE.Object3D(), []);
-  const cur = useRef({ th: DISH_TH[0], k: 0 });
+  const first = useMemo(() => layout.spot(0), [layout]);
+  const cur = useRef({ p: new THREE.Vector3(...first.pos), t: new THREE.Vector3(...first.target), k: 0 });
+  const goal = useMemo(() => ({ p: new THREE.Vector3(), t: new THREE.Vector3() }), []);
+  const diner = layout.id === "diner";
   useFrame(({ camera }, d) => {
     const f = api.focus.current;
     // the spotlight goes to the focused dish, or to the dish nearest the camera
-    let th: number;
-    if (f != null) th = DISH_TH[f];
-    else { let best = 0, bd = 9; const ct = Math.atan2(camera.position.x, -camera.position.z); for (let i = 0; i < DISH_TH.length; i++) { const dd = Math.abs(DISH_TH[i] - ct); if (dd < bd) { bd = dd; best = i; } } th = DISH_TH[best]; }
-    cur.current.th = lerpAngle(cur.current.th, th, 1 - Math.exp(-4 * d));
+    const i = f != null ? f : layout.nearest(camera.position.x, camera.position.z);
+    const sp = layout.spot(i); goal.p.set(...sp.pos); goal.t.set(...sp.target);
+    const a = 1 - Math.exp(-4 * d);
+    cur.current.p.lerp(goal.p, a); cur.current.t.lerp(goal.t, a);
     cur.current.k = THREE.MathUtils.damp(cur.current.k, f != null ? 1 : 0.6, 4, d);
-    if (spot.current) { const [x, z] = polar(DISH_R - 1.1, cur.current.th); spot.current.position.set(x, 2.9, z); spot.current.intensity = 26 * cur.current.k + 8; const [tx, tz] = polar(DISH_R, cur.current.th); target.position.set(tx, COUNTER_TOP + 0.35, tz); }
+    if (spot.current) { spot.current.position.copy(cur.current.p); spot.current.intensity = 26 * cur.current.k + 8; target.position.copy(cur.current.t); }
   });
   return (
     <>
-      <hemisphereLight args={["#ffe0b8", "#1a2050", 0.3]} />
-      <pointLight position={[0, 1.85, 0]} intensity={20} distance={7.5} decay={2} color="#ffb867" />
-      <spotLight ref={spot} angle={0.5} penumbra={0.85} distance={7} decay={1.6} color="#ffe0b0" target={target} />
+      <hemisphereLight args={diner ? ["#fff0c8", "#2a2418", 0.55] : ["#ffe0b8", "#1a2050", 0.3]} />
+      {!diner && <pointLight position={[0, 1.85, 0]} intensity={20} distance={7.5} decay={2} color="#ffb867" />}
+      <spotLight ref={spot} angle={0.5} penumbra={0.85} distance={7} decay={1.6} color={diner ? "#fff0cc" : "#ffe0b0"} target={target} />
       <primitive object={target} />
     </>
   );
@@ -337,7 +342,7 @@ function TapPosition() {
 }
 
 /** Moves the camera: along the aisle with scrolling, to the dish when it is focused, with drag-to-look on top. Also places the dish name tags and notices when the visitor stops. */
-function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "api" | "tags" | "onAutoFocus" | "onUnfocus" | "portrait">) {
+function Rig({ api, layout, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "api" | "tags" | "onAutoFocus" | "onUnfocus" | "portrait"> & { layout: Layout }) {
   const { camera, size } = useThree();
   const st = useRef({ t: 0, f: 0, fi: 0, lx: 0, ly: 0, sx: 0, sy: 0, enter: 0, idle: 0, lastP: 0, focusP: 0, fov: 58, lastFocus: null as number | null });
   const v = useMemo(() => new THREE.Vector3(), []);
@@ -356,22 +361,14 @@ function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "
     s.f = THREE.MathUtils.damp(s.f, focus != null ? 1 : 0, 3.4, d);
 
     // the pose on the aisle
-    const th = pathTheta(s.t);
-    const r = lerp(4.75, AISLE_R, smoothstep(0, 0.17, s.t));
-    const [px, pz] = polar(r, th);
-    const bias = lerp(-0.5, 0.3, smoothstep(0.02, 0.23, s.t));
-    const yawPath = -th - Math.PI / 2 + bias;
-    let x = px, z = pz, yaw = yawPath, pitch = -0.1, y = EYE;
+    const w = layout.walk(s.t);
+    const px = w.x, pz = w.z, yawPath = w.yaw, pitchPath = w.pitch;
+    let x = px, z = pz, yaw = yawPath, pitch = pitchPath, y = w.y;
     // the pose in front of the focused dish
     if (s.f > 0.001) {
-      const dth = DISH_TH[s.fi];
-      const [fx, fz] = polar(FOCUS_R, dth - FOCUS_LEAD * 0.6);
-      const [tx, tz] = polar(DISH_R, dth);
-      const fy = EYE - 0.05;
-      const yawF = Math.atan2(-(tx - fx), -(tz - fz));
-      const pitchF = Math.atan2(1.48 - fy, Math.hypot(tx - fx, tz - fz));
+      const fp = layout.focus(s.fi);
       const e = s.f * s.f * (3 - 2 * s.f);
-      x = lerp(px, fx, e); z = lerp(pz, fz, e); y = lerp(EYE, fy, e); yaw = lerpAngle(yawPath, yawF, e); pitch = lerp(-0.1, pitchF, e);
+      x = lerp(px, fp.x, e); z = lerp(pz, fp.z, e); y = lerp(w.y, fp.y, e); yaw = lerpAngle(yawPath, fp.yaw, e); pitch = lerp(pitchPath, fp.pitch, e);
     }
     // looking around by dragging, and a little breathing
     const lk = api.look.current;
@@ -401,22 +398,22 @@ function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "
     if (api.rest.current != null && Math.abs(p - api.rest.current) > 0.012) api.rest.current = null;
     if (focus == null && !api.busy.current && api.rest.current == null && s.enter > 0.9 && s.idle > 0.55) {
       let best = -1, bd = 1;
-      for (let i = 0; i < DISH_TH.length; i++) { const dd = Math.abs(pForDish(i) - s.t); if (dd < bd) { bd = dd; best = i; } }
-      if (best >= 0 && bd < 0.04) onAutoFocus(best);
+      for (let i = 0; i < layout.count; i++) { const dd = Math.abs(layout.pForDish(i) - s.t); if (dd < bd) { bd = dd; best = i; } }
+      if (best >= 0 && bd < layout.stopWindow) onAutoFocus(best);
     }
     if (focus != null && Math.abs(p - s.focusP) > 0.03 && !api.busy.current) onUnfocus();
 
     // the dish name tags
     cam.getWorldDirection(fwd);
-    for (let i = 0; i < DISH_TH.length; i++) {
+    const [far, near0] = layout.tagRange;
+    for (let i = 0; i < layout.count; i++) {
       const el = tags.current[i]; if (!el) continue;
-      const [dx, dz] = polar(DISH_R, DISH_TH[i]);
-      v.set(dx, COUNTER_TOP + 0.78, dz);
+      v.set(...layout.tag(i));
       const rel = rel0.copy(v).sub(cam.position);
       const dist = rel.length(); const inFront = rel.dot(fwd) / dist;
       v.project(cam);
       const sx = (v.x * 0.5 + 0.5) * size.width, sy = (-v.y * 0.5 + 0.5) * size.height;
-      const near = smoothstep(6.3, 4.4, dist) * smoothstep(0.35, 0.55, inFront);
+      const near = smoothstep(far, near0, dist) * smoothstep(0.35, 0.55, inFront);
       const other = focus != null && focus !== i ? 0 : 1;
       const show = focus === i ? 0.0 : near * other;
       el.style.transform = `translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) translate(-50%, -100%)`;
@@ -429,6 +426,15 @@ function Rig({ api, tags, onAutoFocus, onUnfocus, portrait }: Pick<SceneProps, "
 
 function World(p: SceneProps) {
   const { theme, api } = p;
+  const layout = layoutFor(theme);
+  const dishes = theme.dishes.map((dish, i) => <Dish key={dish.id} index={i} dish={dish} layout={layout} focused={api.focus} onTap={p.onTap} onPlate={p.onPlate} onHover={p.onHover} />);
+  const rig = <Rig api={api} layout={layout} tags={p.tags} onAutoFocus={p.onAutoFocus} onUnfocus={p.onUnfocus} portrait={p.portrait} />;
+  if (theme.layout === "diner") return <DinerWorld theme={theme} fontsReady={p.fontsReady} layout={layout}>{dishes}{rig}</DinerWorld>;
+  return <RoundWorld {...p}>{dishes}{rig}</RoundWorld>;
+}
+
+function RoundWorld(p: SceneProps & { children: React.ReactNode }) {
+  const { theme } = p;
   const mats = useBuildMats(theme);
   return (
     <MatsProvider value={mats}>
@@ -442,8 +448,7 @@ function World(p: SceneProps) {
       <DoorFrame theme={theme} fontsReady={p.fontsReady} />
       <Lamps />
       <Dust />
-      {theme.dishes.map((dish, i) => <Dish key={dish.id} index={i} dish={dish} focused={api.focus} onTap={p.onTap} onPlate={p.onPlate} onHover={p.onHover} />)}
-      <Rig api={api} tags={p.tags} onAutoFocus={p.onAutoFocus} onUnfocus={p.onUnfocus} portrait={p.portrait} />
+      {p.children}
     </MatsProvider>
   );
 }
@@ -508,11 +513,11 @@ function KitchenSceneInner(p: SceneProps) {
         style={{ position: "absolute", inset: 0 }} eventSource={p.eventSource as React.RefObject<HTMLElement>} eventPrefix="client" aria-hidden="true">
         <QualityCtx.Provider value={{ fx }}>
         <color attach="background" args={[theme.colors.ink]} />
-        <fogExp2 attach="fog" args={[theme.colors.ink, 0.05]} />
+        <fogExp2 attach="fog" args={[theme.colors.ink, theme.layout === "diner" ? 0.017 : 0.05]} />
         {adapt && <PerformanceMonitor flipflops={4} bounds={(hz) => [hz * 0.7, hz * 0.93]} onDecline={() => { if (dpr > 1.01) setDpr((d) => Math.max(1, d - 0.25)); else setFx(false); }} onIncline={() => { if (!fx) setFx(true); else setDpr((d) => Math.min(base, d + 0.25)); }} />}
         <PerfProbe info={probe} />
         <Env />
-        <Lights api={api} />
+        <Lights api={api} layout={layoutFor(theme)} />
         <TapPosition />
         <Suspense fallback={null}>
           <World {...sceneProps} />

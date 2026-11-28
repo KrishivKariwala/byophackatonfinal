@@ -21,7 +21,7 @@ export function useMats() { const m = useContext(Ctx); if (!m) throw new Error("
 
 const T = "/kitchen/textures/";
 type Rep = [number, number];
-function prep(t: THREE.Texture, rep: Rep, srgb: boolean, rot = 0, flipX = false) {
+export function prep(t: THREE.Texture, rep: Rep, srgb: boolean, rot = 0, flipX = false) {
   const c = t.clone(); c.wrapS = c.wrapT = THREE.RepeatWrapping; c.repeat.set(flipX ? -rep[0] : rep[0], rep[1]); if (flipX) c.offset.x = 1;
   c.center.set(0.5, 0.5); c.rotation = rot; c.anisotropy = 8; c.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; c.needsUpdate = true; return c;
 }

@@ -1,5 +1,5 @@
 /**
- * End-to-end check of the TEST-BUILD restaurant flow (Paris Panini demo account), in real Chrome against a production build:
+ * End-to-end check of the TEST-BUILD restaurant flow (the demo owner with Paris Panini, Smash Guys and The Pizza Bakery), in real Chrome against a production build:
  * the first page has one Live orders button that opens the ordinary Today dashboard (marketplace look: live orders, units left, scan and hand over); a listing made for an outlet is published; a customer's order
  * appears there; Mark ready works; the pickup code is accepted on the Scan & hand over page; the Back arrows go where they say.
  * Usage: npm run build && npx tsx scripts/e2e-kitchen-flow.ts
@@ -40,17 +40,25 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
     ok(ys[0] < ys[1] && ys[1] < ys[2] && new Set(xs).size === 1, "the restaurants are stacked one below the other, in order");
     const hr = await box(v.locator("main hr").first()); const lb = await box(live);
     ok(lb.y + lb.height <= hr.y && hr.y < ys[0], "Live orders sits high, with a line under it, above the restaurants");
-    ok((await v.locator(".k-root").count()) === 1 && await sec("Paris Panini").evaluate((e) => e.classList.contains("k-root")), "only the Paris Panini box wears the restaurant look; the page itself is the website's");
+    // two restaurants have their own look (each box wears its OWN look); the page itself and The Pizza Bakery stay in the website's look
+    ok((await v.locator(".k-root").count()) === 2, "only two boxes wear a restaurant look (Paris Panini and Smash Guys); the page itself is the website's");
+    ok(await sec("Paris Panini").evaluate((e) => e.classList.contains("k-root")) && await sec("Smash Guys").evaluate((e) => e.classList.contains("k-root")) && !(await sec("The Pizza Bakery").evaluate((e) => e.classList.contains("k-root"))), "...Paris Panini and Smash Guys have it, The Pizza Bakery does not");
+    const face = (n: string) => sec(n).locator("h3").evaluate((e) => ({ font: getComputedStyle(e).fontFamily, bg: getComputedStyle(e.closest("section")!).backgroundColor + "|" + getComputedStyle(e.closest("section")!).backgroundImage.slice(0, 40), caps: getComputedStyle(e).textTransform }));
+    const fp = await face("Paris Panini"), fs = await face("Smash Guys");
+    ok(/Abril Fatface/.test(fp.font) && /Anton/.test(fs.font) && !/Anton/.test(fp.font) && !/Abril/.test(fs.font), `each box has its own lettering (Paris: ${fp.font.split(",")[0]}, Smash Guys: ${fs.font.split(",")[0]})`);
+    ok(fp.bg !== fs.bg && fs.caps === "uppercase", "...and its own colours (Smash Guys is yellow diamonds with black capitals, Paris Panini is navy)");
     ok((await sec("Paris Panini").getByRole("link", { name: /Enter kitchen/ }).count()) === 2, "Paris Panini has its two outlets with Enter kitchen");
-    for (const n of ["Smash Guys", "The Pizza Bakery"]) ok((await sec(n).getByText("Kitchen coming soon").count()) === 2 && (await sec(n).getByRole("link", { name: /Enter kitchen/ }).count()) === 0, `${n}: two outlets, plain, kitchen coming soon`);
+    ok((await sec("Smash Guys").getByRole("link", { name: /Enter kitchen/ }).count()) === 2, "Smash Guys has its two outlets (Indiranagar and HSR Layout) with Enter kitchen");
+    ok((await sec("Smash Guys").getByText("Indiranagar").count()) >= 1 && (await sec("Smash Guys").getByText("HSR Layout").count()) >= 1, "...named Indiranagar and HSR Layout, as on its menu");
+    ok((await sec("The Pizza Bakery").getByText("Kitchen coming soon").count()) === 2 && (await sec("The Pizza Bakery").getByRole("link", { name: /Enter kitchen/ }).count()) === 0, "The Pizza Bakery: two outlets, plain, kitchen coming soon");
     // add an outlet to one restaurant, and a whole new restaurant
     await sec("Smash Guys").getByRole("button", { name: "Add an outlet" }).click();
-    await v.getByLabel("Outlet name").fill("Indiranagar"); await v.getByLabel("Address").fill("100 Feet Road, Indiranagar, Bengaluru (demo)"); await v.getByRole("button", { name: "Add this outlet" }).click();
-    await sec("Smash Guys").getByText("Kitchen coming soon").nth(2).waitFor({ timeout: 15000 }); ok(true, "Add an outlet puts a third outlet inside the Smash Guys box");
+    await v.getByLabel("Outlet name").fill("Bellandur"); await v.getByLabel("Address").fill("Ecoworld, Bellandur, Bengaluru (demo)"); await v.getByRole("button", { name: "Add this outlet" }).click();
+    await sec("Smash Guys").getByRole("link", { name: /Enter kitchen/ }).nth(2).waitFor({ timeout: 15000 }); ok(true, "Add an outlet puts a third outlet inside the Smash Guys box (with the Smash Guys look and a kitchen)");
     await v.getByRole("button", { name: "Add a restaurant" }).click();
     await v.getByLabel("Restaurant name").fill("Test Burrito"); await v.getByLabel("Outlet name").fill("Koramangala"); await v.getByLabel("Address").fill("80 Feet Road, Koramangala, Bengaluru (demo)"); await v.getByRole("button", { name: "Add this restaurant" }).click();
     await sec("Test Burrito").waitFor({ timeout: 15000 }); ok(true, "Add a restaurant creates a new box (plain, with its first outlet)");
-    await v.goto(srv.base + "/v/kitchen?outlet=o_smash_1&door=1"); await v.waitForURL(/\/v\/outlets$/, { timeout: 15000 }); ok(true, "a restaurant with no look yet has no kitchen: its link returns to the restaurants page");
+    await v.goto(srv.base + "/v/kitchen?outlet=o_pita_1&door=1"); await v.waitForURL(/\/v\/outlets$/, { timeout: 15000 }); ok(true, "a restaurant with no look yet has no kitchen: its link returns to the restaurants page");
 
     const now = Date.now(), iso = (ms: number) => new Date(ms).toISOString();
     const mkl = await vc.request.post(srv.base + "/api/vendor/listings", { data: { title: "Laura panini", category: "Meals", diet: "Vegetarian", originalPrice: 300, rescuePrice: 150, qty: 8, outletId: "o_paris_1", preparedAt: iso(now - 600_000), windowStart: iso(now + 5 * 60_000), windowEnd: iso(now + 65 * 60_000), donateRest: false, safetyDeclaration: true } });
@@ -91,6 +99,37 @@ const ok = (c: unknown, m: string) => { if (!c) throw new Error(m); console.log(
         ok((await dlg.locator("input").inputValue()) === "12", "and the quantity really is 12");
         await dlg.getByRole("button", { name: "Add to cart" }).click(); await k.getByText(/12/).first().waitFor({ timeout: 5000 }); ok(true, "Add to cart keeps the quantity");
       } else console.log("skip  the 3D kitchen is not available in this browser, so the quantity-button check was skipped");
+      await kc.close();
+    }
+    // Smash Guys: its OWN shopfront and its OWN room (a straight diner with seven dishes), with the same rules as every kitchen
+    {
+      const kc = await browser.newContext({ viewport: { width: 1470, height: 956 }, locale: "en-IN" });
+      await kc.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_paris" } });
+      const k = await kc.newPage(); const bad: string[] = []; k.on("pageerror", (e) => bad.push(String(e)));
+      k.on("response", (r) => { if (r.status() >= 400 && /\/kitchen\//.test(r.url())) bad.push(`${r.status()} ${r.url()}`); });
+      await k.goto(srv.base + "/v/kitchen?outlet=o_smash_1&door=1");
+      await k.waitForSelector(".k-skip, [data-k-ui]", { timeout: 30000 });
+      if (await k.locator(".k-skip").count()) {
+        ok((await k.locator(".k-root").getAttribute("data-kt")) === "smash-guys", "the Smash Guys outlet opens the Smash Guys look (not Paris Panini's)");
+        const door = await k.locator(".k-door img").evaluate((i) => ({ src: (i as HTMLImageElement).currentSrc, w: (i as HTMLImageElement).naturalWidth }));
+        ok(/\/kitchen\/smash-guys\/facade/.test(door.src) && door.w > 500, `the door scene is Smash Guys' own shopfront (${door.src.split("/").slice(-2).join("/")}, ${door.w} px wide)`);
+        await k.click(".k-skip"); await k.waitForFunction(`typeof window.__kitchen === "function"`, null, { timeout: 60000 }); await k.waitForTimeout(3500);
+        ok((await k.locator("nav button").count()) === 7, "the diner has seven dishes");
+        ok(await k.getByText("Indiranagar", { exact: true }).first().isVisible() && await k.locator("header b", { hasText: "Smash Guys" }).isVisible(), "the header says Smash Guys and the outlet, Indiranagar");
+        const font = await k.locator("header b").evaluate((e) => getComputedStyle(e).fontFamily); ok(/Anton/.test(font), `Smash Guys' own lettering is used (${font.split(",")[0]})`);
+        await k.locator("nav button").nth(6).click();                                   // the LAST dish must be reachable (the walk runs past it)
+        const dlg = k.getByRole("dialog"); await dlg.waitFor({ timeout: 15000 });
+        ok(/Mac & Cheese/i.test((await dlg.getAttribute("aria-label")) ?? ""), "the last dish (Mac & Cheese) opens from the dish dots");
+        for (const q of ["12", "8", "12"]) { await dlg.getByRole("button", { name: q, exact: true }).click(); await k.waitForTimeout(600); }
+        ok(/Mac & Cheese/i.test((await dlg.getAttribute("aria-label")) ?? "") && (await dlg.locator("input").inputValue()) === "12", "the quantity buttons stay on the same dish here too (12 of Mac & Cheese)");
+        await dlg.getByRole("button", { name: "Add to cart" }).click(); await k.getByText(/12/).first().waitFor({ timeout: 5000 });
+        await k.locator("nav button").nth(0).click(); const d2 = k.getByRole("dialog"); await d2.waitFor({ timeout: 15000 });
+        ok(/OG Smash/i.test((await d2.getAttribute("aria-label")) ?? ""), "the first dish is OG Smash, a burger");
+        ok(!/\b(shake|cola|mojito|coffee|matcha|juice)\b/i.test(await k.locator("nav").innerText() + (await k.locator("[data-k-ui]").allInnerTexts()).join(" ")), "no drinks anywhere on the counter");
+        await k.keyboard.press("Escape");
+        ok(await k.getByRole("link", { name: "Back to outlets" }).isVisible() && await k.getByRole("link", { name: /Live orders/ }).first().isVisible(), "Back to outlets and Live orders are there");
+        ok(bad.length === 0, "no page errors and no missing Smash Guys pictures" + (bad.length ? ": " + bad.join("; ") : ""));
+      } else console.log("skip  the 3D kitchen is not available in this browser, so the Smash Guys checks were skipped");
       await kc.close();
     }
     // the door scene (the restaurant "animation") has its own Back arrow, and so does the kitchen

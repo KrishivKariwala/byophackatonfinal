@@ -3,6 +3,10 @@ import "@fontsource/abril-fatface/400.css";
 import "@fontsource/josefin-sans/400.css";
 import "@fontsource/josefin-sans/600.css";
 import "@fontsource/josefin-sans/700.css";
+import "@fontsource/anton/400.css";
+import "@fontsource/outfit/400.css";
+import "@fontsource/outfit/600.css";
+import "@fontsource/outfit/700.css";
 import "./kitchen.css";
 import { useState } from "react";
 import Link from "next/link";
@@ -77,14 +81,14 @@ export function RestaurantHub({ owner, waiting, groups, canAdd }: { owner: strin
         {groups.map((g) => {
           const theme = g.themeId ? KITCHEN_THEMES[g.themeId] : null;
           const box = theme
-            ? { className: "k-root rounded-[26px] border-[3px] p-5 shadow-[0_18px_44px_rgba(13,16,51,.35)] sm:p-6", style: { ...themeVars(theme), background: `radial-gradient(120% 90% at 50% 0%, #1c2a78 0%, ${theme.colors.brandDark} 45%, ${theme.colors.ink} 100%)`, borderColor: theme.colors.brass, color: theme.colors.cream } as React.CSSProperties }
+            ? { className: "k-root rounded-[26px] border-[3px] p-5 shadow-none sm:p-6", style: { ...themeVars(theme), background: theme.hub.background, borderColor: theme.hub.border, color: theme.hub.text, boxShadow: theme.hub.shadow } as React.CSSProperties }
             : { className: "card p-5 sm:p-6", style: undefined };
           return (
             <li key={g.name}>
-              <section aria-label={g.name} className={box.className} style={box.style}>
+              <section aria-label={g.name} data-kt={theme?.id} className={box.className} style={box.style}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className={theme ? "k-display text-[2rem] leading-tight" : "text-2xl font-extrabold text-ink"}>{g.name}</h3>
-                  <p className={theme ? "text-sm font-bold" : "text-sm font-semibold text-muted"} style={theme ? { color: "var(--k-brass)" } : undefined}>{g.outlets.length === 1 ? t("kitchen.rest.outlets1") : t("kitchen.rest.outlets", { n: g.outlets.length })}</p>
+                  <h3 className={theme ? "k-display leading-tight" : "text-2xl font-extrabold text-ink"} style={theme ? { fontSize: theme.hub.titleSize } : undefined}>{g.name}</h3>
+                  <p className={theme ? "text-sm font-bold" : "text-sm font-semibold text-muted"} style={theme ? { color: theme.hub.sub } : undefined}>{g.outlets.length === 1 ? t("kitchen.rest.outlets1") : t("kitchen.rest.outlets", { n: g.outlets.length })}</p>
                 </div>
                 <ul className="mt-4 grid gap-4 sm:grid-cols-2">
                   {g.outlets.map((o) => {
@@ -117,7 +121,7 @@ export function RestaurantHub({ owner, waiting, groups, canAdd }: { owner: strin
                   {canAdd && (
                     <li className="flex">
                       {adding === g.name ? <div className="w-full">{form(g.name, false)}</div> : (
-                        <button type="button" onClick={() => open(g.name)} className={`flex min-h-[120px] w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed p-4 text-center font-extrabold transition hover:-translate-y-0.5 ${theme ? "" : "border-line text-ink"}`} style={theme ? { borderColor: "var(--k-brass)", color: "var(--k-cream)" } : undefined}>
+                        <button type="button" onClick={() => open(g.name)} className={`flex min-h-[120px] w-full flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed p-4 text-center font-extrabold transition hover:-translate-y-0.5 ${theme ? "" : "border-line text-ink"}`} style={theme ? { borderColor: theme.hub.add.border, color: theme.hub.add.text } : undefined}>
                           <Plus size={26} aria-hidden="true" /><span>{t("kitchen.out.add")}</span>
                         </button>
                       )}

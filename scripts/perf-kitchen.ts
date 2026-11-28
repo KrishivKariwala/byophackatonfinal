@@ -20,7 +20,7 @@ async function main() {
       const r = await ctx.request.post(srv.base + "/api/auth/demo", { data: { userId: "u_paris" } });
       if (!(await r.json()).ok) throw new Error("sign-in failed");
       const page = await ctx.newPage();
-      await page.goto(`${srv.base}/v/kitchen?outlet=o_paris_1&door=1${v ? "&" + v : ""}`);
+      await page.goto(`${srv.base}/v/kitchen?outlet=${process.env.OUTLET || "o_paris_1"}&door=1${v ? "&" + v : ""}`);
       await page.waitForSelector(".k-skip", { timeout: 30000 });
       await page.click(".k-skip");
       await page.waitForFunction(`typeof window.__kitchen === "function"`, null, { timeout: 60000 });

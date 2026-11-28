@@ -23,5 +23,5 @@ export default async function Kitchen({ searchParams }: { searchParams: Promise<
   const chosen = outlet ?? scope.outlets[0];
   const theme = themeForRestaurant(restaurantOf(chosen, v.businessName.replace(/\s*\(Demo\)\s*$/, "")));
   if (!theme) redirect("/v/outlets"); // this restaurant has no look or 3D kitchen yet
-  return <KitchenExperience theme={theme} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} outletId={chosen.id} serverNow={now(db)} showDoor={sp.door === "1"} />;
+  return <KitchenExperience key={theme.id} theme={theme} outlets={scope.outlets.map((o) => ({ id: o.id, label: o.name ?? o.address }))} outletId={chosen.id} serverNow={now(db)} showDoor={sp.door === "1"} />;
 }

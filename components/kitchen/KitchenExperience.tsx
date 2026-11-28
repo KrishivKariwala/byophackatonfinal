@@ -3,6 +3,12 @@ import "@fontsource/abril-fatface/400.css";
 import "@fontsource/josefin-sans/400.css";
 import "@fontsource/josefin-sans/600.css";
 import "@fontsource/josefin-sans/700.css";
+import "@fontsource/anton/400.css";
+import "@fontsource/outfit/400.css";
+import "@fontsource/outfit/600.css";
+import "@fontsource/outfit/700.css";
+import "@fontsource/yellowtail/400.css";
+import "@fontsource/noto-sans-kannada/kannada-700.css";
 import "./kitchen.css";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -17,7 +23,8 @@ import { DishSheet } from "./DishSheet";
 import { PhotoViewer } from "./PhotoViewer";
 import { CartSheet, type CartEntry } from "./CartSheet";
 import { ListMode } from "./ListMode";
-import { pForDish, type WalkApi } from "./scene/constants";
+import { layoutFor } from "./scene/layouts";
+import type { WalkApi } from "./scene/constants";
 
 // Three.js is large: it is fetched only on this screen, only in the browser (WebGL does not exist on the server).
 const KitchenScene = dynamic(() => import("./scene/KitchenScene"), { ssr: false });
@@ -56,6 +63,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
   const dragged = useRef(false);
   const openedDoor = useRef(false);
   const api = useRef<WalkApi>({ progress: { current: 0 }, focus: { current: null }, look: { current: { x: 0, y: 0 } }, enter: { current: 0 }, busy: { current: false }, rest: { current: null }, shift: { current: { x: 0.17, y: 0 } } }).current;
+  const layout = layoutFor(theme);
   const outlet = outlets.find((o) => o.id === outletId) ?? outlets[0];
   const outletName = outlet.label.replace(/^.*·\s*/, "");
 
@@ -72,7 +80,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
     else if (pref === "on") enter();
     else if (pref === "off" || reduce || lowEnd) setPhase("list");
     else enter();
-    Promise.all([document.fonts.load('48px "Abril Fatface"'), document.fonts.load('40px "Josefin Sans"')]).then(() => setFontsReady(true)).catch(() => setFontsReady(true));
+    Promise.all(theme.fonts.load.map((f) => document.fonts.load(f.font, f.text))).then(() => setFontsReady(true)).catch(() => setFontsReady(true));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const fit = () => { const w = window.innerWidth; api.shift.current = w >= 820 ? { x: 0.17, y: 0 } : { x: 0, y: 0.2 }; setPortrait(w / window.innerHeight < 0.9); };
@@ -102,7 +110,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
     const open = () => { api.focus.current = i; api.rest.current = null; setDraft({ qty: 4, allergens: [...theme.dishes[i].allergens] }); setSheet(i); };
     const el = scroller.current;
     if (walk && el) {
-      const max = Math.max(1, el.scrollHeight - el.clientHeight), want = pForDish(i);
+      const max = Math.max(1, el.scrollHeight - el.clientHeight), want = layout.pForDish(i);
       if (Math.abs(api.progress.current - want) > 0.03) {
         api.focus.current = null; setSheet(null); setViewer(null);
         pending.current = i;
@@ -111,7 +119,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
       }
     }
     open();
-  }, [api, theme.dishes]);
+  }, [api, theme.dishes, layout]);
   const closeSheet = useCallback((manual: boolean) => {
     if (manual) api.rest.current = api.progress.current;
     api.focus.current = null; setSheet(null); setViewer(null);
@@ -154,7 +162,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
   const sceneOn = phase === "door" || phase === "walk";
 
   return (
-    <div ref={root} className="k-root fixed inset-0 z-[60] overflow-hidden" style={{ ["--k-brand" as string]: theme.colors.brand, ["--k-dark" as string]: theme.colors.brandDark, ["--k-accent" as string]: theme.colors.accent, ["--k-cream" as string]: theme.colors.cream, ["--k-wood" as string]: theme.colors.wood, ["--k-ink" as string]: theme.colors.ink, ["--k-brass" as string]: theme.colors.brass, background: theme.colors.ink } as React.CSSProperties}>
+    <div ref={root} data-kt={theme.id} className="k-root fixed inset-0 z-[60] overflow-hidden" style={{ ["--k-brand" as string]: theme.colors.brand, ["--k-dark" as string]: theme.colors.brandDark, ["--k-accent" as string]: theme.colors.accent, ["--k-cream" as string]: theme.colors.cream, ["--k-wood" as string]: theme.colors.wood, ["--k-ink" as string]: theme.colors.ink, ["--k-brass" as string]: theme.colors.brass, background: theme.colors.ink } as React.CSSProperties}>
       {sceneOn && (
         <>
           <KitchenScene theme={theme} api={api} tags={tags} eventSource={root} fontsReady={fontsReady} portrait={portrait} paused={paused}
@@ -167,7 +175,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
             onScroll={(e) => { const el = e.currentTarget; api.progress.current = el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight); if (!moved && el.scrollTop > 30) setMoved(true);
               if (pending.current != null) { if (settle.current) clearTimeout(settle.current); settle.current = setTimeout(() => { const i = pending.current; pending.current = null; if (i != null) focusDish(i, false); }, 220); } }}
             onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => cursor.current?.classList.remove("is-on")}>
-            <div style={{ height: "560%" }} />
+            <div style={{ height: `${Math.round(theme.scrollPerDish * theme.dishes.length)}%` }} />
           </div>
           {/* dish name tags, moved over the dishes by the scene every frame */}
           <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden="true" style={{ opacity: phase === "door" ? 0 : 1, transition: "opacity .6s ease" }}>
@@ -196,7 +204,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
       {phase !== "door" && phase !== "boot" && (
         <header data-k-ui className="pointer-events-none absolute inset-x-0 top-0 z-40 flex flex-wrap items-center gap-1.5 p-2.5 sm:gap-2 sm:p-3">
           <BackToOutlets />
-          <b className="k-display hidden px-1 text-xl sm:block" style={phase === "list" ? { color: "var(--k-brand)" } : { color: "#fff", textShadow: "0 2px 10px #000" }}>Paris Panini</b>
+          <b className="k-display hidden px-1 text-xl sm:block" style={phase === "list" ? { color: "var(--k-brand)" } : { color: "#fff", textShadow: "0 2px 10px #000" }}>{theme.name}</b>
           <span className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-full border-2 px-4 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-brand)", borderColor: "var(--k-brass)", color: "#fff" }}>{outletName}</span>
           <Link href="/v" className="pointer-events-auto inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 text-sm font-extrabold shadow-lg" style={{ background: "var(--k-accent)", borderColor: "var(--k-accent)", color: "#fff" }}><Activity size={16} aria-hidden="true" />{t("kitchen.board.orders")}</Link>
           <div className="pointer-events-auto ml-auto flex items-center gap-1.5">
@@ -246,7 +254,7 @@ export function KitchenExperience({ theme, outlets, outletId, serverNow, showDoo
       {(phase === "walk" || phase === "list") && (
         <button type="button" data-k-ui onClick={() => setCredits(true)} className="absolute bottom-[84px] right-3 z-20 rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-bold text-white/85 hover:bg-black/55 sm:bottom-4">{t("kitchen.credits")}</button>
       )}
-      {toast && <p role="status" className="k-pop absolute left-1/2 top-20 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-xl" style={{ background: "#1a8f3c" }}><Check size={16} aria-hidden="true" />{toast}</p>}
+      {toast && <p role="status" className="k-pop absolute left-1/2 top-20 z-50 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold text-white shadow-xl" style={{ background: "#15803d" }}><Check size={16} aria-hidden="true" />{toast}</p>}
 
       {viewer != null && <PhotoViewer dish={theme.dishes[viewer]} name={t(theme.dishes[viewer].nameKey)} onClose={() => setViewer(null)} />}
       {cartOpen && <CartSheet theme={theme} cart={cart} outlet={{ id: outlet.id, name: outletName }} serverNow={serverNow} t0={t0} onQty={setQty} onRemove={(id) => setQty(id, 0)} onClose={() => setCartOpen(false)} onPublished={() => setCart({})} />}
